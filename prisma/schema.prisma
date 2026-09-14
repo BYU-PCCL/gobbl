@@ -91,6 +91,8 @@ model SkillSession {
   userId           String
   skillKey         String
   stage            String    @default("storyline")
+  variant          String    @default("standard")
+  stepResponses    Json?
   preStressRating  Int?
   postStressRating Int?
   preDebateId      String?
