@@ -7,7 +7,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/Button";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
-import { ChatInterface } from "@/components/chat/ChatInterface";
+import { ChatInterface, type ChatMsg } from "@/components/chat/ChatInterface";
 import { getModule } from "@/lib/modules/registry";
 import type { ModuleStep } from "@/lib/modules/types";
 import { isAnswerValid } from "@/lib/survey/questions";
@@ -38,7 +38,7 @@ type RunnerPhase =
   | { kind: "not-found" }
   | { kind: "intro"; summary: ModuleProgressSummary }
   | { kind: "step"; sessionId: string; step: ModuleStep }
-  | { kind: "practice"; sessionId: string; step: ModuleStep; debateId: string }
+  | { kind: "practice"; sessionId: string; step: ModuleStep; debateId: string; initialMessages: ChatMsg[] }
   | { kind: "complete"; result: CompleteResult };
 
 export default function ModuleRunnerPage() {
@@ -86,7 +86,37 @@ export default function ModuleRunnerPage() {
     setPhase({ kind: "step", sessionId: data.sessionId, step: data.step });
   }
 
+  async function enterPractice(sessionId: string, step: ModuleStep) {
+    const res = await fetch(`/api/modules/${moduleKey}/advance`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, stepId: step.id }),
+    });
+    const { debateId } = await res.json();
+    const debateRes = await fetch(`/api/debates?id=${debateId}`);
+    const debate = await debateRes.json();
+    const initialMessages: ChatMsg[] = debate.messages.map((m: { role: string; content: string }) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+    setPhase({ kind: "practice", sessionId, step, debateId, initialMessages });
+  }
+
+  async function finishPractice(sessionId: string, step: ModuleStep) {
+    const res = await fetch(`/api/modules/${moduleKey}/advance`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, stepId: step.id, action: "finish" }),
+    });
+    const data = await res.json();
+    await goToNextStep(sessionId, data.nextStep);
+  }
+
   async function advance(sessionId: string, step: ModuleStep, answer: unknown) {
+    if (step.kind === "practice") {
+      await enterPractice(sessionId, step);
+      return;
+    }
     const res = await fetch(`/api/modules/${moduleKey}/advance`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -94,12 +124,11 @@ export default function ModuleRunnerPage() {
     });
     const data = await res.json();
     setAnswers({});
+    await goToNextStep(sessionId, data.nextStep);
+  }
 
-    if (step.kind === "practice" && data.debateId) {
-      setPhase({ kind: "practice", sessionId, step, debateId: data.debateId });
-      return;
-    }
-    if (!data.nextStep) {
+  async function goToNextStep(sessionId: string, nextStep: ModuleStep | null) {
+    if (!nextStep) {
       const completeRes = await fetch(`/api/modules/${moduleKey}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -108,7 +137,8 @@ export default function ModuleRunnerPage() {
       setPhase({ kind: "complete", result: await completeRes.json() });
       return;
     }
-    setPhase({ kind: "step", sessionId, step: data.nextStep });
+    setAnswers({});
+    setPhase({ kind: "step", sessionId, step: nextStep });
   }
 
   if (phase.kind === "loading") {
@@ -159,9 +189,9 @@ export default function ModuleRunnerPage() {
         <div className="flex-1 overflow-hidden">
           <ChatInterface
             debateId={phase.debateId}
-            initialMessages={[]}
+            initialMessages={phase.initialMessages}
             maxTurns={maxTurns}
-            onFinish={() => advance(phase.sessionId, phase.step, null)}
+            onFinish={() => finishPractice(phase.sessionId, phase.step)}
           />
         </div>
       </div>
@@ -175,8 +205,10 @@ export default function ModuleRunnerPage() {
         <h1 className="font-display text-2xl font-bold">Module complete!</h1>
         <p className="font-body text-sm text-ink-soft">
           +{phase.result.feathersEarned} feathers
-          {phase.result.postCivility != null &&
-            ` — civility ${Math.round(phase.result.postCivility)}/10`}
+          {(() => {
+            const civility = phase.result.postCivility ?? phase.result.preCivility;
+            return civility != null ? ` — civility ${Math.round(civility)}/10` : null;
+          })()}
         </p>
         <Link href="/skills">
           <Button>Back to skills</Button>

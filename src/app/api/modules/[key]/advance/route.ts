@@ -18,7 +18,7 @@ export async function POST(req: Request, { params }: { params: { key: string } }
     return NextResponse.json({ error: "Module not found" }, { status: 404 });
   }
 
-  const { sessionId, stepId, answer } = await req.json();
+  const { sessionId, stepId, answer, action } = await req.json();
 
   const skillSession = await prisma.skillSession.findFirst({
     where: { id: sessionId, userId, skillKey: moduleConfig.key },
@@ -48,21 +48,33 @@ export async function POST(req: Request, { params }: { params: { key: string } }
       updateData.statement2 = String(answer ?? "");
     }
   } else if (step.kind === "practice") {
-    const debate = await createDebate({
-      userId,
-      topic: step.topic,
-      category: "Training",
-      difficulty: step.difficulty,
-      isTraining: true,
-      trainingMode: moduleConfig.key,
-    });
-    if (!skillSession.preDebateId) {
-      updateData.preDebateId = debate.id;
-    } else {
-      updateData.postDebateId = debate.id;
+    if (action !== "finish") {
+      // Starting (or re-entering, e.g. after a reload mid-conversation): reuse
+      // an existing debate for this slot instead of creating a second one, and
+      // don't touch `stage` yet — the user hasn't actually had the
+      // conversation, so a reload before they finish should resume here, not
+      // skip ahead to the next step.
+      const existingDebateId = skillSession.preDebateId ?? skillSession.postDebateId;
+      if (existingDebateId) {
+        return NextResponse.json({ debateId: existingDebateId });
+      }
+      const debate = await createDebate({
+        userId,
+        topic: step.topic,
+        category: "Training",
+        difficulty: step.difficulty,
+        isTraining: true,
+        trainingMode: moduleConfig.key,
+      });
+      await prisma.skillSession.update({
+        where: { id: skillSession.id },
+        data: skillSession.preDebateId ? { postDebateId: debate.id } : { preDebateId: debate.id },
+      });
+      return NextResponse.json({ debateId: debate.id });
     }
-    responsePayload.debateId = debate.id;
-    responsePayload.openingMessage = debate.openingMessage;
+    // Conversation actually finished (ChatInterface.onFinish) — fall through
+    // to advance stage below.
+    responsePayload.debateId = skillSession.preDebateId ?? skillSession.postDebateId ?? null;
   }
 
   const nextStep = variant.steps[stepIndex + 1] ?? null;
