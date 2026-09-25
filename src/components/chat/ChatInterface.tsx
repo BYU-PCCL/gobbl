@@ -87,7 +87,11 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
         if (updated.length && updated[updated.length - 1].role === "user") {
           updated[updated.length - 1].civilityScore = data.civility?.overall;
         }
-        updated.push({ role: "assistant", content: data.aiResponse });
+        updated.push({
+          role: "assistant",
+          content: data.aiResponse,
+          civilityScore: data.aiCivility?.overall,
+        });
         return updated;
       });
       setTurnNumber(data.turnNumber);

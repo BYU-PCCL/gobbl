@@ -65,6 +65,18 @@ export const DIMENSION_LABELS: Record<keyof CivilityDimensions, string> = {
   interrogation: "Interrogating preconceptions",
 };
 
+/** Paraphrased from the scoring rubric (src/lib/prompts/civility-rubric.ts); shown on hover/tap in the results breakdown. */
+export const DIMENSION_DESCRIPTIONS: Record<keyof CivilityDimensions, string> = {
+  participation:
+    "Staying in the conversation. High scores mean you kept engaging with what the other person said, even when it got tense — rather than dodging, shutting down, or leaving.",
+  selfExpressionReason:
+    "Saying what you think and why. High scores mean you shared your own view and backed it up with reasons, examples, or personal experience instead of just stating a position.",
+  mutualExchange:
+    "Treating the other person as a real conversation partner. High scores mean you acknowledged their points, asked clarifying questions, and aimed to understand rather than to win.",
+  interrogation:
+    "Questioning your own view. High scores mean you admitted fair counterpoints, showed some humility, and stayed open to adjusting what you think.",
+};
+
 /** When holistic LLM fails: average per-message scores/dimensions; legacy messages without new keys use civilityScore only. */
 export function fallbackHolisticFromUserMessages(
   userMessages: { civilityScore: number | null; dimensions: string | null }[]

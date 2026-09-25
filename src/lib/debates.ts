@@ -2,13 +2,15 @@ import { prisma } from "@/lib/db";
 import { getAIOpening } from "@/lib/ai";
 import { flipBelief } from "@/lib/prompts/flipBelief";
 import { getUserBelief } from "@/lib/prompts/userBelief";
-import { pickPersona, isTier } from "@/lib/personas/pool";
+import { pickPersona, getPersonaById, isTier } from "@/lib/personas/pool";
 
 interface CreateDebateParams {
   userId: string;
   topic: string;
   category?: string;
   difficulty?: string;
+  /** A partner previewed on the setup screen; ignored unless it belongs to the chosen tier. */
+  personaId?: string;
   isDaily?: boolean;
   /** Set when this debate is a module's practice step rather than a normal Chat-page debate. */
   isTraining?: boolean;
@@ -24,12 +26,14 @@ export async function createDebate({
   topic,
   category,
   difficulty,
+  personaId,
   isDaily,
   isTraining,
   trainingMode,
 }: CreateDebateParams) {
   const tier = difficulty && isTier(difficulty) ? difficulty : "Friendly Cluck";
-  const persona = pickPersona(tier);
+  const requested = getPersonaById(personaId);
+  const persona = requested && requested.tier === tier ? requested : pickPersona(tier);
 
   const user = await prisma.user.findUnique({
     where: { id: userId },

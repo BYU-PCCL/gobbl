@@ -58,8 +58,12 @@ export function MessageBubble({
             </span>
           </div>
         )}
-        {isUser && civilityScore != null && !highlightDimension && (
-          <div className="mt-1 flex justify-end font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+        {civilityScore != null && !(isUser && highlightDimension) && (
+          <div
+            className={`mt-1 flex font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ink-muted ${
+              isUser ? "justify-end" : "justify-start"
+            }`}
+          >
             Civility {Math.round(civilityScore * 10)}
           </div>
         )}

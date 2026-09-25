@@ -12,9 +12,9 @@ export async function POST(req: Request) {
   }
 
   const userId = (session.user as { id: string }).id;
-  const { topic, category, difficulty, isDaily } = await req.json();
+  const { topic, category, difficulty, personaId, isDaily } = await req.json();
 
-  const result = await createDebate({ userId, topic, category, difficulty, isDaily });
+  const result = await createDebate({ userId, topic, category, difficulty, personaId, isDaily });
 
   return NextResponse.json(result);
 }

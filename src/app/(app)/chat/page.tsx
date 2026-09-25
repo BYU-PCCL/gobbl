@@ -48,6 +48,7 @@ function SetupContent() {
     isDaily ? null : (topicId ?? null),
   );
   const [userBelief, setUserBelief] = useState<BeliefKey | null>(null);
+  const [partner, setPartner] = useState<{ id: string; initials: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [topicDropdownOpen, setTopicDropdownOpen] = useState(false);
 
@@ -65,6 +66,19 @@ function SetupContent() {
       });
     }
   }, [status, router]);
+
+  // Preview the partner for the chosen difficulty so the setup screen shows the same
+  // initials the debate screen will; re-picked whenever the difficulty changes.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let cancelled = false;
+    setPartner(null);
+    fetch(`/api/personas/preview?tier=${encodeURIComponent(selectedDifficulty)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (!cancelled && data) setPartner(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [status, selectedDifficulty]);
 
   if (status === "loading") {
     return (
@@ -85,6 +99,7 @@ function SetupContent() {
           topic: formatTopicForDebate(topic),
           category: topic.category,
           difficulty: selectedDifficulty,
+          personaId: partner?.id,
           beliefKey: flipBelief(userBelief),  // ← auto-flipped from onboarding
           isDaily,
         }),
@@ -108,7 +123,7 @@ function SetupContent() {
           Set up your debate.
         </h1>
         <p className="mt-2 font-body text-sm text-ink-soft">
-          Pick a topic and how hard you want Robert to push back.
+          Pick a topic and how hard you want {partner?.initials ?? "your partner"} to push back.
         </p>
       </div>
 
@@ -217,7 +232,7 @@ function SetupContent() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="font-body text-xs font-bold text-forest-700">
-            Robert opposes you today.
+            {partner?.initials ?? "Your partner"} opposes you today.
           </div>
           <div className="mt-0.5 font-body text-[11px] text-ink-soft">
             {describeFlip(userBelief)}

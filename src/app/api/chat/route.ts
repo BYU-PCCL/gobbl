@@ -54,11 +54,18 @@ export async function POST(req: Request) {
     pickPersona(isTier(debate.difficulty) ? debate.difficulty : "Friendly Cluck");
   const aiResponse = await getAIResponse(conversationHistory, debate.topic, persona);
 
+  // Partner scoring is informational only — a scoring failure must not break the conversation.
+  const partnerCivility = await scoreCivility(aiResponse, conversationHistory, "assistant").catch(
+    () => null
+  );
+
   await prisma.message.create({
     data: {
       debateId,
       role: "assistant",
       content: aiResponse,
+      civilityScore: partnerCivility?.overall ?? null,
+      dimensions: partnerCivility ? JSON.stringify(partnerCivility.dimensions) : null,
     },
   });
 
@@ -66,6 +73,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     aiResponse,
+    aiCivility: partnerCivility,
     civility: civilityResult,
     turnNumber: userMsgCount,
     maxTurns: 8,

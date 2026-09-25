@@ -16,6 +16,12 @@ export const CIVILITY_MESSAGE_SYSTEM = `You are the civility scorer for Gobbl, a
 Respond ONLY with valid JSON:
 {"participation":N,"selfExpressionReason":N,"mutualExchange":N,"interrogation":N,"feedback":"One brief encouraging sentence"}`;
 
+/** Same rubric, applied to the AI partner's latest message instead of the user's. */
+export const CIVILITY_PARTNER_MESSAGE_SYSTEM = CIVILITY_MESSAGE_SYSTEM.replace(
+  "Score the USER'S LATEST MESSAGE only",
+  "Score the AI PARTNER'S LATEST MESSAGE only (the assistant in the transcript, not the user)"
+);
+
 /** Whole-conversation scoring: closure, arc, and all four metrics across the full thread. */
 export const CIVILITY_HOLISTIC_SYSTEM = `You are the civility scorer for Gobbl. Read the FULL conversation between USER and ASSISTANT (Robert). Score the USER's overall performance across the entire thread (1–10 each).
 

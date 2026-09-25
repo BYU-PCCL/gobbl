@@ -95,10 +95,13 @@ export default function ModuleRunnerPage() {
     const { debateId } = await res.json();
     const debateRes = await fetch(`/api/debates?id=${debateId}`);
     const debate = await debateRes.json();
-    const initialMessages: ChatMsg[] = debate.messages.map((m: { role: string; content: string }) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
+    const initialMessages: ChatMsg[] = debate.messages.map(
+      (m: { role: string; content: string; civilityScore: number | null }) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+        civilityScore: m.civilityScore,
+      })
+    );
     setPhase({ kind: "practice", sessionId, step, debateId, initialMessages });
   }
 

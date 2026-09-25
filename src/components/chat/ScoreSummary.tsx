@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DIMENSION_LABELS } from "@/lib/civility";
+import { DIMENSION_LABELS, DIMENSION_DESCRIPTIONS } from "@/lib/civility";
 import { BADGES, LEVELS } from "@/lib/gamification";
 import { FinishResult } from "./ChatInterface";
 import { Button } from "../ui/Button";
@@ -108,6 +108,60 @@ function LevelUpOverlay({
             </Button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Hover (mouse) or tap/click (touch, keyboard) the label to read what the dimension means. */
+function DimensionRow({ dimKey, value }: { dimKey: string; value: number }) {
+  const label = DIMENSION_LABELS[dimKey as keyof typeof DIMENSION_LABELS] || dimKey;
+  const description = DIMENSION_DESCRIPTIONS[dimKey as keyof typeof DIMENSION_DESCRIPTIONS];
+  const [pinned, setPinned] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const open = pinned || hovered;
+  const pct = (value / 10) * 100;
+
+  return (
+    <div>
+      <div className="relative mb-1 flex justify-between text-sm">
+        {description ? (
+          <button
+            type="button"
+            onClick={() => setPinned((p) => !p)}
+            onPointerEnter={(e) => e.pointerType === "mouse" && setHovered(true)}
+            onPointerLeave={(e) => e.pointerType === "mouse" && setHovered(false)}
+            aria-expanded={open}
+            className="flex items-center gap-1.5 text-left text-roost-500 underline decoration-dotted underline-offset-4"
+          >
+            {label}
+            <span
+              aria-hidden
+              className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-current text-[10px] font-bold leading-none"
+            >
+              ?
+            </span>
+          </button>
+        ) : (
+          <span className="text-roost-500">{label}</span>
+        )}
+        <span className="font-semibold text-roost-700">{value.toFixed(1)}</span>
+        {open && description && (
+          // Floats over the rows below instead of pushing them down, so hovering
+          // down the list doesn't make the layout jump under the cursor.
+          <p
+            role="tooltip"
+            className="absolute left-0 right-0 top-full z-10 mt-1 rounded-xl border border-line bg-surface px-3 py-2 text-xs leading-snug text-ink-soft shadow-lift"
+          >
+            {description}
+          </p>
+        )}
+      </div>
+      <div className="h-3 overflow-hidden rounded-full bg-roost-200">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-gobbl-400 via-golden-400 to-gobbl-500 transition-all duration-1000"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );
@@ -251,26 +305,9 @@ export function ScoreSummary({ result, debateId }: ScoreSummaryProps) {
             Civility breakdown
           </h3>
           <div className="space-y-3">
-            {Object.entries(result.dimensions).map(([key, value]) => {
-              const label = DIMENSION_LABELS[key as keyof typeof DIMENSION_LABELS] || key;
-              const pct = (value / 10) * 100;
-              return (
-                <div key={key}>
-                  <div className="mb-1 flex justify-between text-sm">
-                    <span className="text-roost-500">{label}</span>
-                    <span className="font-semibold text-roost-700">
-                      {value.toFixed(1)}
-                    </span>
-                  </div>
-                  <div className="h-3 overflow-hidden rounded-full bg-roost-200">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-gobbl-400 via-golden-400 to-gobbl-500 transition-all duration-1000"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+            {Object.entries(result.dimensions).map(([key, value]) => (
+              <DimensionRow key={key} dimKey={key} value={value} />
+            ))}
           </div>
         </div>
       )}

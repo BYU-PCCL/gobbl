@@ -54,8 +54,10 @@ export default function DebatePage() {
   }
 
   if (result) {
+    // The layout hides the nav and clips this route's <main> (overflow-hidden) so the
+    // chat can own its own scrolling; the long results page needs its own scroll container.
     return (
-      <div className="flex flex-col gap-5">
+      <div className="h-full overflow-y-auto">
         <ScoreSummary result={result} debateId={debate.id} /* [persona-rating: temporary] */ />
       </div>
     );

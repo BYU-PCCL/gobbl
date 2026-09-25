@@ -1,6 +1,10 @@
 import OpenAI from "openai";
 import { CivilityDimensions, CivilityResult, averageDimensions } from "./civility";
-import { CIVILITY_HOLISTIC_SYSTEM, CIVILITY_MESSAGE_SYSTEM } from "./prompts/civility-rubric";
+import {
+  CIVILITY_HOLISTIC_SYSTEM,
+  CIVILITY_MESSAGE_SYSTEM,
+  CIVILITY_PARTNER_MESSAGE_SYSTEM,
+} from "./prompts/civility-rubric";
 import { buildSystemPrompt } from "./prompts/builder";
 import type { Persona } from "@/lib/personas/pool";
 
@@ -98,7 +102,8 @@ export async function getAIResponse(
 
 export async function scoreCivility(
   userMessage: string,
-  conversationContext: ChatMessage[]
+  conversationContext: ChatMessage[],
+  speaker: "user" | "assistant" = "user"
 ): Promise<CivilityResult> {
   if (MOCK_MODE) return getMockScore(userMessage);
 
@@ -111,10 +116,15 @@ export async function scoreCivility(
   const completion = await client.chat.completions.create({
     model: GROK_CIVILITY_MODEL,
     messages: [
-      { role: "system", content: CIVILITY_MESSAGE_SYSTEM },
+      {
+        role: "system",
+        content: speaker === "assistant" ? CIVILITY_PARTNER_MESSAGE_SYSTEM : CIVILITY_MESSAGE_SYSTEM,
+      },
       {
         role: "user",
-        content: `Conversation context:\n${contextStr}\n\nUser message to score:\n"${userMessage}"`,
+        content: `Conversation context:\n${contextStr}\n\n${
+          speaker === "assistant" ? "AI partner" : "User"
+        } message to score:\n"${userMessage}"`,
       },
     ],
     max_tokens: 220,
