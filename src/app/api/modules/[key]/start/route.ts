@@ -16,6 +16,24 @@ export async function POST(req: Request, { params }: { params: { key: string } }
     return NextResponse.json({ error: "Module not found" }, { status: 404 });
   }
 
+  // Already mid-module? Resume that run instead of stacking a second one (double-click,
+  // second tab). `step` is null for a run that finished its last step but was never
+  // finalized — the client completes it.
+  const inProgress = await prisma.skillSession.findFirst({
+    where: { userId, skillKey: moduleConfig.key, completedAt: null },
+    orderBy: { createdAt: "desc" },
+  });
+  if (inProgress) {
+    const resumedVariant =
+      moduleConfig.variants.find((v) => v.key === inProgress.variant) ?? moduleConfig.variants[0];
+    return NextResponse.json({
+      sessionId: inProgress.id,
+      variant: resumedVariant.key,
+      step: resumedVariant.steps.find((s) => s.id === inProgress.stage) ?? null,
+      resumed: true,
+    });
+  }
+
   const { variant } = await req.json().catch(() => ({ variant: undefined }));
   const variantKey = variant === "advanced" ? "advanced" : "standard";
   const chosenVariant =

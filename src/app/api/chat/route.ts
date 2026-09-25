@@ -16,6 +16,11 @@ export async function POST(req: Request) {
 
   const userId = (session.user as { id: string }).id;
   const { debateId, message, finish } = await req.json();
+  const hasMessage = typeof message === "string" && message.trim().length > 0;
+
+  if (!hasMessage && !finish) {
+    return NextResponse.json({ error: "Message is empty" }, { status: 400 });
+  }
 
   const debate = await prisma.debate.findFirst({
     where: { id: debateId, userId },
@@ -24,6 +29,17 @@ export async function POST(req: Request) {
 
   if (!debate) {
     return NextResponse.json({ error: "Debate not found" }, { status: 404 });
+  }
+
+  // Without this, re-posting "finish" re-awards XP/feathers every time.
+  if (debate.completed) {
+    return NextResponse.json({ error: "This debate is already finished" }, { status: 409 });
+  }
+
+  // "Wrap up" carries no new message. Don't record a blank one — it would be scored,
+  // stored in the transcript, and counted toward the user's message total (feathers).
+  if (!hasMessage) {
+    return await finishDebate(userId, debateId, 5);
   }
 
   const conversationHistory: ChatMessage[] = debate.messages.map((m) => ({

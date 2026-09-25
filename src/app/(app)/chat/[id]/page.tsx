@@ -63,11 +63,14 @@ export default function DebatePage() {
     );
   }
 
-  const initialMessages: ChatMsg[] = debate.messages.map((m) => ({
-    role: m.role as "user" | "assistant",
-    content: m.content,
-    civilityScore: m.civilityScore,
-  }));
+  // Older debates stored a blank "user" message when the user hit Wrap up; don't render it.
+  const initialMessages: ChatMsg[] = debate.messages
+    .filter((m) => m.role !== "user" || m.content.trim() !== "")
+    .map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      civilityScore: m.civilityScore,
+    }));
 
   const ideologyLabel =
     IDEOLOGY_OPTIONS.find((o) => o.key === debate.beliefKey)?.label ?? debate.beliefKey;

@@ -35,11 +35,14 @@ interface CompleteResult {
 
 type RunnerPhase =
   | { kind: "loading" }
+  | { kind: "load-error" }
   | { kind: "not-found" }
   | { kind: "intro"; summary: ModuleProgressSummary }
   | { kind: "step"; sessionId: string; step: ModuleStep }
   | { kind: "practice"; sessionId: string; step: ModuleStep; debateId: string; initialMessages: ChatMsg[] }
   | { kind: "complete"; result: CompleteResult };
+
+const GENERIC_ERROR = "Something went wrong. Please try again.";
 
 export default function ModuleRunnerPage() {
   const { status } = useSession();
@@ -50,6 +53,8 @@ export default function ModuleRunnerPage() {
 
   const [phase, setPhase] = useState<RunnerPhase>({ kind: "loading" });
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -57,17 +62,30 @@ export default function ModuleRunnerPage() {
       return;
     }
     if (status === "authenticated" && moduleConfig) {
-      fetch("/api/modules")
-        .then((r) => r.json())
-        .then((modules: ModuleProgressSummary[]) => {
-          const summary = modules.find((m) => m.key === moduleKey);
-          if (!summary) {
-            setPhase({ kind: "not-found" });
-            return;
-          }
-          const resumed = resumeStep(moduleConfig, summary);
-          setPhase(resumed ?? { kind: "intro", summary });
-        });
+      (async () => {
+        const res = await fetch("/api/modules");
+        if (!res.ok) throw new Error("load failed");
+        const modules: ModuleProgressSummary[] = await res.json();
+        const summary = modules.find((m) => m.key === moduleKey);
+        if (!summary) {
+          setPhase({ kind: "not-found" });
+          return;
+        }
+        const progress = summary.progress;
+        // Every step was done but the final "complete" call never landed (e.g. the network
+        // dropped) — finish it now instead of dumping the user back on the intro screen.
+        if (progress?.inProgress && progress.stage === "complete") {
+          const done = await fetch(`/api/modules/${moduleKey}/complete`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId: progress.sessionId }),
+          });
+          if (!done.ok) throw new Error("complete failed");
+          setPhase({ kind: "complete", result: await done.json() });
+          return;
+        }
+        setPhase(resumeStep(moduleConfig, summary) ?? { kind: "intro", summary });
+      })().catch(() => setPhase({ kind: "load-error" }));
     }
   }, [status, moduleKey, moduleConfig, router]);
 
@@ -75,73 +93,111 @@ export default function ModuleRunnerPage() {
     return <NotFoundView />;
   }
 
-  async function start(variant: "standard" | "advanced") {
-    const res = await fetch(`/api/modules/${moduleKey}/start`, {
+  const hasAdvancedVariant = moduleConfig.variants.some((v) => v.key === "advanced");
+
+  async function post(path: string, body: unknown) {
+    const res = await fetch(`/api/modules/${moduleKey}/${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ variant }),
+      body: JSON.stringify(body),
     });
-    const data = await res.json();
-    setAnswers({});
-    setPhase({ kind: "step", sessionId: data.sessionId, step: data.step });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, data };
   }
 
-  async function enterPractice(sessionId: string, step: ModuleStep) {
-    const res = await fetch(`/api/modules/${moduleKey}/advance`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, stepId: step.id }),
-    });
-    const { debateId } = await res.json();
-    const debateRes = await fetch(`/api/debates?id=${debateId}`);
-    const debate = await debateRes.json();
-    const initialMessages: ChatMsg[] = debate.messages.map(
-      (m: { role: string; content: string; civilityScore: number | null }) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-        civilityScore: m.civilityScore,
-      })
-    );
-    setPhase({ kind: "practice", sessionId, step, debateId, initialMessages });
-  }
-
-  async function finishPractice(sessionId: string, step: ModuleStep) {
-    const res = await fetch(`/api/modules/${moduleKey}/advance`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, stepId: step.id, action: "finish" }),
-    });
-    const data = await res.json();
-    await goToNextStep(sessionId, data.nextStep);
-  }
-
-  async function advance(sessionId: string, step: ModuleStep, answer: unknown) {
-    if (step.kind === "practice") {
-      await enterPractice(sessionId, step);
-      return;
+  /** Runs one user action at a time; any failure shows a message instead of a broken screen. */
+  async function run(action: () => Promise<void>) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+    } catch {
+      setError(GENERIC_ERROR);
+    } finally {
+      setBusy(false);
     }
-    const res = await fetch(`/api/modules/${moduleKey}/advance`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, stepId: step.id, answer }),
-    });
-    const data = await res.json();
-    setAnswers({});
-    await goToNextStep(sessionId, data.nextStep);
+  }
+
+  /** Returns true if the failure was handled (caller should stop). */
+  function handleFailure(r: { ok: boolean; status: number; data: { error?: string } }): boolean {
+    if (r.ok) return false;
+    if (r.status === 401) {
+      router.push("/");
+    } else if (r.status === 409) {
+      // Our view of the run is out of date (second tab, double submit) — reload from the server.
+      window.location.reload();
+    } else {
+      setError(r.data?.error || GENERIC_ERROR);
+    }
+    return true;
+  }
+
+  async function finalize(sessionId: string) {
+    const r = await post("complete", { sessionId });
+    if (handleFailure(r)) return;
+    setPhase({ kind: "complete", result: r.data });
   }
 
   async function goToNextStep(sessionId: string, nextStep: ModuleStep | null) {
     if (!nextStep) {
-      const completeRes = await fetch(`/api/modules/${moduleKey}/complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId }),
-      });
-      setPhase({ kind: "complete", result: await completeRes.json() });
+      await finalize(sessionId);
       return;
     }
     setAnswers({});
     setPhase({ kind: "step", sessionId, step: nextStep });
+  }
+
+  function start(variant: "standard" | "advanced") {
+    return run(async () => {
+      const r = await post("start", { variant });
+      if (handleFailure(r)) return;
+      setAnswers({});
+      // step is null when resuming a run whose last step was done but never finalized.
+      if (!r.data.step) {
+        await finalize(r.data.sessionId);
+        return;
+      }
+      setPhase({ kind: "step", sessionId: r.data.sessionId, step: r.data.step });
+    });
+  }
+
+  function enterPractice(sessionId: string, step: ModuleStep) {
+    return run(async () => {
+      const r = await post("advance", { sessionId, stepId: step.id });
+      if (handleFailure(r)) return;
+      const debateRes = await fetch(`/api/debates?id=${r.data.debateId}`);
+      if (!debateRes.ok) {
+        setError(GENERIC_ERROR);
+        return;
+      }
+      const debate = await debateRes.json();
+      const initialMessages: ChatMsg[] = debate.messages.map(
+        (m: { role: string; content: string; civilityScore: number | null }) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          civilityScore: m.civilityScore,
+        })
+      );
+      setPhase({ kind: "practice", sessionId, step, debateId: r.data.debateId, initialMessages });
+    });
+  }
+
+  function finishPractice(sessionId: string, step: ModuleStep) {
+    return run(async () => {
+      const r = await post("advance", { sessionId, stepId: step.id, action: "finish" });
+      if (handleFailure(r)) return;
+      await goToNextStep(sessionId, r.data.nextStep);
+    });
+  }
+
+  function advance(sessionId: string, step: ModuleStep, answer: unknown) {
+    if (step.kind === "practice") return enterPractice(sessionId, step);
+    return run(async () => {
+      const r = await post("advance", { sessionId, stepId: step.id, answer });
+      if (handleFailure(r)) return;
+      await goToNextStep(sessionId, r.data.nextStep);
+    });
   }
 
   if (phase.kind === "loading") {
@@ -154,6 +210,17 @@ export default function ModuleRunnerPage() {
 
   if (phase.kind === "not-found") {
     return <NotFoundView />;
+  }
+
+  if (phase.kind === "load-error") {
+    return (
+      <div className="flex flex-col items-center gap-3 py-16 text-center">
+        <p className="font-body text-sm text-ink-soft">Couldn&apos;t load this module.</p>
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Try again
+        </Button>
+      </div>
+    );
   }
 
   if (phase.kind === "intro") {
@@ -170,14 +237,22 @@ export default function ModuleRunnerPage() {
         </div>
         {phase.summary.timesCompleted > 0 ? (
           <div className="flex flex-col gap-2.5">
-            <Button onClick={() => start("standard")}>Try again</Button>
-            <Button variant="outline" onClick={() => start("advanced")}>
-              Level up
+            <Button disabled={busy} onClick={() => start("standard")}>
+              Try again
             </Button>
+            {/* Only offer "Level up" when this module actually has a harder variant. */}
+            {hasAdvancedVariant && (
+              <Button variant="outline" disabled={busy} onClick={() => start("advanced")}>
+                Level up
+              </Button>
+            )}
           </div>
         ) : (
-          <Button onClick={() => start("standard")}>Start</Button>
+          <Button disabled={busy} onClick={() => start("standard")}>
+            Start
+          </Button>
         )}
+        {error && <p className="text-center font-body text-sm text-plume-500">{error}</p>}
       </div>
     );
   }
@@ -189,6 +264,15 @@ export default function ModuleRunnerPage() {
         <div className="border-b border-line bg-surface px-4 py-2 font-body text-xs text-ink-soft">
           Practice conversation — {moduleConfig.title}
         </div>
+        {error && (
+          // The conversation already ended but recording it failed; without a retry the user is stuck here.
+          <div className="flex items-center justify-between gap-3 border-b border-line bg-plume-100 px-4 py-2 font-body text-xs text-plume-700">
+            <span>{error}</span>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => finishPractice(phase.sessionId, phase.step)}>
+              Retry
+            </Button>
+          </div>
+        )}
         <div className="flex-1 overflow-hidden">
           <ChatInterface
             debateId={phase.debateId}
@@ -226,9 +310,14 @@ export default function ModuleRunnerPage() {
   return (
     <div className="flex flex-col gap-5">
       <StepView step={step} answers={answers} onChange={setAnswers} />
-      <Button disabled={!canContinue} onClick={() => advance(sessionId, step, answerPayload(step, answers))}>
+      <Button
+        disabled={!canContinue || busy}
+        loading={busy}
+        onClick={() => advance(sessionId, step, answerPayload(step, answers))}
+      >
         {step.kind === "practice" ? "Start conversation" : "Continue"}
       </Button>
+      {error && <p className="text-center font-body text-sm text-plume-500">{error}</p>}
     </div>
   );
 }

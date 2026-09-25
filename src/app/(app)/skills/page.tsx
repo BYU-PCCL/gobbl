@@ -63,6 +63,7 @@ export default function SkillsPage() {
   const { status } = useSession();
   const router = useRouter();
   const [modules, setModules] = useState<ModuleListItem[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -71,10 +72,29 @@ export default function SkillsPage() {
     }
     if (status === "authenticated") {
       fetch("/api/modules")
-        .then((r) => r.json())
-        .then(setModules);
+        .then((r) => {
+          if (!r.ok) throw new Error("load failed");
+          return r.json();
+        })
+        .then(setModules)
+        .catch(() => setLoadError(true));
     }
   }, [status, router]);
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
+        <p className="font-body text-sm text-ink-soft">Couldn&apos;t load your skills.</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="font-body text-sm font-semibold text-primary underline-offset-2 hover:underline"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   if (!modules) {
     return (
