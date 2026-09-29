@@ -57,6 +57,7 @@ function SetupContent() {
   const [partner, setPartner] = useState<{ id: string; initials: string } | null>(null);
   const [mode, setMode] = useState<"text" | "audio" | "video">("text");
   const [loading, setLoading] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
   const [topicDropdownOpen, setTopicDropdownOpen] = useState(false);
 
   const topic: Topic | null = (() => {
@@ -98,6 +99,7 @@ function SetupContent() {
   const startDebate = async () => {
     if (!topic) return;
     setLoading(true);
+    setStartError(null);
     try {
       const res = await fetch("/api/debates", {
         method: "POST",
@@ -115,6 +117,9 @@ function SetupContent() {
       const data = await res.json();
       router.push(`/chat/${data.id}`);
     } catch {
+      // A failure here used to be silent — the button just stopped spinning with no
+      // explanation, which looks identical to the debate simply never starting.
+      setStartError("Couldn't start the debate. Check your connection and try again.");
       setLoading(false);
     }
   };
@@ -320,6 +325,10 @@ function SetupContent() {
           })}
         </div>
       </section>
+
+      {startError && (
+        <p className="text-center font-body text-sm text-plume-500">{startError}</p>
+      )}
 
       <Button
         size="lg"

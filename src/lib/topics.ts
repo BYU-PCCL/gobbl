@@ -14,6 +14,7 @@ export const CATEGORIES = [
   "Education",
   "Technology",
   "Justice",
+  "Civil Rights",
 ] as const;
 
 export const TOPICS: Topic[] = [
@@ -107,6 +108,14 @@ export const TOPICS: Topic[] = [
     category: "Education",
     prompt:
       "The federal government should forgive a significant portion of student loan debt to help a generation burdened by education costs they were told were necessary.",
+  },
+  {
+    id: "affirmative-action",
+    title: "Affirmative Action in Admissions",
+    description: "Should colleges be able to consider race in admissions?",
+    category: "Civil Rights",
+    prompt:
+      "Colleges and universities should be allowed to consider race as one factor in admissions to maintain diverse student bodies and address the lasting effects of historical discrimination.",
   },
   {
     id: "drug-policy",
