@@ -5,6 +5,7 @@ import {
   CIVILITY_MESSAGE_SYSTEM,
   CIVILITY_PARTNER_MESSAGE_SYSTEM,
 } from "./prompts/civility-rubric";
+import { ANALYZE_SYSTEM } from "./prompts/analyze";
 import { buildSystemPrompt } from "./prompts/builder";
 import type { Persona } from "@/lib/personas/pool";
 
@@ -216,4 +217,55 @@ function getMockScore(message: string): CivilityResult {
       ? "Nice work asking questions — that shows real engagement with the other side. Your feathers are looking bright!"
       : "Try asking a question to show you're actively engaging with the other viewpoint. Curious turkeys earn more feathers!",
   };
+}
+
+export interface TurnFeedback {
+  turn: number;
+  wellDone: string;
+  tryInstead: string;
+}
+
+/** Turn-by-turn feedback on a finished conversation ("Analyze" button). Null on failure. */
+export async function analyzeDebate(
+  transcript: string,
+  userTurnCount: number
+): Promise<TurnFeedback[] | null> {
+  if (userTurnCount === 0) return [];
+  if (MOCK_MODE) return getMockAnalysis(userTurnCount);
+
+  const client = getClient()!;
+  const completion = await client.chat.completions.create({
+    model: GROK_CIVILITY_MODEL,
+    messages: [
+      { role: "system", content: ANALYZE_SYSTEM },
+      { role: "user", content: `Full conversation:\n\n${transcript}` },
+    ],
+    max_tokens: 200 * userTurnCount + 200,
+    temperature: 0.4,
+  });
+
+  try {
+    const raw = completion.choices[0]?.message?.content || "";
+    const jsonMatch = raw.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error("No JSON array found");
+    const parsed = JSON.parse(jsonMatch[0]) as Array<Record<string, unknown>>;
+    const feedback = parsed
+      .map((p) => ({
+        turn: Number(p.turn),
+        wellDone: String(p.wellDone ?? "").trim(),
+        tryInstead: String(p.tryInstead ?? "").trim(),
+      }))
+      .filter((t) => Number.isInteger(t.turn) && t.wellDone && t.tryInstead);
+    return feedback.length > 0 ? feedback : null;
+  } catch {
+    return null;
+  }
+}
+
+function getMockAnalysis(userTurnCount: number): TurnFeedback[] {
+  return Array.from({ length: userTurnCount }, (_, i) => ({
+    turn: i + 1,
+    wellDone: "You stayed in the conversation and responded directly to what they said.",
+    tryInstead: "Try asking a follow-up question before making your next point.",
+  }));
 }

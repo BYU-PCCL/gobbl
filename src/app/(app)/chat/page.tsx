@@ -12,6 +12,12 @@ import { DIFFICULTIES } from "@/lib/gamification";
 import { describeFlip, flipBelief } from "@/lib/prompts/flipBelief";
 import { parseBeliefKey, type BeliefKey } from "@/lib/prompts/beliefs";
 
+const MODES: { key: "text" | "audio" | "video"; label: string; disabled?: boolean }[] = [
+  { key: "text", label: "Text" },
+  { key: "audio", label: "Audio", disabled: true },
+  { key: "video", label: "Video", disabled: true },
+];
+
 // Map difficulty key → stage avatar + tone for the picker.
 const DIFFICULTY_META: Record<string, { stage: number; tone: "forest" | "primary" | "rust"; xp: number }> = {
   "Friendly Cluck": { stage: 3, tone: "forest",  xp: 60  },
@@ -49,6 +55,7 @@ function SetupContent() {
   );
   const [userBelief, setUserBelief] = useState<BeliefKey | null>(null);
   const [partner, setPartner] = useState<{ id: string; initials: string } | null>(null);
+  const [mode, setMode] = useState<"text" | "audio" | "video">("text");
   const [loading, setLoading] = useState(false);
   const [topicDropdownOpen, setTopicDropdownOpen] = useState(false);
 
@@ -277,6 +284,36 @@ function SetupContent() {
                   >
                     <span className={TONE_FG[meta.tone]}>Selected</span>
                   </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 03 Mode */}
+      <section>
+        <div className="mb-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-muted">
+          03 — Mode
+        </div>
+        <div className="flex gap-2.5">
+          {MODES.map((m) => {
+            const selected = mode === m.key;
+            return (
+              <button
+                key={m.key}
+                type="button"
+                disabled={m.disabled}
+                onClick={() => setMode(m.key)}
+                className={`relative flex flex-1 flex-col items-center gap-1 rounded-2xl border-2 bg-surface py-3 text-center transition-colors ${
+                  selected ? "border-primary" : "border-line hover:border-ink-muted"
+                } ${m.disabled ? "opacity-50" : ""}`}
+              >
+                <span className="font-body text-sm font-semibold text-ink">{m.label}</span>
+                {m.disabled && (
+                  <span className="font-mono text-[9px] uppercase tracking-[0.06em] text-ink-muted">
+                    Coming soon
+                  </span>
                 )}
               </button>
             );

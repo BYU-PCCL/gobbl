@@ -9,7 +9,14 @@ import { ChatInterface, type FinishResult, type ChatMsg } from "@/components/cha
 import { ScoreSummary } from "@/components/chat/ScoreSummary";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { FlatTurkey, FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
+import { Button } from "@/components/ui/Button";
 import { IDEOLOGY_OPTIONS } from "@/lib/prompts/beliefs";
+
+interface TurnFeedback {
+  turn: number;
+  wellDone: string;
+  tryInstead: string;
+}
 
 interface DebateData {
   id: string;
@@ -20,6 +27,7 @@ interface DebateData {
   personaInitials: string | null;
   completed: boolean;
   overallScore: number | null;
+  analysis: TurnFeedback[] | null;
   messages: { id: string; role: string; content: string; civilityScore: number | null }[];
 }
 
@@ -31,13 +39,34 @@ export default function DebatePage() {
   const [debate, setDebate] = useState<DebateData | null>(null);
   const [result, setResult] = useState<FinishResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [analysis, setAnalysis] = useState<TurnFeedback[] | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+
+  async function runAnalysis() {
+    setAnalyzing(true);
+    setAnalyzeError(null);
+    try {
+      const res = await fetch(`/api/debates/${debateId}/analyze`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAnalyzeError(data.error || "Something went wrong.");
+        return;
+      }
+      setAnalysis(data.analysis);
+    } catch {
+      setAnalyzeError("Something went wrong.");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
 
   useEffect(() => {
     if (status === "unauthenticated") { router.push("/"); return; }
     if (status === "authenticated" && debateId) {
       fetch(`/api/debates?id=${debateId}`)
         .then((r) => r.json())
-        .then((data) => { setDebate(data); setLoading(false); })
+        .then((data) => { setDebate(data); setAnalysis(data.analysis ?? null); setLoading(false); })
         .catch(() => router.push("/chat"));
     }
   }, [status, debateId, router]);
@@ -146,6 +175,7 @@ export default function DebatePage() {
   );
 
   if (debate.completed) {
+    let turn = 0;
     return (
       <div className="flex h-full flex-col">
         {header}
@@ -156,14 +186,38 @@ export default function DebatePage() {
           </Link>
         </div>
         <div className="flex-1 space-y-3.5 overflow-y-auto p-4">
-          {initialMessages.map((msg, i) => (
-            <MessageBubble
-              key={i}
-              role={msg.role}
-              content={msg.content}
-              civilityScore={msg.civilityScore}
-            />
-          ))}
+          {!analysis && (
+            <div className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-surface p-4 text-center">
+              <p className="font-body text-xs text-ink-soft">
+                Get turn-by-turn feedback on what you did well and what you could try differently.
+              </p>
+              <Button size="sm" onClick={runAnalysis} disabled={analyzing} loading={analyzing}>
+                Analyze
+              </Button>
+              {analyzeError && <p className="font-body text-xs text-plume-500">{analyzeError}</p>}
+            </div>
+          )}
+          {initialMessages.map((msg, i) => {
+            if (msg.role === "user") turn += 1;
+            const feedback = msg.role === "user" ? analysis?.find((a) => a.turn === turn) : undefined;
+            return (
+              <div key={i}>
+                <MessageBubble role={msg.role} content={msg.content} civilityScore={msg.civilityScore} />
+                {feedback && (
+                  <div className="mt-1.5 ml-auto max-w-[78%] space-y-1 rounded-2xl border border-forest-300/40 bg-forest-100 px-3.5 py-2.5 font-body text-xs text-forest-700">
+                    <p>
+                      <span className="font-bold">Nice: </span>
+                      {feedback.wellDone}
+                    </p>
+                    <p>
+                      <span className="font-bold">Try: </span>
+                      {feedback.tryInstead}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );

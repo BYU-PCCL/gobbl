@@ -54,6 +54,9 @@ export async function createDebate({
       isDaily: isDaily || false,
       isTraining: isTraining || false,
       trainingMode: trainingMode ?? null,
+      // Debate.mode exists for the audio/video work the setup screen's mode picker is
+      // waiting on — only "text" is implemented, so every debate is created as one today.
+      mode: "text",
     },
   });
 

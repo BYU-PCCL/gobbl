@@ -60,6 +60,8 @@ model Debate {
   systemPrompt        String?
   trainingMode        String?
   trainingSkillScores Json?
+  mode         String    @default("text")
+  analysis     Json?
   user         User      @relation(fields: [userId], references: [id])
   messages     Message[]
   personaRatings PersonaRating[] // [persona-rating: temporary]
