@@ -100,8 +100,13 @@ function SetupContent() {
     if (!topic) return;
     setLoading(true);
     setStartError(null);
+
+    // Split into two failure modes instead of one catch-all: whether the request
+    // reached the server at all changes what's actually worth telling the user (and
+    // what's worth asking them to report back).
+    let res: Response;
     try {
-      const res = await fetch("/api/debates", {
+      res = await fetch("/api/debates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -113,15 +118,25 @@ function SetupContent() {
           isDaily,
         }),
       });
-      if (!res.ok) throw new Error("Failed to start");
-      const data = await res.json();
-      router.push(`/chat/${data.id}`);
     } catch {
-      // A failure here used to be silent — the button just stopped spinning with no
-      // explanation, which looks identical to the debate simply never starting.
-      setStartError("Couldn't start the debate. Check your connection and try again.");
+      // fetch() itself threw — the request never reached the server (offline, DNS,
+      // or something in the browser blocked it outright).
+      setStartError("Couldn't reach the server — check your connection and try again.");
       setLoading(false);
+      return;
     }
+
+    if (!res.ok) {
+      // The server responded, so the request wasn't blocked — something failed on our
+      // end. Surface whatever it told us instead of a generic message.
+      const data = await res.json().catch(() => ({}));
+      setStartError(data.error || "Something went wrong on our end. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    const data = await res.json();
+    router.push(`/chat/${data.id}`);
   };
 
   return (
