@@ -140,25 +140,24 @@ function SetupContent() {
   };
 
   return (
-    <div className="flex flex-col gap-5 pb-8">
-      <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted">
+    <div className="flex flex-col gap-5 pb-8 lg:gap-8">
+      <p className="font-body text-sm font-semibold text-primary">
         {isDaily ? "Daily Gobble" : "New debate"}
-      </div>
+      </p>
 
       <div>
-        <h1 className="font-display text-[38px] font-bold leading-none tracking-[-0.035em]">
+        <h1 className="font-display text-[38px] font-bold leading-none tracking-[-0.035em] lg:text-[56px]">
           Set up your debate.
         </h1>
-        <p className="mt-2 font-body text-sm text-ink-soft">
+        <p className="mt-2 font-body text-sm text-ink-soft lg:mt-3 lg:text-base">
           Pick a topic and how hard you want {partner?.initials ?? "your partner"} to push back.
         </p>
       </div>
 
-      {/* 01 Topic */}
+      <div className="flex flex-col gap-5 lg:grid lg:grid-cols-2 lg:items-start lg:gap-10">
+      <div className="flex flex-col gap-5">
       <section>
-        <div className="mb-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-muted">
-          01 — Topic
-        </div>
+        <h2 className="mb-2.5 font-display text-base font-bold tracking-[-0.01em]">Topic</h2>
 
         {isDaily && topic ? (
           <div className="relative rounded-2xl border-2 border-primary bg-surface p-4">
@@ -212,7 +211,7 @@ function SetupContent() {
             </button>
 
             {topicDropdownOpen && (
-              <div className="mt-2 max-h-72 overflow-y-auto rounded-2xl border border-line bg-surface">
+              <div className="mt-2 max-h-72 overflow-y-auto rounded-2xl lg:max-h-[26rem] border border-line bg-surface">
                 {TOPICS.map((t, i) => {
                   const selected = selectedTopicId === t.id;
                   return (
@@ -267,11 +266,11 @@ function SetupContent() {
         </div>
       </div>
 
-      {/* 02 Difficulty */}
+      </div>
+
+      <div className="flex flex-col gap-5 lg:sticky lg:top-0">
       <section>
-        <div className="mb-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-muted">
-          02 — Difficulty
-        </div>
+        <h2 className="mb-2.5 font-display text-base font-bold tracking-[-0.01em]">Difficulty</h2>
         <div className="flex flex-col gap-2.5">
           {DIFFICULTIES.map((d) => {
             const meta = DIFFICULTY_META[d.key];
@@ -311,11 +310,8 @@ function SetupContent() {
         </div>
       </section>
 
-      {/* 03 Mode */}
       <section>
-        <div className="mb-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-muted">
-          03 — Mode
-        </div>
+        <h2 className="mb-2.5 font-display text-base font-bold tracking-[-0.01em]">Mode</h2>
         <div className="flex gap-2.5">
           {MODES.map((m) => {
             const selected = mode === m.key;
@@ -354,6 +350,8 @@ function SetupContent() {
       >
         {topic ? "Start the debate" : "Pick a topic to continue"}
       </Button>
+      </div>
+      </div>
     </div>
   );
 }

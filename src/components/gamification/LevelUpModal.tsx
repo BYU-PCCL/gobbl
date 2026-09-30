@@ -86,7 +86,7 @@ export function LevelUpModal({
 
       <div className="relative mx-auto flex h-full max-w-md flex-col items-center px-6 pt-20">
         <div className="font-mono text-[11px] uppercase tracking-[0.24em] text-ochre">
-          ★ Level Up ★
+          Level up
         </div>
         <h1 className="mt-3 text-center font-display text-[50px] font-extrabold leading-[0.95] tracking-[-0.04em]">
           You&apos;re a

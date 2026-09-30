@@ -88,3 +88,19 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgb(var(--ink-muted));
 }
+
+/* Keyboard focus — visible on every interactive element, invisible for mouse/touch */
+:focus-visible {
+  outline: 2px solid rgb(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Respect reduced-motion preferences across the idle turkey animations and entrances */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -20,7 +20,6 @@ export interface BadgeDefinition {
   key: string;
   name: string;
   description: string;
-  icon: string;
 }
 
 export const BADGES: BadgeDefinition[] = [
@@ -28,49 +27,41 @@ export const BADGES: BadgeDefinition[] = [
     key: "first-gobble",
     name: "First Gobble",
     description: "Complete your first debate",
-    icon: "🦃",
   },
   {
     key: "free-range",
     name: "Free Range",
     description: "Score 7+ civility in 3 debates",
-    icon: "🌾",
   },
   {
     key: "warm-nest",
     name: "Warm Nest",
     description: "Score 9+ on mutual exchange & listening (in a debate)",
-    icon: "🪺",
   },
   {
     key: "migration-streak",
     name: "Migration Streak",
     description: "Maintain a 7-day streak",
-    icon: "🪶",
   },
   {
     key: "flock-leader",
     name: "Flock Leader",
     description: "Complete 10 Full Gobble debates",
-    icon: "👑",
   },
   {
     key: "golden-drumstick",
     name: "Golden Drumstick",
     description: "Reach level 5 (Tom)",
-    icon: "🍗",
   },
   {
     key: "sharp-beak",
     name: "Sharp Beak",
     description: "Score 9+ on reason & expression (in a debate)",
-    icon: "🎯",
   },
   {
     key: "roosting-ritual",
     name: "Roosting Ritual",
     description: "Complete 30 daily gobbles",
-    icon: "🌙",
   },
 ];
 

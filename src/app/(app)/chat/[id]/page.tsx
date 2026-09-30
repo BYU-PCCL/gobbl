@@ -115,7 +115,8 @@ export default function DebatePage() {
     : null;
 
   const header = (
-    <div className="border-b border-line bg-surface px-4 pb-3 pt-2">
+    <div className="border-b border-line bg-surface px-4 pb-3 pt-2 sm:px-8 lg:pt-4">
+      <div className="mx-auto max-w-3xl">
       <div className="flex items-center gap-2.5">
         <button
           type="button"
@@ -171,6 +172,7 @@ export default function DebatePage() {
           </span>
         </div>
       )}
+      </div>
     </div>
   );
 
@@ -185,7 +187,8 @@ export default function DebatePage() {
             Back home
           </Link>
         </div>
-        <div className="flex-1 space-y-3.5 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:px-8">
+          <div className="mx-auto max-w-3xl space-y-3.5">
           {!analysis && (
             <div className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-surface p-4 text-center">
               <p className="font-body text-xs text-ink-soft">
@@ -218,6 +221,7 @@ export default function DebatePage() {
               </div>
             );
           })}
+          </div>
         </div>
       </div>
     );

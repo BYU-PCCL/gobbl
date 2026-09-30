@@ -9,8 +9,9 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { FlatTurkey, TURKEY_STAGE_LABELS } from "@/components/gamification/FlatTurkey";
 import { AvatarWithItems } from "@/components/gamification/AvatarWithItems";
-import { StreakCounter } from "@/components/gamification/StreakCounter";
-import { LEVELS, BADGES } from "@/lib/gamification";
+import { BadgeMark } from "@/components/gamification/BadgeMark";
+import { Icon } from "@/components/ui/Icon";
+import { BADGES } from "@/lib/gamification";
 import type { EquippedCosmetics } from "@/lib/shop";
 
 interface UserData {
@@ -70,19 +71,19 @@ export default function ProfilePage() {
   const civilityRows = userData.civilityScore > 0 ? civilityBreakdown(userData.civilityScore) : null;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
       {/* Hero card */}
-      <Card className="overflow-hidden p-6 text-center">
+      <Card className="overflow-hidden p-6 text-center lg:sticky lg:top-0 lg:col-span-5 lg:p-8">
         <div className="pointer-events-none absolute -right-14 -top-14 h-56 w-56 rounded-full bg-ochre-soft/60" />
         <div className="relative">
-          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-muted">
-            Lv. {String(userData.level).padStart(2, "0")} / 08
+          <div className="font-body text-xs font-semibold text-ink-muted">
+            Level {userData.level} of 8
           </div>
-          <h1 className="mt-2 font-display text-[36px] font-bold tracking-[-0.03em]">
+          <h1 className="mt-2 font-display text-[36px] font-bold tracking-[-0.03em] lg:text-[44px]">
             {userData.username}
           </h1>
           <p className="mt-1 font-body text-xs text-ink-soft">
-            Joined {new Date(userData.createdAt).toLocaleDateString()} · {userData.featherBalance.toLocaleString()} feathers
+            Joined {new Date(userData.createdAt).toLocaleDateString()}. {userData.featherBalance.toLocaleString()} feathers.
           </p>
           <div className="mt-3 flex justify-center">
             <AvatarWithItems stage={userData.level} size={180} equipped={userData.equippedCosmetics} animate />
@@ -95,16 +96,15 @@ export default function ProfilePage() {
         </div>
       </Card>
 
+      <div className="flex flex-col gap-5 lg:col-span-7 lg:gap-8">
       {/* Evolution timeline */}
       <section>
         <div className="mb-2.5 flex items-baseline justify-between">
           <h2 className="font-display text-xl font-bold tracking-[-0.02em]">Evolution</h2>
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted">
-            {userData.level} of 8
-          </span>
+          <span className="font-body text-xs text-ink-muted">{userData.level} of 8 unlocked</span>
         </div>
         <Card className="p-4">
-          <div className="grid grid-cols-4 gap-x-1.5 gap-y-3.5">
+          <div className="grid grid-cols-4 gap-x-1.5 gap-y-3.5 xl:grid-cols-8">
             {stages.map((s) => {
               const unlocked = s <= userData.level;
               const current = s === userData.level;
@@ -118,8 +118,8 @@ export default function ProfilePage() {
                   <div className={unlocked ? "" : "opacity-35 grayscale"}>
                     <FlatTurkey stage={s} size={56} />
                   </div>
-                  <div className={`font-mono text-[9px] font-semibold ${unlocked ? "text-ink" : "text-ink-muted"}`}>
-                    LV {s}
+                  <div className={`font-mono text-[10px] font-semibold ${unlocked ? "text-ink" : "text-ink-muted"}`}>
+                    {s}
                   </div>
                   <div className="text-center font-body text-[10px] leading-tight text-ink-soft">
                     {TURKEY_STAGE_LABELS[s as 1]}
@@ -160,25 +160,25 @@ export default function ProfilePage() {
 
       {/* Badges */}
       <section>
-        <h2 className="mb-2.5 font-display text-xl font-bold tracking-[-0.02em]">
-          Badges · {userData.badges.length} of {BADGES.length}
-        </h2>
+        <div className="mb-2.5 flex items-baseline justify-between">
+          <h2 className="font-display text-xl font-bold tracking-[-0.02em]">Badges</h2>
+          <span className="font-body text-xs text-ink-muted">
+            {userData.badges.length} of {BADGES.length} earned
+          </span>
+        </div>
         <div className="grid grid-cols-4 gap-2.5">
           {BADGES.map((b) => {
             const earned = userData.badges.includes(b.key);
             return (
               <div
                 key={b.key}
-                className={`flex aspect-square flex-col items-center justify-center rounded-2xl border p-1.5 transition-opacity ${
-                  earned ? "border-line bg-surface" : "border-line opacity-45"
+                className={`flex aspect-square flex-col items-center justify-center gap-1.5 rounded-2xl border p-1.5 lg:aspect-auto lg:gap-2 lg:px-2 lg:py-4 ${
+                  earned ? "border-line bg-surface" : "border-dashed border-line text-ink-muted"
                 }`}
-                title={b.description}
+                title={earned ? b.description : `Locked. ${b.description}`}
               >
-                <div
-                  className={`mb-1 h-7 w-7 rounded-full ${earned ? "bg-primary" : "bg-line"}`}
-                  aria-hidden
-                />
-                <div className="text-center font-body text-[9px] font-semibold leading-tight">
+                <BadgeMark badgeKey={b.key} earned={earned} size={40} />
+                <div className="text-center font-body text-[10px] font-semibold leading-tight lg:text-[11px]">
                   {b.name}
                 </div>
               </div>
@@ -203,6 +203,7 @@ export default function ProfilePage() {
           <ChevronRight />
         </button>
       </div>
+      </div>
     </div>
   );
 }
@@ -211,15 +212,13 @@ function MiniStat({ k, v }: { k: string; v: string | number }) {
   return (
     <div className="rounded-xl border border-line bg-bg px-3.5 py-2 text-center">
       <div className="font-display text-lg font-bold tracking-[-0.02em] num-tabular">{v}</div>
-      <div className="font-mono text-[9px] uppercase tracking-[0.08em] text-ink-muted">{k}</div>
+      <div className="font-body text-[11px] text-ink-muted">{k}</div>
     </div>
   );
 }
 
 function ChevronRight() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
+    <Icon name="chevron-right" size={16} strokeWidth={2} className="text-ink-muted" />
   );
 }

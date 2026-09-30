@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { Badge } from "@/components/ui/Badge";
+import { Icon } from "@/components/ui/Icon";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { AvatarWithItems, ItemProductShot } from "@/components/gamification/AvatarWithItems";
 import type { EquippedCosmetics, ShopSlot } from "@/lib/shop";
@@ -114,21 +115,17 @@ export default function ShopPage() {
     .filter(Boolean) as ShopItemRow[];
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between lg:col-span-12">
         <div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-muted">
-            Bazaar
-          </div>
-          <h1 className="mt-1 font-display text-[28px] font-bold tracking-[-0.03em]">
+          <p className="font-body text-sm font-semibold text-primary">The Bazaar</p>
+          <h1 className="mt-1 font-display text-[28px] font-bold tracking-[-0.03em] lg:text-[48px]">
             Dress your turkey.
           </h1>
         </div>
         <div className="inline-flex items-center gap-1.5 rounded-full border border-ochre bg-ochre-soft px-3.5 py-2">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M21 3c-7 0-11 5-12 9-1 4 0 8 0 9h2c0-3 1-7 3-10s5-5 7-8z" fill="rgb(228 165 71)" />
-          </svg>
+          <Icon name="feather" size={16} />
           <span className="font-mono text-sm font-semibold text-golden-700 num-tabular">
             {data.featherBalance.toLocaleString()}
           </span>
@@ -136,19 +133,24 @@ export default function ShopPage() {
       </div>
 
       {/* Hero preview */}
-      <div className="relative overflow-hidden rounded-3xl border border-line bg-surface p-5">
+      <div className="relative overflow-hidden rounded-3xl border border-line bg-surface p-5 lg:sticky lg:top-0 lg:col-span-4 lg:p-6">
         <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-ochre-soft/60" />
         <div className="pointer-events-none absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-primary-soft/55" />
-        <div className="relative flex items-center gap-4">
-          <AvatarWithItems stage={data.level} size={140} equipped={data.equipped} />
+        <div className="relative flex items-center gap-4 lg:flex-col lg:items-stretch lg:text-center">
+          <div className="lg:hidden">
+            <AvatarWithItems stage={data.level} size={140} equipped={data.equipped} />
+          </div>
+          <div className="hidden justify-center lg:flex">
+            <AvatarWithItems stage={data.level} size={220} equipped={data.equipped} />
+          </div>
           <div className="min-w-0 flex-1">
-            <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted">
-              Your look · Lv. {data.level}
+            <div className="font-body text-xs font-semibold text-ink-muted">
+              Your look, level {data.level}
             </div>
             <div className="mt-1 font-display text-[20px] font-bold tracking-[-0.02em]">
               {equippedItems.length > 0 ? "Looking sharp." : "Bare-feathered."}
             </div>
-            <div className="mt-2.5 flex flex-wrap gap-1.5">
+            <div className="mt-2.5 flex flex-wrap gap-1.5 lg:justify-center">
               {equippedItems.length === 0 && (
                 <span className="font-body text-xs text-ink-soft">Equip an item to see it here.</span>
               )}
@@ -160,7 +162,8 @@ export default function ShopPage() {
                   className="inline-flex items-center gap-1 rounded-full border border-line bg-bg px-2 py-1 font-body text-[10px] font-semibold transition-colors hover:border-ink-muted"
                   title={`Unequip ${it.name}`}
                 >
-                  {it.name} ×
+                  {it.name}
+                  <Icon name="close" size={10} strokeWidth={2.4} />
                 </button>
               ))}
             </div>
@@ -168,6 +171,7 @@ export default function ShopPage() {
         </div>
       </div>
 
+      <div className="flex min-w-0 flex-col gap-5 lg:col-span-8">
       {error && (
         <div className="rounded-xl bg-plume-100 px-4 py-3 font-body text-sm text-plume-700">
           {error}
@@ -175,7 +179,7 @@ export default function ShopPage() {
       )}
 
       {/* Filter tabs */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 lg:flex-wrap lg:overflow-visible">
         <Chip selected={filter === "all"} onClick={() => setFilter("all")}>All</Chip>
         {SHOP_SLOTS.map((slot) => (
           <Chip key={slot} selected={filter === slot} onClick={() => setFilter(slot)}>
@@ -185,7 +189,7 @@ export default function ShopPage() {
       </div>
 
       {/* Items grid */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:gap-4 xl:grid-cols-4">
         {visible.map((item) => (
           <ShopItemCard
             key={item.id}
@@ -197,6 +201,7 @@ export default function ShopPage() {
             busy={busyId === item.id || busyId === `eq-${item.slot}`}
           />
         ))}
+      </div>
       </div>
     </div>
   );
@@ -243,18 +248,14 @@ function ShopItemCard({
               disabled={busy}
               className="inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-forest-600"
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M5 13l4 4 10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-              </svg>
+              <Icon name="check" size={10} strokeWidth={3} />
               Equipped
             </button>
           ) : item.owned ? (
             <Button size="sm" variant="dark" onClick={onEquip} disabled={busy}>Equip</Button>
           ) : (
             <span className="inline-flex items-center gap-1 font-mono text-xs font-bold text-ink num-tabular">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M21 3c-7 0-11 5-12 9-1 4 0 8 0 9h2c0-3 1-7 3-10s5-5 7-8z" fill="rgb(228 165 71)" />
-              </svg>
+              <Icon name="feather" size={11} />
               {item.cost.toLocaleString()}
             </span>
           )}

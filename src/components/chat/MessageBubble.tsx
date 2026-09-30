@@ -1,5 +1,7 @@
 "use client";
 
+import { Icon } from "../ui/Icon";
+
 interface MessageBubbleProps {
   role: "user" | "assistant";
   content: string;
@@ -31,16 +33,12 @@ export function MessageBubble({
     <div className={`flex animate-slide-up ${isUser ? "justify-end" : "justify-start"} gap-2`}>
       {!isUser && (
         <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-soft">
-          {/* Tiny ochre-feather glyph — keeps avatar consistent with Robert's identity */}
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M21 3c-7 0-11 5-12 9-1 4 0 8 0 9h2c0-3 1-7 3-10s5-5 7-8z"
-              fill="rgb(228 165 71)" />
-          </svg>
+          <Icon name="feather" size={16} />
         </div>
       )}
-      <div className="max-w-[78%]">
+      <div className="max-w-[78%] lg:max-w-[70%]">
         <div
-          className={`whitespace-pre-wrap rounded-2xl px-3.5 py-3 font-body text-[13.5px] leading-snug ${
+          className={`whitespace-pre-wrap rounded-2xl px-3.5 py-3 font-body text-[13.5px] leading-snug lg:text-[15px] lg:leading-relaxed ${
             isUser
               ? "bg-ink text-bg rounded-br-md shadow-soft"
               : "border border-line bg-surface text-ink rounded-bl-md"

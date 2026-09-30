@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../ui/Button";
 import { MessageBubble } from "./MessageBubble";
+import { Icon } from "../ui/Icon";
 import type { EquippedCosmetics } from "@/lib/shop";
 
 export interface ChatMsg {
@@ -123,7 +124,8 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
   return (
     <div className="flex h-full flex-col">
       {/* Turn progress bar */}
-      <div className="flex items-center gap-3 border-b border-line px-4 py-2">
+      <div className="border-b border-line px-4 py-2 sm:px-8">
+      <div className="mx-auto flex max-w-3xl items-center gap-3">
         <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted">
           Round {turnNumber}/{maxTurns}
         </span>
@@ -139,9 +141,11 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
           </Button>
         )}
       </div>
+      </div>
 
       {/* Scroll region */}
-      <div ref={scrollRef} className="flex-1 space-y-3.5 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 sm:px-8">
+        <div className="mx-auto max-w-3xl space-y-3.5">
         {messages.map((m, i) => (
           <MessageBubble
             key={i}
@@ -153,10 +157,7 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
         {loading && (
           <div className="flex gap-2">
             <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-soft">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M21 3c-7 0-11 5-12 9-1 4 0 8 0 9h2c0-3 1-7 3-10s5-5 7-8z"
-                  fill="rgb(228 165 71)" />
-              </svg>
+              <Icon name="feather" size={14} />
             </div>
             <div className="flex items-center gap-1 rounded-2xl rounded-bl-md border border-line bg-surface px-4 py-3">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-ink-muted" />
@@ -165,10 +166,12 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Input region */}
-      <div className="border-t border-line bg-bg px-3.5 py-2.5 pb-4">
+      <div className="border-t border-line bg-bg px-3.5 py-2.5 pb-[max(env(safe-area-inset-bottom),1rem)] sm:px-8">
+        <div className="mx-auto max-w-3xl">
         {atMaxTurns ? (
           <div className="text-center">
             <p className="mb-3 font-body text-sm text-ink-soft">
@@ -212,13 +215,11 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-bg transition-opacity disabled:opacity-30"
               aria-label="Send"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M5 12h14M13 6l6 6-6 6"
-                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <Icon name="arrow-right" size={16} strokeWidth={2} />
             </button>
           </form>
         )}
+        </div>
       </div>
     </div>
   );

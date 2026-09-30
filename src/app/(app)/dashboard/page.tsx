@@ -88,29 +88,34 @@ export default function DashboardPage() {
   const dailyTopic = getDailyTopic();
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:gap-6">
       {/* Headline */}
-      <div className="pt-1">
-        <h1 className="font-display text-[38px] font-bold leading-[0.95] tracking-[-0.035em] text-ink">
+      <div className="pt-1 lg:order-first lg:col-span-12 lg:pb-4">
+        <h1 className="font-display text-[38px] font-bold leading-[0.95] tracking-[-0.035em] text-ink sm:text-[52px] lg:text-[84px] lg:leading-[0.88] lg:tracking-[-0.045em]">
           Ready to
           <br />
           talk turkey?
         </h1>
-        <p className="mt-3 font-body text-sm leading-snug text-ink-soft">
+        <p className="mt-3 font-body text-sm leading-snug text-ink-soft lg:mt-5 lg:text-base">
           One conversation a day. The Flock&apos;s already gathering.
         </p>
       </div>
 
       {/* Hero: turkey + XP */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden lg:order-1 lg:col-span-7 lg:flex lg:items-center lg:p-8">
         <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-ochre-soft/60" />
-        <div className="relative flex items-center gap-4">
-          <AvatarWithItems stage={userData.level} size={120} equipped={userData.equippedCosmetics} animate />
+        <div className="relative flex w-full items-center gap-4 lg:gap-8">
+          <div className="lg:hidden">
+            <AvatarWithItems stage={userData.level} size={120} equipped={userData.equippedCosmetics} animate />
+          </div>
+          <div className="hidden lg:block">
+            <AvatarWithItems stage={userData.level} size={180} equipped={userData.equippedCosmetics} animate />
+          </div>
           <div className="flex-1">
             <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted">
               Level {userData.level} · {userData.levelInfo.name}
             </div>
-            <div className="mt-1 font-display text-[22px] font-bold leading-[1.05] tracking-[-0.02em]">
+            <div className="mt-1 font-display text-[22px] font-bold leading-[1.05] tracking-[-0.02em] lg:text-[32px]">
               Strutting
               <br />
               nicely.
@@ -139,7 +144,7 @@ export default function DashboardPage() {
       </Card>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-2.5 lg:order-3 lg:col-span-12 lg:gap-4">
         <StatsCard
           label="Civility"
           value={userData.civilityScore > 0 ? Math.round(userData.civilityScore * 10) : "—"}
@@ -161,18 +166,22 @@ export default function DashboardPage() {
       </div>
 
       {/* Daily Gobble */}
-      <DailyChallenge topic={dailyTopic} completed={userData.dailyCompleted} />
+      <DailyChallenge
+        topic={dailyTopic}
+        completed={userData.dailyCompleted}
+        className="lg:order-2 lg:col-span-5"
+      />
 
       {/* Recent */}
       {userData.recentDebates.length > 0 && (
-        <section>
+        <section className="lg:order-4 lg:col-span-12">
           <div className="mb-2.5 flex items-baseline justify-between">
-            <h2 className="font-display text-xl font-bold tracking-[-0.02em]">Recent</h2>
+            <h2 className="font-display text-xl font-bold tracking-[-0.02em] lg:text-2xl">Recent</h2>
             <Link href="/profile" className="font-body text-xs font-semibold text-primary">
               See all
             </Link>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 lg:grid lg:grid-cols-3 lg:gap-4">
             {userData.recentDebates.slice(0, 3).map((debate) => (
               <Link
                 key={debate.id}

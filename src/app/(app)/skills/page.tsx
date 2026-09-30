@@ -108,40 +108,41 @@ export default function SkillsPage() {
   const activePercent = active ? percentComplete(active) : 0;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 lg:gap-8">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-muted">
-            Skill paths
-          </div>
-          <h1 className="mt-1.5 font-display text-[32px] font-bold leading-none tracking-[-0.03em]">
+          <p className="font-body text-sm font-semibold text-primary">Skill paths</p>
+          <h1 className="mt-1.5 font-display text-[32px] font-bold leading-none tracking-[-0.03em] lg:text-[56px]">
             Sharpen
             <br />
             your gobble.
           </h1>
         </div>
-        <FlatTurkey stage={4} size={60} />
+        <div className="lg:hidden">
+          <FlatTurkey stage={4} size={60} />
+        </div>
+        <div className="hidden lg:block">
+          <FlatTurkey stage={4} size={120} />
+        </div>
       </div>
 
       {/* Active module, if any */}
       {active && (
         <Link
           href={`/skills/${active.key}`}
-          className="relative block overflow-hidden rounded-3xl bg-ink p-5 text-bg"
+          className="relative block overflow-hidden rounded-3xl bg-ink p-5 text-bg lg:p-8"
         >
           <div className="pointer-events-none absolute -bottom-7 -right-7 opacity-15">
             <FlatTurkey stage={6} size={160} />
           </div>
           <div className="relative">
-            <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-ochre">
-              Currently learning
-            </div>
-            <div className="mt-1.5 font-display text-[22px] font-bold tracking-[-0.02em]">
+            <div className="font-body text-xs font-semibold text-ochre">Currently learning</div>
+            <div className="mt-1.5 font-display text-[22px] font-bold tracking-[-0.02em] lg:text-[30px]">
               {active.title}
             </div>
-            <div className="mt-1 font-body text-[13px] text-bg/70">{active.description}</div>
-            <div className="mt-3.5">
+            <div className="mt-1 max-w-xl font-body text-[13px] text-bg/70 lg:text-sm">{active.description}</div>
+            <div className="mt-3.5 lg:max-w-xl">
               <div className="h-1.5 overflow-hidden rounded-full bg-white/15">
                 <div
                   className="h-full rounded-full bg-ochre transition-[width] duration-700"
@@ -150,7 +151,7 @@ export default function SkillsPage() {
               </div>
               <div className="mt-1.5 flex justify-between">
                 <span className="font-mono text-[10px] text-bg/55">{activePercent}% complete</span>
-                <span className="font-mono text-[10px] text-ochre">Continue →</span>
+                <span className="font-body text-xs font-semibold text-ochre">Continue</span>
               </div>
             </div>
           </div>
@@ -158,10 +159,8 @@ export default function SkillsPage() {
       )}
 
       {/* All paths */}
-      <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-muted">
-        All paths
-      </div>
-      <div className="flex flex-col gap-2.5">
+      <h2 className="font-display text-xl font-bold tracking-[-0.02em]">All paths</h2>
+      <div className="-mt-2.5 flex flex-col gap-2.5 lg:grid lg:grid-cols-2 lg:gap-4">
         {modules.map((m, i) => {
           const tone = TONES[i % TONES.length];
           const percent = m.progress ? (m.progress.inProgress ? percentComplete(m) : 100) : 0;
@@ -169,7 +168,7 @@ export default function SkillsPage() {
             <Link
               key={m.key}
               href={`/skills/${m.key}`}
-              className="rounded-2xl border border-line bg-surface p-4"
+              className="rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-ink-muted lg:p-5"
             >
               <div className="flex items-center gap-3.5">
                 <div
@@ -182,7 +181,7 @@ export default function SkillsPage() {
                   <div className="mt-0.5 font-body text-xs text-ink-soft">{m.description}</div>
                 </div>
                 <div
-                  className={`whitespace-nowrap font-mono text-[10px] font-semibold uppercase tracking-[0.06em] ${TONE_FG[tone]}`}
+                  className={`whitespace-nowrap font-body text-xs font-semibold ${TONE_FG[tone]}`}
                 >
                   {levelLabel(m)}
                 </div>

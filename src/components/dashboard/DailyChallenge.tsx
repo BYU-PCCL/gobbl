@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
+import { Icon } from "@/components/ui/Icon";
 
 interface DailyChallengeProps {
   topic: {
@@ -11,6 +12,7 @@ interface DailyChallengeProps {
     category: string;
   };
   completed?: boolean;
+  className?: string;
 }
 
 /**
@@ -20,9 +22,9 @@ interface DailyChallengeProps {
  *
  * Edit the chips/CTA to your own difficulty preset once the user picks one.
  */
-export function DailyChallenge({ topic, completed = false }: DailyChallengeProps) {
+export function DailyChallenge({ topic, completed = false, className = "" }: DailyChallengeProps) {
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-ink p-6 text-bg shadow-soft">
+    <div className={`relative overflow-hidden rounded-3xl bg-ink p-6 text-bg shadow-soft lg:p-8 ${className}`}>
       {/* Background turkey silhouette */}
       <div className="pointer-events-none absolute -bottom-8 -right-8 opacity-20">
         <FlatTurkey stage={6} size={180} />
@@ -34,11 +36,11 @@ export function DailyChallenge({ topic, completed = false }: DailyChallengeProps
             {completed ? "Completed today" : `Today's Gobble · ${topic.category}`}
           </span>
           <span className="font-mono text-[10px] text-bg/60">
-            {completed ? "✓" : "6h left"}
+            {completed ? <Icon name="check" size={14} label="Completed" /> : "6h left"}
           </span>
         </div>
 
-        <h2 className="mt-2 max-w-[78%] font-display text-[22px] font-semibold leading-[1.15] tracking-[-0.02em]">
+        <h2 className="mt-2 max-w-[78%] font-display text-[22px] lg:text-[26px] font-semibold leading-[1.15] tracking-[-0.02em]">
           {topic.title}
         </h2>
 
@@ -62,10 +64,6 @@ export function DailyChallenge({ topic, completed = false }: DailyChallengeProps
               className="mt-4 inline-flex items-center gap-2 rounded-full bg-ochre px-5 py-3 font-body text-sm font-bold text-ink transition-transform active:scale-[0.98]"
             >
               Start practice
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path d="M5 12h14M13 6l6 6-6 6"
-                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
             </Link>
             <div className="mt-3 font-mono text-[10px] text-bg/55">+50 feathers · +120 XP</div>
           </>
