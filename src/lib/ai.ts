@@ -6,16 +6,22 @@ import {
   CIVILITY_PARTNER_MESSAGE_SYSTEM,
 } from "./prompts/civility-rubric";
 import { ANALYZE_SYSTEM } from "./prompts/analyze";
-import { buildSystemPrompt } from "./prompts/builder";
+import { buildSystemPrompt, profanityAllowed } from "./prompts/builder";
+import { breaksLanguageRules, LANGUAGE_REMINDER, scrubLanguage } from "./prompts/language";
 import type { Persona } from "@/lib/personas/pool";
 
 const MOCK_MODE = !process.env.GROK_API_KEY;
 
-/** Grok 4 fast reasoning — see https://docs.x.ai/docs/models */
-const GROK_MODEL = process.env.GROK_MODEL ?? "grok-4-1-fast-reasoning";
+/**
+ * Non-reasoning on purpose: reasoning models think silently before replying (~3x slower
+ * per turn in testing). Pin a full model id — retired aliases like "grok-4-1-fast-reasoning"
+ * and "grok-3-fast" silently resolve to grok-4.3, a reasoning model.
+ * See https://docs.x.ai/docs/models
+ */
+const GROK_MODEL = process.env.GROK_MODEL ?? "grok-4.20-0309-non-reasoning";
 
-/** Lighter model for JSON civility scoring (lower latency than reasoning). */
-const GROK_CIVILITY_MODEL = process.env.GROK_CIVILITY_MODEL ?? "grok-3-fast";
+/** Model for JSON civility scoring. */
+const GROK_CIVILITY_MODEL = process.env.GROK_CIVILITY_MODEL ?? "grok-4.20-0309-non-reasoning";
 
 let grokClient: OpenAI | null = null;
 function getClient() {
@@ -26,6 +32,25 @@ function getClient() {
     });
   }
   return grokClient;
+}
+
+/** Every Grok call goes through here so latency shows up in the logs, labeled by purpose. */
+async function complete(
+  label: string,
+  params: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming
+) {
+  const start = Date.now();
+  try {
+    const completion = await getClient()!.chat.completions.create(params);
+    console.log(
+      `[grok] ${label} ${completion.model} ${Date.now() - start}ms ` +
+        `(in ${completion.usage?.prompt_tokens ?? "?"} / out ${completion.usage?.completion_tokens ?? "?"} tokens)`
+    );
+    return completion;
+  } catch (err) {
+    console.log(`[grok] ${label} ${params.model} failed after ${Date.now() - start}ms`);
+    throw err;
+  }
 }
 
 export interface ChatMessage {
@@ -56,49 +81,71 @@ function buildOpeningUserContent(topic: string): string {
   return `${template.replace("{topic}", topic)}\n\n${OPENING_BANNED_PHRASING}`;
 }
 
+export interface PromptOptions {
+  allowProfanity?: boolean;
+}
+
 export async function getAIOpening(
   topic: string,
-  persona: Persona
+  persona: Persona,
+  options: PromptOptions = {}
 ): Promise<string> {
   if (MOCK_MODE) return NO_GROK_KEY;
 
-  const client = getClient()!;
-  const systemPrompt = buildSystemPrompt(persona);
-
-  const completion = await client.chat.completions.create({
-    model: GROK_MODEL,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: buildOpeningUserContent(topic) },
-    ],
-    max_tokens: 400,
+  const text = await generateInCharacter("opening", persona, options, {
+    messages: [{ role: "user", content: buildOpeningUserContent(topic) }],
     temperature: 0.92,
   });
-  const text = completion.choices[0]?.message?.content?.trim();
   return text || "Hmm, I blanked — say that again?";
 }
 
 export async function getAIResponse(
   messages: ChatMessage[],
   topic: string,
-  persona: Persona
+  persona: Persona,
+  options: PromptOptions = {}
 ): Promise<string> {
   if (MOCK_MODE) return NO_GROK_KEY;
 
-  const client = getClient()!;
-  const systemPrompt = buildSystemPrompt(persona);
-
-  const completion = await client.chat.completions.create({
-    model: GROK_MODEL,
-    messages: [
-      { role: "system", content: systemPrompt },
-      ...messages,
-    ],
-    max_tokens: 400,
+  const text = await generateInCharacter("reply", persona, options, {
+    messages,
     temperature: 0.8,
   });
-  const text = completion.choices[0]?.message?.content?.trim();
   return text || "Lost my train of thought — what were you saying?";
+}
+
+/**
+ * One in-character persona message, with the language rules enforced: a reply that
+ * breaks them is regenerated once, and scrubbed if the retry breaks them too.
+ */
+async function generateInCharacter(
+  label: string,
+  persona: Persona,
+  options: PromptOptions,
+  { messages, temperature }: { messages: ChatMessage[]; temperature: number }
+): Promise<string | undefined> {
+  const allowProfanity = profanityAllowed(persona, options);
+  const base = [{ role: "system" as const, content: buildSystemPrompt(persona, options) }, ...messages];
+  const run = async (tag: string, extra: ChatMessage[] = []) => {
+    const completion = await complete(tag, {
+      model: GROK_MODEL,
+      messages: [...base, ...extra],
+      max_tokens: 400,
+      temperature,
+    });
+    return completion.choices[0]?.message?.content?.trim();
+  };
+
+  const first = await run(label);
+  if (!first || !breaksLanguageRules(first, allowProfanity)) return first;
+
+  const retry = await run(`${label}:language-retry`, [
+    { role: "system", content: LANGUAGE_REMINDER(allowProfanity) },
+  ]);
+  if (retry && !breaksLanguageRules(retry, allowProfanity)) return retry;
+
+  console.log(`[grok] ${label} still broke language rules after retry; scrubbing`);
+  return scrubLanguage(retry || first, allowProfanity);
 }
 
 export async function scoreCivility(
@@ -108,13 +155,12 @@ export async function scoreCivility(
 ): Promise<CivilityResult> {
   if (MOCK_MODE) return getMockScore(userMessage);
 
-  const client = getClient()!;
   const contextStr = conversationContext
     .slice(-4)
     .map((m) => `${m.role}: ${m.content}`)
     .join("\n");
 
-  const completion = await client.chat.completions.create({
+  const completion = await complete(`civility:${speaker}`, {
     model: GROK_CIVILITY_MODEL,
     messages: [
       {
@@ -166,8 +212,7 @@ function dimensionsFromParsed(parsed: Record<string, unknown>): CivilityDimensio
 export async function scoreConversationHolistic(transcript: string): Promise<CivilityResult | null> {
   if (MOCK_MODE) return null;
 
-  const client = getClient()!;
-  const completion = await client.chat.completions.create({
+  const completion = await complete("civility:holistic", {
     model: GROK_CIVILITY_MODEL,
     messages: [
       { role: "system", content: CIVILITY_HOLISTIC_SYSTEM },
@@ -233,8 +278,7 @@ export async function analyzeDebate(
   if (userTurnCount === 0) return [];
   if (MOCK_MODE) return getMockAnalysis(userTurnCount);
 
-  const client = getClient()!;
-  const completion = await client.chat.completions.create({
+  const completion = await complete("analyze", {
     model: GROK_CIVILITY_MODEL,
     messages: [
       { role: "system", content: ANALYZE_SYSTEM },

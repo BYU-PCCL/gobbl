@@ -61,6 +61,8 @@ model Debate {
   trainingMode        String?
   trainingSkillScores Json?
   mode         String    @default("text")
+  /// Opt-in from the setup screen; only honored for Full Gobble debates.
+  allowProfanity Boolean @default(false)
   analysis     Json?
   user         User      @relation(fields: [userId], references: [id])
   messages     Message[]

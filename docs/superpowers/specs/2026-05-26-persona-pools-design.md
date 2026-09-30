@@ -242,3 +242,26 @@ These constraints are explicit so the implementation plan can be reviewed agains
 - Adjustments to the 8 underlying parameter texts in `parameters.ts`.
 - Fixing the typos in `beliefs.ts` (`libral`, `moderite`) — unrelated.
 - Any changes to gamification, scoring, or badges.
+
+## Open decisions
+
+### How should partners be assigned to users? (flagged 2026-09-30, undecided)
+
+**Current behavior.** Partners are now chosen from the tier's personas on the *opposite side* from the user's onboarding belief (`pickOpposingPersona` in `src/lib/personas/pool.ts`); center and no-survey users face the right. Because each persona has one fixed `beliefKey`, the pool's ideology mix decides who can be drawn:
+
+| User | Friendly Cluck | Spirited Strut | Full Gobble |
+|---|---|---|---|
+| Left / lean-left / center / no survey | easy-ts only | med-bh, med-pv, med-rt | hard-dm, hard-sb, hard-mp |
+| Lean-right / right | easy-rk, easy-cn | med-jk, med-eg | hard-na, hard-cv |
+
+So left-leaning and center users always get the same easy partner, and the two center personas (easy-am, easy-jl) are never drawn.
+
+**Options.**
+- **A. Rebalance the pool** — flip a couple of personas' ideologies so every tier has 2+ per side. Smallest change; users still see only 2–3 of 5 personas per tier.
+- **B. Grow the pool** — 6–8 per tier, balanced by side. More variety, more authoring and poli-sci review.
+- **C. Decouple ideology from persona** — personas become temperaments (backstory + dials); each debate's ideology comes from flipping the user's belief. Every user sees all 5 personas per tier, always opposed. Requires ideology-neutral backstories (fits the ANES rewrite) and gives up hand-pairing temperament with ideology. *Recommended.*
+- **D. Let users pick the partner's side** on the setup screen (default: flipped). Combines with any of the above.
+
+**Also needed:** what center users face — always the right (today), a random side per debate, or a center partner.
+
+**Owner:** product + poli-sci.

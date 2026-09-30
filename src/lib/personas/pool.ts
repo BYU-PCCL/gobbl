@@ -1,4 +1,5 @@
 import { BeliefKey } from "@/lib/prompts/beliefs";
+import { flipBelief } from "@/lib/prompts/flipBelief";
 import { ParameterName, ParameterLevel } from "@/lib/prompts/parameters";
 
 export type Tier = "Friendly Cluck" | "Spirited Strut" | "Full Gobble";
@@ -20,7 +21,9 @@ const TIER_RANGES: Record<Tier, Record<ParameterName, ParamRange>> = {
     listening:          [4, 5],
     persuadability:     [3, 5],
     self_interrogation: [3, 5],
-    disagreement:       [2, 3],
+    // Always 3: easy partners share the user's general direction but push back on details,
+    // so there's still real disagreement to practice on.
+    disagreement:       [3, 3],
     participation:      [2, 5],
     expression:         [2, 5],
     reason_giving:      [2, 5],
@@ -60,7 +63,7 @@ export const PERSONAS: Persona[] = [
     tier: "Friendly Cluck",
     beliefKey: "center",
     backstory: "[PLACEHOLDER] Middle-aged, suburban, follows local news more than national. Open to hearing other views.",
-    params: { participation: 3, expression: 3, reason_giving: 4, listening: 5, self_interrogation: 4, disagreement: 2, abrasiveness: 1, persuadability: 4 },
+    params: { participation: 3, expression: 3, reason_giving: 4, listening: 5, self_interrogation: 4, disagreement: 3, abrasiveness: 1, persuadability: 4 },
   },
   {
     id: "easy-rk",
@@ -76,7 +79,7 @@ export const PERSONAS: Persona[] = [
     tier: "Friendly Cluck",
     beliefKey: "lean-right",
     backstory: "[PLACEHOLDER] Quieter participant — listens more than talks. Holds firmly conservative-leaning views but shares them softly.",
-    params: { participation: 2, expression: 2, reason_giving: 2, listening: 5, self_interrogation: 3, disagreement: 2, abrasiveness: 1, persuadability: 3 },
+    params: { participation: 2, expression: 2, reason_giving: 2, listening: 5, self_interrogation: 3, disagreement: 3, abrasiveness: 1, persuadability: 3 },
   },
   {
     id: "easy-jl",
@@ -220,7 +223,21 @@ function validatePool(): void {
     if (tierCounts[tier] !== 5) {
       throw new Error(`Persona pool: tier "${tier}" has ${tierCounts[tier]} personas, expected 5`);
     }
+    // pickOpposingPersona needs someone on each side of every tier.
+    for (const side of ["left", "right"] as const) {
+      if (!PERSONAS.some((p) => p.tier === tier && sideOf(p.beliefKey) === side)) {
+        throw new Error(`Persona pool: tier "${tier}" has no ${side}-leaning persona`);
+      }
+    }
   }
+}
+
+type Side = "left" | "center" | "right";
+
+function sideOf(belief: BeliefKey): Side {
+  if (belief === "left" || belief === "lean-left") return "left";
+  if (belief === "lean-right" || belief === "right") return "right";
+  return "center";
 }
 
 validatePool();
@@ -232,6 +249,23 @@ export function pickPersona(tier: Tier): Persona {
   if (candidates.length === 0) {
     throw new Error(`pickPersona: no personas for tier "${tier}"`);
   }
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+/**
+ * Personas in the tier on the other side of the aisle from the user. Matches by side
+ * rather than exact belief, since not every tier has every intensity (Friendly Cluck
+ * has no strong left or right). Users without a survey answer get the flipBelief default.
+ */
+export function opposingPersonas(tier: Tier, userBelief: BeliefKey | null): Persona[] {
+  const target = sideOf(flipBelief(userBelief));
+  const inTier = PERSONAS.filter((p) => p.tier === tier);
+  const opposing = inTier.filter((p) => sideOf(p.beliefKey) === target);
+  return opposing.length > 0 ? opposing : inTier;
+}
+
+export function pickOpposingPersona(tier: Tier, userBelief: BeliefKey | null): Persona {
+  const candidates = opposingPersonas(tier, userBelief);
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 

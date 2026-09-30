@@ -1,20 +1,21 @@
 import { prisma } from "@/lib/db";
 import { getAIOpening } from "@/lib/ai";
-import { flipBelief } from "@/lib/prompts/flipBelief";
 import { getUserBelief } from "@/lib/prompts/userBelief";
-import { pickPersona, getPersonaById, isTier } from "@/lib/personas/pool";
+import { getPersonaById, isTier, opposingPersonas, pickOpposingPersona } from "@/lib/personas/pool";
 
 interface CreateDebateParams {
   userId: string;
   topic: string;
   category?: string;
   difficulty?: string;
-  /** A partner previewed on the setup screen; ignored unless it belongs to the chosen tier. */
+  /** A partner previewed on the setup screen; ignored unless it is in the chosen tier and opposes the user. */
   personaId?: string;
   isDaily?: boolean;
   /** Set when this debate is a module's practice step rather than a normal Chat-page debate. */
   isTraining?: boolean;
   trainingMode?: string;
+  /** Setup-screen opt-in; dropped unless the tier is Full Gobble. */
+  allowProfanity?: boolean;
 }
 
 /**
@@ -30,25 +31,31 @@ export async function createDebate({
   isDaily,
   isTraining,
   trainingMode,
+  allowProfanity,
 }: CreateDebateParams) {
   const tier = difficulty && isTier(difficulty) ? difficulty : "Friendly Cluck";
-  const requested = getPersonaById(personaId);
-  const persona = requested && requested.tier === tier ? requested : pickPersona(tier);
+  const profanity = tier === "Full Gobble" && allowProfanity === true;
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { surveyResponses: true },
   });
-  // Keep flipBelief on the user's onboarding belief — this is what the chat-setup card surfaces.
-  // The persona's own beliefKey is what the system prompt uses, so the two live independently for now.
-  const beliefKey = flipBelief(getUserBelief(user?.surveyResponses));
+  const userBelief = getUserBelief(user?.surveyResponses);
+
+  // Honor the partner previewed on the setup screen only if it's still a valid match —
+  // right tier and across the aisle from the user.
+  const requested = getPersonaById(personaId);
+  const persona =
+    requested && opposingPersonas(tier, userBelief).includes(requested)
+      ? requested
+      : pickOpposingPersona(tier, userBelief);
 
   const debate = await prisma.debate.create({
     data: {
       userId,
       topic,
       category: category || "General",
-      beliefKey,
+      beliefKey: persona.beliefKey,
       difficulty: tier,
       personaId: persona.id,
       isDaily: isDaily || false,
@@ -57,10 +64,11 @@ export async function createDebate({
       // Debate.mode exists for the audio/video work the setup screen's mode picker is
       // waiting on — only "text" is implemented, so every debate is created as one today.
       mode: "text",
+      allowProfanity: profanity,
     },
   });
 
-  const aiOpening = await getAIOpening(topic, persona);
+  const aiOpening = await getAIOpening(topic, persona, { allowProfanity: profanity });
 
   await prisma.message.create({
     data: {

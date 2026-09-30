@@ -9,7 +9,7 @@ import { Chip } from "@/components/ui/Chip";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { TOPICS, getDailyTopic, formatTopicForDebate, type Topic } from "@/lib/topics";
 import { DIFFICULTIES } from "@/lib/gamification";
-import { describeFlip, flipBelief } from "@/lib/prompts/flipBelief";
+import { describeFlip } from "@/lib/prompts/flipBelief";
 import { parseBeliefKey, type BeliefKey } from "@/lib/prompts/beliefs";
 
 const MODES: { key: "text" | "audio" | "video"; label: string; disabled?: boolean }[] = [
@@ -54,8 +54,10 @@ function SetupContent() {
     isDaily ? null : (topicId ?? null),
   );
   const [userBelief, setUserBelief] = useState<BeliefKey | null>(null);
-  const [partner, setPartner] = useState<{ id: string; initials: string } | null>(null);
+  const [partner, setPartner] = useState<{ id: string; initials: string; beliefKey: BeliefKey } | null>(null);
   const [mode, setMode] = useState<"text" | "audio" | "video">("text");
+  const [allowProfanity, setAllowProfanity] = useState(false);
+  const isFullGobble = selectedDifficulty === "Full Gobble";
   const [loading, setLoading] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [topicDropdownOpen, setTopicDropdownOpen] = useState(false);
@@ -114,8 +116,9 @@ function SetupContent() {
           category: topic.category,
           difficulty: selectedDifficulty,
           personaId: partner?.id,
-          beliefKey: flipBelief(userBelief),  // ← auto-flipped from onboarding
           isDaily,
+          // The toggle's state survives switching tiers, so only send it for Full Gobble.
+          allowProfanity: isFullGobble && allowProfanity,
         }),
       });
     } catch {
@@ -261,7 +264,7 @@ function SetupContent() {
             {partner?.initials ?? "Your partner"} opposes you today.
           </div>
           <div className="mt-0.5 font-body text-[11px] text-ink-soft">
-            {describeFlip(userBelief)}
+            {describeFlip(userBelief, partner?.beliefKey)}
           </div>
         </div>
       </div>
@@ -308,6 +311,35 @@ function SetupContent() {
             );
           })}
         </div>
+
+        {isFullGobble && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={allowProfanity}
+            onClick={() => setAllowProfanity((on) => !on)}
+            className="mt-2.5 flex w-full items-center gap-3 rounded-2xl border border-line bg-surface px-3.5 py-3 text-left transition-colors hover:border-ink-muted"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="font-body text-sm font-semibold text-ink">Allow profanity</div>
+              <div className="mt-0.5 font-body text-[11px] text-ink-soft">
+                {partner?.initials ?? "Your partner"} may curse when things get heated. No slurs, ever.
+              </div>
+            </div>
+            <span
+              aria-hidden="true"
+              className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${
+                allowProfanity ? "bg-plume-500" : "bg-line"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                  allowProfanity ? "translate-x-[18px]" : "translate-x-0.5"
+                }`}
+              />
+            </span>
+          </button>
+        )}
       </section>
 
       <section>

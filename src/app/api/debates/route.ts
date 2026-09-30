@@ -13,19 +13,34 @@ export async function POST(req: Request) {
 
   const userId = (session.user as { id: string }).id;
 
-  let body: { topic?: string; category?: string; difficulty?: string; personaId?: string; isDaily?: boolean };
+  let body: {
+    topic?: string;
+    category?: string;
+    difficulty?: string;
+    personaId?: string;
+    isDaily?: boolean;
+    allowProfanity?: boolean;
+  };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  const { topic, category, difficulty, personaId, isDaily } = body;
+  const { topic, category, difficulty, personaId, isDaily, allowProfanity } = body;
   if (!topic) {
     return NextResponse.json({ error: "A topic is required" }, { status: 400 });
   }
 
   try {
-    const result = await createDebate({ userId, topic, category, difficulty, personaId, isDaily });
+    const result = await createDebate({
+      userId,
+      topic,
+      category,
+      difficulty,
+      personaId,
+      isDaily,
+      allowProfanity,
+    });
     return NextResponse.json(result);
   } catch {
     // Without this, a failure here (e.g. the Grok call for the opening message) bubbles

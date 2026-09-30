@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -47,7 +48,20 @@ export async function POST(req: Request) {
     content: m.content,
   }));
 
-  const civilityResult = await scoreCivility(message, conversationHistory);
+  const historyWithUser: ChatMessage[] = [...conversationHistory, { role: "user", content: message }];
+
+  const persona =
+    getPersonaById(debate.personaId) ??
+    pickPersona(isTier(debate.difficulty) ? debate.difficulty : "Friendly Cluck");
+
+  // Scoring the user's message and generating the reply don't depend on each other,
+  // so run them concurrently instead of making the user wait for both back to back.
+  const [civilityResult, aiResponse] = await Promise.all([
+    scoreCivility(message, conversationHistory),
+    finish ? null : getAIResponse(historyWithUser, debate.topic, persona, {
+          allowProfanity: debate.allowProfanity,
+        }),
+  ]);
 
   await prisma.message.create({
     data: {
@@ -59,37 +73,35 @@ export async function POST(req: Request) {
     },
   });
 
-  conversationHistory.push({ role: "user", content: message });
-
-  if (finish) {
+  if (finish || aiResponse === null) {
     return await finishDebate(userId, debateId, civilityResult.overall);
   }
 
-  const persona =
-    getPersonaById(debate.personaId) ??
-    pickPersona(isTier(debate.difficulty) ? debate.difficulty : "Friendly Cluck");
-  const aiResponse = await getAIResponse(conversationHistory, debate.topic, persona);
-
-  // Partner scoring is informational only — a scoring failure must not break the conversation.
-  const partnerCivility = await scoreCivility(aiResponse, conversationHistory, "assistant").catch(
-    () => null
-  );
-
-  await prisma.message.create({
-    data: {
-      debateId,
-      role: "assistant",
-      content: aiResponse,
-      civilityScore: partnerCivility?.overall ?? null,
-      dimensions: partnerCivility ? JSON.stringify(partnerCivility.dimensions) : null,
-    },
+  const aiMessage = await prisma.message.create({
+    data: { debateId, role: "assistant", content: aiResponse },
   });
+
+  // Partner scoring is informational only, so it runs after the response is sent rather
+  // than holding up the reply. The score is saved to the message and shows on reload.
+  waitUntil(
+    scoreCivility(aiResponse, historyWithUser, "assistant")
+      .then((partnerCivility) =>
+        prisma.message.update({
+          where: { id: aiMessage.id },
+          data: {
+            civilityScore: partnerCivility.overall,
+            dimensions: JSON.stringify(partnerCivility.dimensions),
+          },
+        })
+      )
+      .catch((err) => console.error("[chat] partner scoring failed", err))
+  );
 
   const userMsgCount = debate.messages.filter((m) => m.role === "user").length + 1;
 
   return NextResponse.json({
     aiResponse,
-    aiCivility: partnerCivility,
+    aiCivility: null,
     civility: civilityResult,
     turnNumber: userMsgCount,
     maxTurns: 8,
