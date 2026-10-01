@@ -68,7 +68,10 @@ export async function createDebate({
     },
   });
 
-  const aiOpening = await getAIOpening(topic, persona, { allowProfanity: profanity });
+  const aiOpening = await getAIOpening(topic, persona, {
+    allowProfanity: profanity,
+    moduleKey: trainingMode,
+  });
 
   await prisma.message.create({
     data: {

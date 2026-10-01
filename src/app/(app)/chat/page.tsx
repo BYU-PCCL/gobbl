@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { fetchJson } from "@/lib/fetchJson";
 
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
@@ -71,9 +72,10 @@ function SetupContent() {
   useEffect(() => {
     if (status === "unauthenticated") { router.push("/"); return; }
     if (status === "authenticated") {
-      fetch("/api/user").then((r) => r.json()).then((data) => {
-        setUserBelief(parseBeliefKey(data.beliefKey));
-      });
+      // Non-critical: on failure the setup screen just keeps its default belief.
+      fetchJson<{ beliefKey: string | null }>("/api/user")
+        .then((data) => setUserBelief(parseBeliefKey(data.beliefKey)))
+        .catch(() => {});
     }
   }, [status, router]);
 

@@ -20,7 +20,7 @@ export interface ModuleVariant {
 }
 
 export interface ModuleConfig {
-  /** Matches SkillSession.skillKey. */
+  /** Matches SkillSession.skillKey. The practice partner's prompt/model live under this key in ai-config.ts. */
   key: string;
   skill: ModuleSkillKey;
   title: string;
