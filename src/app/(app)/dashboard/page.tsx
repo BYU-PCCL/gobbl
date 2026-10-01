@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchJson } from "@/lib/fetchJson";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -53,6 +54,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Level-up detection: cache previous level in sessionStorage; show modal when it jumps.
   const [levelUp, setLevelUp] = useState<{ from: number; to: number } | null>(null);
@@ -63,9 +65,8 @@ export default function DashboardPage() {
       return;
     }
     if (status === "authenticated") {
-      fetch("/api/user")
-        .then((r) => r.json())
-        .then((data: UserData) => {
+      fetchJson<UserData>("/api/user")
+        .then((data) => {
           setUserData(data);
           if (typeof window !== "undefined") {
             const prev = Number(sessionStorage.getItem("gobbl:lastLevel") || data.level);
@@ -73,9 +74,21 @@ export default function DashboardPage() {
             sessionStorage.setItem("gobbl:lastLevel", String(data.level));
           }
         })
+        .catch((err: Error) => setLoadError(err.message))
         .finally(() => setLoading(false));
     }
   }, [status, router]);
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
+        <FlatTurkey stage={1} size="md" />
+        <p className="font-body text-sm text-ink-soft">
+          Couldn&apos;t load your dashboard: {loadError}
+        </p>
+      </div>
+    );
+  }
 
   if (loading || !userData) {
     return (

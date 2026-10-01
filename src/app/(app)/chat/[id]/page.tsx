@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { fetchJson } from "@/lib/fetchJson";
 
 import { ChatInterface, type FinishResult, type ChatMsg } from "@/components/chat/ChatInterface";
 import { ScoreSummary } from "@/components/chat/ScoreSummary";
@@ -64,8 +65,7 @@ export default function DebatePage() {
   useEffect(() => {
     if (status === "unauthenticated") { router.push("/"); return; }
     if (status === "authenticated" && debateId) {
-      fetch(`/api/debates?id=${debateId}`)
-        .then((r) => r.json())
+      fetchJson<DebateData>(`/api/debates?id=${debateId}`)
         .then((data) => { setDebate(data); setAnalysis(data.analysis ?? null); setLoading(false); })
         .catch(() => router.push("/chat"));
     }

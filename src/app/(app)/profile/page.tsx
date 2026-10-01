@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { fetchJson } from "@/lib/fetchJson";
 
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -47,6 +48,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -54,9 +56,23 @@ export default function ProfilePage() {
       return;
     }
     if (status === "authenticated") {
-      fetch("/api/user").then((r) => r.json()).then(setUserData).finally(() => setLoading(false));
+      fetchJson<UserData>("/api/user")
+        .then(setUserData)
+        .catch((err: Error) => setLoadError(err.message))
+        .finally(() => setLoading(false));
     }
   }, [status, router]);
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
+        <FlatTurkey stage={1} size="md" />
+        <p className="font-body text-sm text-ink-soft">
+          Couldn&apos;t load your profile: {loadError}
+        </p>
+      </div>
+    );
+  }
 
   if (loading || !userData) {
     return (
