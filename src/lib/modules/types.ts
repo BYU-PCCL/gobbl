@@ -5,7 +5,8 @@ export type ModuleSkillKey =
   | "selfExpression"
   | "reasonGiving"
   | "listening"
-  | "selfInterrogation";
+  | "selfInterrogation"
+  | "cognitiveDissonance";
 
 export type ModuleStep =
   | { id: string; kind: "diagnostic"; questions: SurveyQuestion[] }
