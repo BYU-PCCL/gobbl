@@ -60,6 +60,7 @@ export async function POST(req: Request) {
     scoreCivility(message, conversationHistory),
     finish ? null : getAIResponse(historyWithUser, debate.topic, persona, {
           allowProfanity: debate.allowProfanity,
+          moduleKey: debate.trainingMode,
         }),
   ]);
 

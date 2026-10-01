@@ -9,6 +9,7 @@ import { ANALYZE_SYSTEM } from "./prompts/analyze";
 import { buildSystemPrompt, profanityAllowed } from "./prompts/builder";
 import { breaksLanguageRules, LANGUAGE_REMINDER, scrubLanguage } from "./prompts/language";
 import type { Persona } from "@/lib/personas/pool";
+import { getModuleAIConfig } from "@/lib/modules/ai-config";
 
 const MOCK_MODE = !process.env.GROK_API_KEY;
 
@@ -83,6 +84,8 @@ function buildOpeningUserContent(topic: string): string {
 
 export interface PromptOptions {
   allowProfanity?: boolean;
+  /** Debate.trainingMode — picks up that module's prompt/model from modules/ai-config.ts. */
+  moduleKey?: string | null;
 }
 
 export async function getAIOpening(
@@ -92,9 +95,13 @@ export async function getAIOpening(
 ): Promise<string> {
   if (MOCK_MODE) return NO_GROK_KEY;
 
-  const text = await generateInCharacter("opening", persona, options, {
-    messages: [{ role: "user", content: buildOpeningUserContent(topic) }],
-    temperature: 0.92,
+  const moduleAI = getModuleAIConfig(options.moduleKey);
+  const content = moduleAI?.openingInstruction
+    ? moduleAI.openingInstruction.replaceAll("{topic}", topic)
+    : buildOpeningUserContent(topic);
+  const text = await generateInCharacter("opening", persona, topic, options, {
+    messages: [{ role: "user", content }],
+    temperature: moduleAI?.temperature?.opening ?? 0.92,
   });
   return text || "Hmm, I blanked — say that again?";
 }
@@ -107,9 +114,9 @@ export async function getAIResponse(
 ): Promise<string> {
   if (MOCK_MODE) return NO_GROK_KEY;
 
-  const text = await generateInCharacter("reply", persona, options, {
+  const text = await generateInCharacter("reply", persona, topic, options, {
     messages,
-    temperature: 0.8,
+    temperature: getModuleAIConfig(options.moduleKey)?.temperature?.reply ?? 0.8,
   });
   return text || "Lost my train of thought — what were you saying?";
 }
@@ -121,16 +128,20 @@ export async function getAIResponse(
 async function generateInCharacter(
   label: string,
   persona: Persona,
+  topic: string,
   options: PromptOptions,
   { messages, temperature }: { messages: ChatMessage[]; temperature: number }
 ): Promise<string | undefined> {
+  const moduleAI = getModuleAIConfig(options.moduleKey);
+  if (options.moduleKey) label = `${label}[${options.moduleKey}]`;
   const allowProfanity = profanityAllowed(persona, options);
-  const base = [{ role: "system" as const, content: buildSystemPrompt(persona, options) }, ...messages];
+  const systemPrompt = buildSystemPrompt(persona, { ...options, moduleAI, topic });
+  const base = [{ role: "system" as const, content: systemPrompt }, ...messages];
   const run = async (tag: string, extra: ChatMessage[] = []) => {
     const completion = await complete(tag, {
-      model: GROK_MODEL,
+      model: moduleAI?.model ?? GROK_MODEL,
       messages: [...base, ...extra],
-      max_tokens: 400,
+      max_tokens: moduleAI?.maxTokens ?? 400,
       temperature,
     });
     return completion.choices[0]?.message?.content?.trim();
