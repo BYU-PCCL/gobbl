@@ -7,7 +7,9 @@ import { createDebate } from "@/lib/debates";
 import { isAnswerValid } from "@/lib/survey/questions";
 import type { Prisma } from "@prisma/client";
 
-const bad = (error: string, status: number, extra?: Record<string, unknown>) =>
+const MAX_CUSTOM_ANSWER_CHARS = 10_000;
+
+const bad =(error: string, status: number, extra?: Record<string, unknown>) =>
   NextResponse.json({ error, ...extra }, { status });
 
 export async function POST(req: Request, { params }: { params: { key: string } }) {
@@ -71,6 +73,13 @@ export async function POST(req: Request, { params }: { params: { key: string } }
     } else {
       updateData.statement2 = text;
     }
+  } else if (step.kind === "custom") {
+    // Custom components can send any JSON, so only the size is checked here.
+    if (answer !== undefined && JSON.stringify(answer).length > MAX_CUSTOM_ANSWER_CHARS) {
+      return bad("Answer too large", 400);
+    }
+    const existingResponses = (skillSession.stepResponses as Record<string, unknown>) ?? {};
+    updateData.stepResponses = { ...existingResponses, [step.id]: answer ?? true } as Prisma.InputJsonObject;
   } else if (step.kind === "practice") {
     // First practice step in a variant uses the "pre" slot, the second uses "post".
     const practiceIndex = variant.steps.filter((s) => s.kind === "practice").findIndex((s) => s.id === step.id);

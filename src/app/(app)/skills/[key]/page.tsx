@@ -8,6 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { ChatInterface, type ChatMsg } from "@/components/chat/ChatInterface";
+import { CUSTOM_STEPS } from "@/components/skills/custom-steps";
 import { getModule } from "@/lib/modules/registry";
 import type { ModuleStep } from "@/lib/modules/types";
 import { isAnswerValid } from "@/lib/survey/questions";
@@ -62,6 +63,8 @@ function ModuleRunner() {
 
   const [phase, setPhase] = useState<RunnerPhase>({ kind: "loading" });
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // A custom step's answer can be any shape, so it's kept apart from the string answers above.
+  const [customValue, setCustomValue] = useState<unknown>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -154,6 +157,7 @@ function ModuleRunner() {
       return;
     }
     setAnswers({});
+    setCustomValue(undefined);
     setPhase({ kind: "step", sessionId, step: nextStep });
   }
 
@@ -162,6 +166,7 @@ function ModuleRunner() {
       const r = await post("start", { variant });
       if (handleFailure(r)) return;
       setAnswers({});
+      setCustomValue(undefined);
       // step is null when resuming a run whose last step was done but never finalized.
       if (!r.data.step) {
         await finalize(r.data.sessionId);
@@ -317,15 +322,21 @@ function ModuleRunner() {
   }
 
   const { sessionId, step } = phase;
-  const canContinue = isStepComplete(step, answers);
+  const canContinue = isStepComplete(step, answers, customValue);
 
   return (
     <div className="flex flex-col gap-5">
-      <StepView step={step} answers={answers} onChange={setAnswers} />
+      <StepView
+        step={step}
+        answers={answers}
+        onChange={setAnswers}
+        customValue={customValue}
+        onCustomChange={setCustomValue}
+      />
       <Button
         disabled={!canContinue || busy}
         loading={busy}
-        onClick={() => advance(sessionId, step, answerPayload(step, answers))}
+        onClick={() => advance(sessionId, step, answerPayload(step, answers, customValue))}
       >
         {step.kind === "practice" ? "Start conversation" : "Continue"}
       </Button>
@@ -346,7 +357,12 @@ function resumeStep(
   return { kind: "step", sessionId: summary.progress.sessionId, step };
 }
 
-function isStepComplete(step: ModuleStep, answers: Record<string, string>): boolean {
+function isStepComplete(step: ModuleStep, answers: Record<string, string>, customValue: unknown): boolean {
+  if (step.kind === "custom") {
+    const def = CUSTOM_STEPS[step.component];
+    if (!def) return false;
+    return def.isComplete ? def.isComplete(customValue) : true;
+  }
   if (step.kind === "diagnostic") {
     return step.questions.every((q) => isAnswerValid(q, answers[q.key]));
   }
@@ -357,7 +373,8 @@ function isStepComplete(step: ModuleStep, answers: Record<string, string>): bool
   return true;
 }
 
-function answerPayload(step: ModuleStep, answers: Record<string, string>): unknown {
+function answerPayload(step: ModuleStep, answers: Record<string, string>, customValue: unknown): unknown {
+  if (step.kind === "custom") return customValue;
   if (step.kind === "diagnostic") return answers;
   if (step.kind === "reflection") return answers.text ?? "";
   return null;
@@ -367,11 +384,28 @@ function StepView({
   step,
   answers,
   onChange,
+  customValue,
+  onCustomChange,
 }: {
   step: ModuleStep;
   answers: Record<string, string>;
   onChange: (next: Record<string, string>) => void;
+  customValue: unknown;
+  onCustomChange: (next: unknown) => void;
 }) {
+  if (step.kind === "custom") {
+    const def = CUSTOM_STEPS[step.component];
+    if (!def) {
+      // A typo in registry.ts, or a component that was never added to CUSTOM_STEPS.
+      return (
+        <p className="font-body text-sm text-plume-500">
+          This step couldn&apos;t be shown (unknown component &quot;{step.component}&quot;).
+        </p>
+      );
+    }
+    return <def.Component props={step.props ?? {}} value={customValue} onChange={onCustomChange} />;
+  }
+
   if (step.kind === "diagnostic") {
     return (
       <div className="flex flex-col gap-6">
