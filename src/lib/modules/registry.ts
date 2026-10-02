@@ -155,73 +155,12 @@ const LISTENING_MODULE: ModuleConfig = {
  * four skills don't need a different structure — with the practice step
  * framed as the LLM conversation that surfaces the dissonance.
  */
-const SELF_INTERROGATION_MODULE: ModuleConfig = {
-  key: "cognitive-dissonance",
-  skill: "selfInterrogation",
-  title: "Cognitive Dissonance",
-  description: "Sit with evidence that complicates what you already believe.",
-  estimatedMinutes: 10,
-  variants: [
-    {
-      key: "standard",
-      steps: [
-        {
-          id: "diagnostic",
-          kind: "diagnostic",
-          questions: [
-            {
-              key: "reacts_to_counterevidence",
-              type: "single-choice",
-              prompt: "When you hear a fact that challenges something you believe, what's your first instinct?",
-              options: [
-                { value: "dismiss", label: "Look for a reason it doesn't count" },
-                { value: "unsure", label: "Feel unsure what to do with it" },
-                { value: "consider", label: "Sit with it and consider it" },
-              ],
-            },
-            {
-              key: "changed_mind_recently",
-              type: "single-choice",
-              prompt: "Have you changed your mind about a political issue in the last year?",
-              options: [
-                { value: "no", label: "No" },
-                { value: "slightly", label: "Shifted a little" },
-                { value: "yes", label: "Yes, meaningfully" },
-              ],
-            },
-          ],
-        },
-        {
-          id: "content",
-          kind: "content",
-          blocks: [
-            {
-              heading: "Why this is uncomfortable",
-              body: "Placeholder tip copy — holding two conflicting ideas at once is uncomfortable by design; noticing that discomfort is the skill, not making it go away.",
-            },
-            {
-              heading: "One thing to try",
-              body: "Placeholder tip copy — when you feel yourself dismissing a point, pause and ask what would have to be true for it to be right.",
-            },
-          ],
-        },
-        {
-          id: "practice",
-          kind: "practice",
-          topic: "Minimum Wage Increase — Should the federal minimum wage be raised to $20/hour?",
-          difficulty: "Friendly Cluck",
-          maxTurns: 8,
-        },
-        {
-          id: "reflection",
-          kind: "reflection",
-          prompt: "Placeholder prompt — what's one thing the other side said that you couldn't easily dismiss?",
-          maxLength: 500,
-        },
-      ],
-    },
-  ],
-};
+
+
+/** this is where the "self-interrogation" used to sit. I built cognitive dissonance out in its own module instead. */
+
+
+
 
 /**
  * Skeleton — Busby confirmed no departure from the Participation flow is
@@ -367,10 +306,93 @@ const REASON_GIVING_MODULE: ModuleConfig = {
   ],
 };
 
+const COGNITIVE_DISSONANCE_MODULE: ModuleConfig = {
+  key: "cognitive-dissonance",
+  skill: "cognitiveDissonance",
+  title: "Cognitive Dissonance",
+  description: "Practice accepting contradictory inner views and confronting nuance.",
+  estimatedMinutes: 10,
+  variants: [
+    {
+      key: "standard",
+      steps: [
+        {
+          id: "diagnostic",
+          kind: "diagnostic",
+          questions: [
+            {
+              key: "strongest_issue",
+              type: "single-choice",
+              prompt: "About which of the following issues do you feel the most strongly?",
+              options: [
+                { value: "taxes", label: "Increasing/decreasing taxation" },
+                { value: "abortion", label: "Abortion" },
+                { value: "dei", label: "DEI initiatives" },
+                { value: "climate", label: "Climate policy" },
+                { value: "immigration", label: "Immigration enforcement" },
+              ],
+            },
+            {
+              key: "issue_stance",
+              type: "single-choice",
+              prompt: "In favor or against (I know this doesn't make sense yet I need to pipe in the variable)",
+              options: [
+                { value: "strong_yes", label: "Strongly in favor" },
+                { value: "weak_yes", label: "Somewhat in favor" },
+                { value: "weak_no", label: "Somewhat against" },
+                { value: "strong_no", label: "Strongly against" },
+              ],
+            },
+          ],
+        },
+        {
+          id: "cd_reframing",
+          kind: "content",
+          blocks: [
+            {
+              heading: "Cognitive Dissonance",
+              body: "Cognitive dissonance, a concept introduced by psychologist Leon Festinger, describes the tension we feel when we encounter ideas, beliefs, or behaviors that don't quite fit together. While this feeling can be uncomfortable at first, it's actually a sign that your mind is doing something valuable: noticing new information and working to make sense of it. When a political conversation leaves you feeling unsettled, that sensation often means you've been exposed to a perspective you hadn't fully considered before. Rather than something to avoid, dissonance can be a signal of learning and growth, an opportunity to sharpen your own views, better understand people who see things differently, and arrive at beliefs that are more thoughtful and well-reasoned. In this way, the discomfort of disagreement isn't a reason to stop talking about politics; it's part of what makes those conversations worthwhile.",
+            },
+          ],
+        },
+        {
+          id: "reflection",
+          kind: "reflection",
+          prompt: "Think of a time you heard a political opinion that was different from your own. In a sentence or two, describe something you learned or understood better because of it.",
+          maxLength: 500,
+        },
+        {
+          id: "cd_button",
+          kind: "content",
+          blocks: [
+            {
+              heading: "Empty header",
+              body: "On your screen there’s a blue button. Press it any time you notice even a small moment of emotional discomfort, whether that’s tension, unease, irritation, or a feeling that something doesn’t sit right. Press it as many times as you like. ",
+            },
+          ],
+        },
+        {
+          id: "cd_practice",
+          kind: "practice",
+          topic: "Cognitive dissonance practice",
+          difficulty: "Friendly Cluck",
+          maxTurns: 8,
+        },
+        {
+          id: "cd_reflection",
+          kind: "reflection",
+          prompt: "What were you feeling when you pushed the button? Why were you feeling that way?",
+          maxLength: 1000,
+        },
+      ],
+    },
+  ],
+};
+
 export const MODULES: ModuleConfig[] = [
   PARTICIPATION_MODULE,
   LISTENING_MODULE,
-  SELF_INTERROGATION_MODULE,
+  COGNITIVE_DISSONANCE_MODULE,
   SELF_EXPRESSION_MODULE,
   REASON_GIVING_MODULE,
 ];
