@@ -11,7 +11,17 @@ export type ModuleSkillKey =
 export type ModuleStep =
   | { id: string; kind: "diagnostic"; questions: SurveyQuestion[] }
   | { id: string; kind: "content"; blocks: { heading: string; body: string }[] }
-  | { id: string; kind: "practice"; topic: string; difficulty: string; maxTurns?: number }
+  | {
+      id: string;
+      kind: "practice";
+      topic: string;
+      difficulty: string;
+      maxTurns?: number;
+      /** Key in PRACTICE_ADDONS (components/skills/practice-addons.tsx), shown next to the chat. */
+      addon?: string;
+      /** Passed through to the addon component. */
+      addonProps?: Record<string, unknown>;
+    }
   | { id: string; kind: "reflection"; prompt: string; maxLength: number }
   /**
    * Renders a React component from CUSTOM_STEPS (components/skills/custom-steps.tsx).

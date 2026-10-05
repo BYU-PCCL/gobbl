@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { ChatInterface, type ChatMsg } from "@/components/chat/ChatInterface";
 import { CUSTOM_STEPS } from "@/components/skills/custom-steps";
+import { PRACTICE_ADDONS } from "@/components/skills/practice-addons";
 import { getModule } from "@/lib/modules/registry";
 import type { ModuleStep } from "@/lib/modules/types";
 import { isAnswerValid } from "@/lib/survey/questions";
@@ -65,6 +66,15 @@ function ModuleRunner() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   // A custom step's answer can be any shape, so it's kept apart from the string answers above.
   const [customValue, setCustomValue] = useState<unknown>(undefined);
+  // Practice addon data. Kept in a ref too, because finishing can be triggered by a callback
+  // created before the user's last press, and that callback would otherwise send stale data.
+  const [addonValue, setAddonValueState] = useState<unknown>(null);
+  const addonValueRef = useRef<unknown>(null);
+  const setAddonValue = (v: unknown) => {
+    addonValueRef.current = v;
+    setAddonValueState(v);
+  };
+  const [practiceMessages, setPracticeMessages] = useState<ChatMsg[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -193,13 +203,21 @@ function ModuleRunner() {
           civilityScore: m.civilityScore,
         })
       );
+      const addon = step.kind === "practice" && step.addon ? PRACTICE_ADDONS[step.addon] : undefined;
+      setAddonValue(addon?.initialValue ?? null);
+      setPracticeMessages(initialMessages);
       setPhase({ kind: "practice", sessionId, step, debateId: r.data.debateId, initialMessages });
     });
   }
 
   function finishPractice(sessionId: string, step: ModuleStep) {
     return run(async () => {
-      const r = await post("advance", { sessionId, stepId: step.id, action: "finish" });
+      const r = await post("advance", {
+        sessionId,
+        stepId: step.id,
+        action: "finish",
+        addonAnswer: addonValueRef.current,
+      });
       if (handleFailure(r)) return;
       await goToNextStep(sessionId, r.data.nextStep);
     });
@@ -272,7 +290,9 @@ function ModuleRunner() {
   }
 
   if (phase.kind === "practice") {
-    const maxTurns = (phase.step.kind === "practice" && phase.step.maxTurns) || 8;
+    const practiceStep = phase.step.kind === "practice" ? phase.step : null;
+    const maxTurns = practiceStep?.maxTurns || 8;
+    const addon = practiceStep?.addon ? PRACTICE_ADDONS[practiceStep.addon] : undefined;
     return (
       // The page content area grows with its content, so the chat needs an explicit
       // height to scroll internally: viewport minus the top/bottom bars (mobile) or
@@ -290,12 +310,23 @@ function ModuleRunner() {
             </Button>
           </div>
         )}
+        {addon && (
+          <div className="border-b border-line bg-surface px-4 py-2">
+            <addon.Component
+              props={practiceStep?.addonProps ?? {}}
+              messages={practiceMessages}
+              value={addonValue}
+              onChange={setAddonValue}
+            />
+          </div>
+        )}
         <div className="flex-1 overflow-hidden">
           <ChatInterface
             debateId={phase.debateId}
             initialMessages={phase.initialMessages}
             maxTurns={maxTurns}
             onFinish={() => finishPractice(phase.sessionId, phase.step)}
+            onMessagesChange={setPracticeMessages}
           />
         </div>
       </div>

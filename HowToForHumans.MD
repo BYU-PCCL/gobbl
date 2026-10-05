@@ -11,7 +11,7 @@ Mostly all you need to add is data. src/lib/modules/registry.ts is where the mod
 2. Build the steps - there are 5 kinds of steps:
 - diagnostic (any multiple choice/survey questions) - store responses in stepResponses[step.id]
 - content (heading and body cards) - informational
-- practice (an AI chat)
+- practice (an AI chat) - can have an add-on next to the chat, see "Adding something next to the AI chat" below
 - reflection (a text area)
 - custom (your own React component - see "Adding a custom step" below)
 You can put steps in any order but there can only be two practice steps and two reflection steps (pre and post for each)
@@ -46,7 +46,43 @@ When the user presses Continue, whatever you passed to onChange is saved in step
 Good to know:
 - registry.ts gets sent to the browser as JSON, so steps can only contain plain data. That's why the step uses the component's name ("issue-slider") and not the component itself, and why props can't have functions in them.
 - if the name in registry.ts doesn't match anything in CUSTOM_STEPS, the step shows an "unknown component" message and Continue stays off.
-- a custom step is its own screen. it can't show up next to the AI chat during a practice step (like a button you press while chatting) - that would need a different setup.
+- a custom step is its own screen. it can't show up next to the AI chat during a practice step (like a button you press while chatting) - for that, use a practice add-on (next section).
+
+### Adding something next to the AI chat (practice add-ons)
+
+An add-on is a React component that shows up in a bar above the chat during a practice step, for example the blue "I feel discomfort" button in the Cognitive Dissonance module. It works almost the same way as a custom step.
+
+To use one that already exists, just add `addon` to a practice step in registry.ts:
+```ts
+{ id: "cd_practice", kind: "practice", topic: "...", difficulty: "Friendly Cluck", maxTurns: 8,
+  addon: "discomfort-button", addonProps: { label: "That bothered me" } } // addonProps is optional
+```
+
+To make a new one:
+1. Write your component in src/components/skills/ (DiscomfortButton.tsx is a good example to copy). It gets 4 props:
+- props - the `addonProps` from registry.ts (empty object if you don't give any)
+- messages - the chat so far (updates as new messages come in)
+- value - whatever the component last saved
+- onChange(newValue) - call this to save data. it can be anything
+2. Add it to PRACTICE_ADDONS in src/components/skills/practice-addons.tsx with a name, and optionally an initialValue (what gets saved if the user never touches it - otherwise null):
+```tsx
+export const PRACTICE_ADDONS: Record<string, PracticeAddonDef> = {
+  "my-addon": { Component: MyAddon, initialValue: 0 },
+};
+```
+3. Use that name as `addon` on a practice step in registry.ts
+
+The data is saved in stepResponses[step.id] (the practice step's id) when the conversation ends. Same 10,000 character limit as custom steps.
+
+**Discomfort button data** looks like this - `count` is how many times they pushed it, and each press says when it happened and which chat message was on screen (its position in the conversation, starting at 0):
+```json
+{ "count": 2, "presses": [ { "at": "2026-10-02T18:04:11.000Z", "afterMessage": 1 },
+                          { "at": "2026-10-02T18:05:30.000Z", "afterMessage": 3 } ] }
+```
+
+Good to know:
+- the add-on's data is only kept in the browser until the conversation ends. if the user reloads the page in the middle of the chat, the chat comes back but the add-on starts over (e.g. earlier button presses are lost).
+- if the `addon` name doesn't match anything in PRACTICE_ADDONS, the chat still works, just without the add-on.
 
 ### Creating a custom module
 

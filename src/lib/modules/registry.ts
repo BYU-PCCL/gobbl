@@ -377,6 +377,7 @@ const COGNITIVE_DISSONANCE_MODULE: ModuleConfig = {
           topic: "Cognitive dissonance practice",
           difficulty: "Friendly Cluck",
           maxTurns: 8,
+          addon: "discomfort-button",
         },
         {
           id: "cd_reflection",
