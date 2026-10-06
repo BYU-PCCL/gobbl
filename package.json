@@ -10,6 +10,9 @@
     "db:push": "prisma db push && prisma db execute --file prisma/supabase-rls.sql --schema prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
+    "studio:dev": "dotenv -e .env.studio.local -- next dev",
+    "studio:db:push": "dotenv -e .env.studio.local -- npm run db:push",
+    "studio:db:studio": "dotenv -e .env.studio.local -- prisma studio",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -30,6 +33,7 @@
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.0",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.0",
     "postcss": "^8.4.0",
