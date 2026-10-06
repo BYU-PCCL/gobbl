@@ -9,7 +9,7 @@ import { ANALYZE_SYSTEM } from "./prompts/analyze";
 import { buildSystemPrompt, profanityAllowed } from "./prompts/builder";
 import { breaksLanguageRules, LANGUAGE_REMINDER, scrubLanguage } from "./prompts/language";
 import type { Persona } from "@/lib/personas/pool";
-import { getModuleAIConfig } from "@/lib/modules/ai-config";
+import { getModuleAIConfig, type ModuleAIConfig } from "@/lib/modules/ai-config";
 
 const MOCK_MODE = !process.env.GROK_API_KEY;
 
@@ -86,6 +86,15 @@ export interface PromptOptions {
   allowProfanity?: boolean;
   /** Debate.trainingMode — picks up that module's prompt/model from modules/ai-config.ts. */
   moduleKey?: string | null;
+  /**
+   * Used instead of the ai-config.ts entry for `moduleKey`. Module Studio's preview passes a
+   * draft's settings here so it goes through exactly the same prompt-building as a real module.
+   */
+  moduleAIOverride?: ModuleAIConfig;
+}
+
+function moduleAIFor(options: PromptOptions): ModuleAIConfig | undefined {
+  return options.moduleAIOverride ?? getModuleAIConfig(options.moduleKey);
 }
 
 export async function getAIOpening(
@@ -95,7 +104,7 @@ export async function getAIOpening(
 ): Promise<string> {
   if (MOCK_MODE) return NO_GROK_KEY;
 
-  const moduleAI = getModuleAIConfig(options.moduleKey);
+  const moduleAI = moduleAIFor(options);
   const content = moduleAI?.openingInstruction
     ? moduleAI.openingInstruction.replaceAll("{topic}", topic)
     : buildOpeningUserContent(topic);
@@ -116,7 +125,7 @@ export async function getAIResponse(
 
   const text = await generateInCharacter("reply", persona, topic, options, {
     messages,
-    temperature: getModuleAIConfig(options.moduleKey)?.temperature?.reply ?? 0.8,
+    temperature: moduleAIFor(options)?.temperature?.reply ?? 0.8,
   });
   return text || "Lost my train of thought — what were you saying?";
 }
@@ -132,8 +141,9 @@ async function generateInCharacter(
   options: PromptOptions,
   { messages, temperature }: { messages: ChatMessage[]; temperature: number }
 ): Promise<string | undefined> {
-  const moduleAI = getModuleAIConfig(options.moduleKey);
+  const moduleAI = moduleAIFor(options);
   if (options.moduleKey) label = `${label}[${options.moduleKey}]`;
+  else if (options.moduleAIOverride) label = `${label}[studio-preview]`;
   const allowProfanity = profanityAllowed(persona, options);
   const systemPrompt = buildSystemPrompt(persona, { ...options, moduleAI, topic });
   const base = [{ role: "system" as const, content: systemPrompt }, ...messages];
