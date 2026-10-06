@@ -6,6 +6,7 @@ import { Icon } from "@/components/ui/Icon";
 import { FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
 import { PRIMARY_NAV, SECONDARY_NAV, type NavItem } from "./navItems";
 import type { UserSummary } from "./useUserSummary";
+import { StudioNavLink } from "@/components/studio/StudioNavLink";
 
 /**
  * Desktop sidebar (lg and up). Deliberately quiet: wordmark, destinations,
@@ -30,6 +31,7 @@ export function SideNav({ user }: { user: UserSummary | null }) {
         {SECONDARY_NAV.map((item) => (
           <SideNavLink key={item.href} item={item} active={item.matches(pathname)} />
         ))}
+        <StudioNavLink />
       </nav>
 
       <div className="mt-auto flex flex-col gap-2">
