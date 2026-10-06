@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -8,6 +8,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { ChatInterface, type ChatMsg } from "@/components/chat/ChatInterface";
+import { CUSTOM_STEPS } from "@/components/skills/custom-steps";
+import { PRACTICE_ADDONS } from "@/components/skills/practice-addons";
 import { getModule } from "@/lib/modules/registry";
 import type { ModuleStep } from "@/lib/modules/types";
 import { isAnswerValid } from "@/lib/survey/questions";
@@ -62,6 +64,17 @@ function ModuleRunner() {
 
   const [phase, setPhase] = useState<RunnerPhase>({ kind: "loading" });
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  // A custom step's answer can be any shape, so it's kept apart from the string answers above.
+  const [customValue, setCustomValue] = useState<unknown>(undefined);
+  // Practice addon data. Kept in a ref too, because finishing can be triggered by a callback
+  // created before the user's last press, and that callback would otherwise send stale data.
+  const [addonValue, setAddonValueState] = useState<unknown>(null);
+  const addonValueRef = useRef<unknown>(null);
+  const setAddonValue = (v: unknown) => {
+    addonValueRef.current = v;
+    setAddonValueState(v);
+  };
+  const [practiceMessages, setPracticeMessages] = useState<ChatMsg[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -154,6 +167,7 @@ function ModuleRunner() {
       return;
     }
     setAnswers({});
+    setCustomValue(undefined);
     setPhase({ kind: "step", sessionId, step: nextStep });
   }
 
@@ -162,6 +176,7 @@ function ModuleRunner() {
       const r = await post("start", { variant });
       if (handleFailure(r)) return;
       setAnswers({});
+      setCustomValue(undefined);
       // step is null when resuming a run whose last step was done but never finalized.
       if (!r.data.step) {
         await finalize(r.data.sessionId);
@@ -188,13 +203,21 @@ function ModuleRunner() {
           civilityScore: m.civilityScore,
         })
       );
+      const addon = step.kind === "practice" && step.addon ? PRACTICE_ADDONS[step.addon] : undefined;
+      setAddonValue(addon?.initialValue ?? null);
+      setPracticeMessages(initialMessages);
       setPhase({ kind: "practice", sessionId, step, debateId: r.data.debateId, initialMessages });
     });
   }
 
   function finishPractice(sessionId: string, step: ModuleStep) {
     return run(async () => {
-      const r = await post("advance", { sessionId, stepId: step.id, action: "finish" });
+      const r = await post("advance", {
+        sessionId,
+        stepId: step.id,
+        action: "finish",
+        addonAnswer: addonValueRef.current,
+      });
       if (handleFailure(r)) return;
       await goToNextStep(sessionId, r.data.nextStep);
     });
@@ -267,7 +290,9 @@ function ModuleRunner() {
   }
 
   if (phase.kind === "practice") {
-    const maxTurns = (phase.step.kind === "practice" && phase.step.maxTurns) || 8;
+    const practiceStep = phase.step.kind === "practice" ? phase.step : null;
+    const maxTurns = practiceStep?.maxTurns || 8;
+    const addon = practiceStep?.addon ? PRACTICE_ADDONS[practiceStep.addon] : undefined;
     return (
       // The page content area grows with its content, so the chat needs an explicit
       // height to scroll internally: viewport minus the top/bottom bars (mobile) or
@@ -285,12 +310,23 @@ function ModuleRunner() {
             </Button>
           </div>
         )}
+        {addon && (
+          <div className="border-b border-line bg-surface px-4 py-2">
+            <addon.Component
+              props={practiceStep?.addonProps ?? {}}
+              messages={practiceMessages}
+              value={addonValue}
+              onChange={setAddonValue}
+            />
+          </div>
+        )}
         <div className="flex-1 overflow-hidden">
           <ChatInterface
             debateId={phase.debateId}
             initialMessages={phase.initialMessages}
             maxTurns={maxTurns}
             onFinish={() => finishPractice(phase.sessionId, phase.step)}
+            onMessagesChange={setPracticeMessages}
           />
         </div>
       </div>
@@ -317,15 +353,21 @@ function ModuleRunner() {
   }
 
   const { sessionId, step } = phase;
-  const canContinue = isStepComplete(step, answers);
+  const canContinue = isStepComplete(step, answers, customValue);
 
   return (
     <div className="flex flex-col gap-5">
-      <StepView step={step} answers={answers} onChange={setAnswers} />
+      <StepView
+        step={step}
+        answers={answers}
+        onChange={setAnswers}
+        customValue={customValue}
+        onCustomChange={setCustomValue}
+      />
       <Button
         disabled={!canContinue || busy}
         loading={busy}
-        onClick={() => advance(sessionId, step, answerPayload(step, answers))}
+        onClick={() => advance(sessionId, step, answerPayload(step, answers, customValue))}
       >
         {step.kind === "practice" ? "Start conversation" : "Continue"}
       </Button>
@@ -346,7 +388,12 @@ function resumeStep(
   return { kind: "step", sessionId: summary.progress.sessionId, step };
 }
 
-function isStepComplete(step: ModuleStep, answers: Record<string, string>): boolean {
+function isStepComplete(step: ModuleStep, answers: Record<string, string>, customValue: unknown): boolean {
+  if (step.kind === "custom") {
+    const def = CUSTOM_STEPS[step.component];
+    if (!def) return false;
+    return def.isComplete ? def.isComplete(customValue) : true;
+  }
   if (step.kind === "diagnostic") {
     return step.questions.every((q) => isAnswerValid(q, answers[q.key]));
   }
@@ -357,7 +404,8 @@ function isStepComplete(step: ModuleStep, answers: Record<string, string>): bool
   return true;
 }
 
-function answerPayload(step: ModuleStep, answers: Record<string, string>): unknown {
+function answerPayload(step: ModuleStep, answers: Record<string, string>, customValue: unknown): unknown {
+  if (step.kind === "custom") return customValue;
   if (step.kind === "diagnostic") return answers;
   if (step.kind === "reflection") return answers.text ?? "";
   return null;
@@ -367,11 +415,28 @@ function StepView({
   step,
   answers,
   onChange,
+  customValue,
+  onCustomChange,
 }: {
   step: ModuleStep;
   answers: Record<string, string>;
   onChange: (next: Record<string, string>) => void;
+  customValue: unknown;
+  onCustomChange: (next: unknown) => void;
 }) {
+  if (step.kind === "custom") {
+    const def = CUSTOM_STEPS[step.component];
+    if (!def) {
+      // A typo in registry.ts, or a component that was never added to CUSTOM_STEPS.
+      return (
+        <p className="font-body text-sm text-plume-500">
+          This step couldn&apos;t be shown (unknown component &quot;{step.component}&quot;).
+        </p>
+      );
+    }
+    return <def.Component props={step.props ?? {}} value={customValue} onChange={onCustomChange} />;
+  }
+
   if (step.kind === "diagnostic") {
     return (
       <div className="flex flex-col gap-6">

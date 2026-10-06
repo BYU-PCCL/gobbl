@@ -7,7 +7,9 @@ import { createDebate } from "@/lib/debates";
 import { isAnswerValid } from "@/lib/survey/questions";
 import type { Prisma } from "@prisma/client";
 
-const bad = (error: string, status: number, extra?: Record<string, unknown>) =>
+const MAX_COMPONENT_ANSWER_CHARS = 10_000;
+
+const bad =(error: string, status: number, extra?: Record<string, unknown>) =>
   NextResponse.json({ error, ...extra }, { status });
 
 export async function POST(req: Request, { params }: { params: { key: string } }) {
@@ -18,13 +20,13 @@ export async function POST(req: Request, { params }: { params: { key: string } }
   const moduleConfig = getModule(params.key);
   if (!moduleConfig) return bad("Module not found", 404);
 
-  let body: { sessionId?: string; stepId?: string; answer?: unknown; action?: string };
+  let body: { sessionId?: string; stepId?: string; answer?: unknown; action?: string; addonAnswer?: unknown };
   try {
     body = await req.json();
   } catch {
     return bad("Invalid JSON", 400);
   }
-  const { sessionId, stepId, answer, action } = body;
+  const { sessionId, stepId, answer, action, addonAnswer } = body;
 
   const skillSession = await prisma.skillSession.findFirst({
     where: { id: String(sessionId), userId, skillKey: moduleConfig.key },
@@ -71,6 +73,13 @@ export async function POST(req: Request, { params }: { params: { key: string } }
     } else {
       updateData.statement2 = text;
     }
+  } else if (step.kind === "custom") {
+    // Custom components can send any JSON, so only the size is checked here.
+    if (answer !== undefined && JSON.stringify(answer).length > MAX_COMPONENT_ANSWER_CHARS) {
+      return bad("Answer too large", 400);
+    }
+    const existingResponses = (skillSession.stepResponses as Record<string, unknown>) ?? {};
+    updateData.stepResponses = { ...existingResponses, [step.id]: answer ?? true } as Prisma.InputJsonObject;
   } else if (step.kind === "practice") {
     // First practice step in a variant uses the "pre" slot, the second uses "post".
     const practiceIndex = variant.steps.filter((s) => s.kind === "practice").findIndex((s) => s.id === step.id);
@@ -107,6 +116,14 @@ export async function POST(req: Request, { params }: { params: { key: string } }
     const debate = linkedId ? await prisma.debate.findUnique({ where: { id: linkedId } }) : null;
     if (!debate || !debate.completed) {
       return bad("Finish the conversation before continuing", 409);
+    }
+    // Data from the step's addon (e.g. discomfort button presses), if it has one.
+    if (step.addon) {
+      if (addonAnswer !== undefined && JSON.stringify(addonAnswer).length > MAX_COMPONENT_ANSWER_CHARS) {
+        return bad("Answer too large", 400);
+      }
+      const existingResponses = (skillSession.stepResponses as Record<string, unknown>) ?? {};
+      updateData.stepResponses = { ...existingResponses, [step.id]: addonAnswer ?? null } as Prisma.InputJsonObject;
     }
     responsePayload.debateId = debate.id;
   }
