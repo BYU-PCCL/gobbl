@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { QuizStep, isQuizComplete } from "./QuizStep";
 
 /** What every custom step component receives from the module runner. */
 export interface CustomStepProps {
@@ -20,4 +21,6 @@ export interface CustomStepDef {
  * Custom step components, keyed by the name a step uses in registry.ts:
  *   { id: "my-step", kind: "custom", component: "my-component" }
  */
-export const CUSTOM_STEPS: Record<string, CustomStepDef> = {};
+export const CUSTOM_STEPS: Record<string, CustomStepDef> = {
+  quiz: { Component: QuizStep, isComplete: isQuizComplete },
+};
