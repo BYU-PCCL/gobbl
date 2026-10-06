@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getStudioAccess, studioDenied } from "@/lib/studio/access";
+import { validateStudioDoc } from "@/lib/studio/components";
 import {
   DESCRIPTION_MAX_LENGTH,
   TITLE_MAX_LENGTH,
@@ -101,6 +102,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (body.doc !== undefined) {
     const doc = parseStudioDoc(body.doc);
     if (!doc) return NextResponse.json({ error: "Invalid module document" }, { status: 400 });
+    // Strict on write, lenient on read: a draft can't be saved with settings its component
+    // doesn't accept, but one saved before a component changed can still be opened and fixed.
+    const docError = validateStudioDoc(doc);
+    if (docError) return NextResponse.json({ error: docError }, { status: 400 });
     data.doc = doc as unknown as Prisma.InputJsonValue;
   }
 

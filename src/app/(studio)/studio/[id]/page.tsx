@@ -1,5 +1,5 @@
-import { EditorSkeleton } from "@/components/studio/EditorSkeleton";
+import { ModuleEditor } from "@/components/studio/ModuleEditor";
 
 export default function StudioEditorPage({ params }: { params: { id: string } }) {
-  return <EditorSkeleton moduleId={params.id} />;
+  return <ModuleEditor moduleId={params.id} />;
 }
