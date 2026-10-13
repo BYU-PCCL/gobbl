@@ -5,10 +5,13 @@ import type { ModuleAIConfig } from "@/lib/modules/ai-config";
 import { getUserBelief } from "@/lib/prompts/userBelief";
 import { getPersonaById, isTier, opposingPersonas, pickOpposingPersona } from "@/lib/personas/pool";
 import { getStudioAccess, studioDenied } from "@/lib/studio/access";
-import { validateComponentProps } from "@/lib/studio/components";
+import { ANSWER_NAME_PATTERN, validateComponentProps } from "@/lib/studio/components";
+import { fillAnswers } from "@/lib/studio/variables";
 
 const MAX_MESSAGES = 40;
 const MAX_MESSAGE_CHARS = 2000;
+const MAX_ANSWERS = 50;
+const MAX_ANSWER_CHARS = 2000;
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
 
@@ -27,9 +30,19 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") return bad("Invalid request body");
 
+  // The author's settings are checked as written; learners' earlier answers are filled into
+  // their {name}s afterwards, so a long answer can't push a setting past its limit.
   const stepError = validateComponentProps("practice", body.step);
   if (stepError) return bad(stepError);
-  const step = body.step as Record<string, unknown>;
+  const answers = body.answers ?? {};
+  const answersOk =
+    typeof answers === "object" && !Array.isArray(answers) &&
+    Object.keys(answers).length <= MAX_ANSWERS &&
+    Object.entries(answers).every(
+      ([k, v]) => ANSWER_NAME_PATTERN.test(k) && typeof v === "string" && v.length <= MAX_ANSWER_CHARS,
+    );
+  if (!answersOk) return bad("Earlier answers are malformed");
+  const step = fillAnswers(body.step as Record<string, unknown>, answers as Record<string, string>);
 
   const raw = body.messages;
   if (!Array.isArray(raw) || raw.length > MAX_MESSAGES) return bad(`Send up to ${MAX_MESSAGES} messages`);

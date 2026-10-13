@@ -21,6 +21,7 @@ export function DraftList() {
   const [error, setError] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useState("");
 
   const load = useCallback(() => {
     fetchJson<StudioModuleSummary[]>("/api/studio/modules")
@@ -58,6 +59,15 @@ export function DraftList() {
       body: JSON.stringify({ title }),
     });
     load();
+  }
+
+  async function duplicateDraft(id: string) {
+    const created = await fetchJson<{ id: string }>("/api/studio/modules", {
+      method: "POST",
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ duplicateOf: id }),
+    });
+    router.push(`/studio/${created.id}`);
   }
 
   async function deleteDraft(id: string) {
@@ -104,24 +114,54 @@ export function DraftList() {
       )}
 
       {drafts && drafts.length > 0 && (
-        <ul className="grid gap-3 lg:grid-cols-2">
-          {drafts.map((d) => (
-            <DraftRow key={d.id} draft={d} onRename={renameDraft} onDelete={deleteDraft} onError={setError} />
-          ))}
-        </ul>
+        <>
+          {drafts.length > 4 && (
+            <div className="max-w-sm">
+              <Input
+                aria-label="Search drafts"
+                placeholder="Search by title, description or person"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+          )}
+          <ul className="grid gap-3 lg:grid-cols-2">
+            {drafts.filter((d) => matches(d, query)).map((d) => (
+              <DraftRow
+                key={d.id}
+                draft={d}
+                onRename={renameDraft}
+                onDuplicate={duplicateDraft}
+                onDelete={deleteDraft}
+                onError={setError}
+              />
+            ))}
+          </ul>
+          {query && !drafts.some((d) => matches(d, query)) && (
+            <p className="font-body text-sm text-ink-muted">No drafts match “{query}”.</p>
+          )}
+        </>
       )}
     </div>
   );
 }
 
+function matches(d: StudioModuleSummary, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return [d.title, d.description, d.createdBy, d.lastEditedBy ?? ""].some((field) => field.toLowerCase().includes(q));
+}
+
 function DraftRow({
   draft,
   onRename,
+  onDuplicate,
   onDelete,
   onError,
 }: {
   draft: StudioModuleSummary;
   onRename: (id: string, title: string) => Promise<void>;
+  onDuplicate: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onError: (message: string) => void;
 }) {
@@ -186,11 +226,13 @@ function DraftRow({
           {draft.description && <p className="mt-1 font-body text-sm text-ink-soft">{draft.description}</p>}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <span className="font-body text-xs text-ink-muted">
-              Created by {draft.createdBy}. Updated {formatUpdated(draft.updatedAt)}
+              Created by {draft.createdBy}. Last edited
+              {draft.lastEditedBy && draft.lastEditedBy !== draft.createdBy ? ` by ${draft.lastEditedBy}` : ""} on{" "}
+              {formatUpdated(draft.updatedAt)}
             </span>
             {mode === "confirm-delete" ? (
               <div className="flex items-center gap-2">
-                <span className="font-body text-xs text-ink-soft">Delete this draft for everyone?</span>
+                <span className="font-body text-xs text-ink-soft">Delete this draft and its history for everyone?</span>
                 <Button size="sm" variant="danger" loading={busy} onClick={() => run(() => onDelete(draft.id))}>
                   Delete
                 </Button>
@@ -202,6 +244,9 @@ function DraftRow({
               <div className="flex items-center gap-1">
                 <Button size="sm" variant="ghost" onClick={() => setMode("rename")}>
                   Rename
+                </Button>
+                <Button size="sm" variant="ghost" loading={busy} onClick={() => run(() => onDuplicate(draft.id))}>
+                  Duplicate
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setMode("confirm-delete")}>
                   Delete

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getStudioAccess, studioDenied } from "@/lib/studio/access";
-import { validateStudioDoc } from "@/lib/studio/components";
+import { recordVersion } from "@/lib/studio/versions";
 import {
   DESCRIPTION_MAX_LENGTH,
   TITLE_MAX_LENGTH,
@@ -18,6 +18,7 @@ const DETAIL_SELECT = {
   doc: true,
   updatedAt: true,
   createdBy: { select: { username: true } },
+  lastEditedBy: { select: { username: true } },
 } satisfies Prisma.StudioModuleSelect;
 
 type DetailRow = Prisma.StudioModuleGetPayload<{ select: typeof DETAIL_SELECT }>;
@@ -28,6 +29,7 @@ function toSummary(m: DetailRow): StudioModuleSummary {
     title: m.title,
     description: m.description,
     createdBy: m.createdBy.username,
+    lastEditedBy: m.lastEditedBy?.username ?? null,
     updatedAt: m.updatedAt.toISOString(),
   };
 }
@@ -42,7 +44,7 @@ const notFound = () => NextResponse.json({ error: "Module not found" }, { status
 
 const conflict = () =>
   NextResponse.json(
-    { error: "This draft was changed by someone else since you opened it. Reload to see their changes." },
+    { error: "Someone else saved this draft since you opened it." },
     { status: 409 },
   );
 
@@ -100,12 +102,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 
   if (body.doc !== undefined) {
+    // Shape only: a draft may be half-finished. Each step's settings are checked before
+    // preview (and will be before export), not on save, so work in progress is never lost.
     const doc = parseStudioDoc(body.doc);
     if (!doc) return NextResponse.json({ error: "Invalid module document" }, { status: 400 });
-    // Strict on write, lenient on read: a draft can't be saved with settings its component
-    // doesn't accept, but one saved before a component changed can still be opened and fixed.
-    const docError = validateStudioDoc(doc);
-    if (docError) return NextResponse.json({ error: docError }, { status: 400 });
     data.doc = doc as unknown as Prisma.InputJsonValue;
   }
 
@@ -120,17 +120,21 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
   }
 
-  const { count } = await prisma.studioModule.updateMany({
-    where: expectedUpdatedAt ? { id: params.id, updatedAt: expectedUpdatedAt } : { id: params.id },
-    data,
+  const updated = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.studioModule.updateMany({
+      where: expectedUpdatedAt ? { id: params.id, updatedAt: expectedUpdatedAt } : { id: params.id },
+      data: { ...data, lastEditedById: access.user.id },
+    });
+    if (count === 0) return null;
+    const row = await tx.studioModule.findUniqueOrThrow({ where: { id: params.id }, select: DETAIL_SELECT });
+    await recordVersion(tx, row, access.user.id, { forceNew: body.newVersion === true });
+    return row;
   });
-  if (count === 0) {
+
+  if (!updated) {
     const exists = await prisma.studioModule.findUnique({ where: { id: params.id }, select: { id: true } });
     return exists ? conflict() : notFound();
   }
-
-  const updated = await prisma.studioModule.findUnique({ where: { id: params.id }, select: DETAIL_SELECT });
-  if (!updated) return notFound();
   // A rename must still work on a draft whose document can't be read, so fall back to the
   // summary (which has no document) rather than failing after the save already happened.
   return NextResponse.json(toDetail(updated) ?? toSummary(updated));

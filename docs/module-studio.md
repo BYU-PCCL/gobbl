@@ -74,15 +74,51 @@ branch merges to `main`, and not before.
 
 ## What exists so far
 
-- Drafts list (`/studio`): create, rename, delete. Drafts are shared with
-  everyone who has Studio access.
-- Editor (`/studio/[id]`): title and description, plus the three regions the
-  editor will grow into: component palette, module flow (canvas) and preview.
-- API under `/api/studio/`: access check and draft CRUD.
-- A draft is stored as JSON: `{ version: 1, steps: [{ id, type, props }] }`.
+- Drafts list (`/studio`): create, rename, duplicate, delete, and search once there
+  are more than a few. Drafts are shared with everyone who has Studio access.
+- Editor (`/studio/[id]`):
+  - Title, description, skill and estimated minutes.
+  - A **Standard** version and an optional **Advanced** one (started empty or as a
+    copy of Standard), matching a `ModuleConfig`'s variants.
+  - Components: survey questions, content cards, quiz, AI chat, reflection. Click
+    one to add it after the selected step, or drag it into place. Steps can be
+    dragged, moved with the arrows, duplicated and removed.
+  - Changes save on their own a moment after you stop (Ctrl+S saves straight
+    away). Undo and redo cover everything, including removing a step or a version
+    (Ctrl+Z / Ctrl+Shift+Z outside text fields). Leaving with unsaved changes asks
+    first.
+  - Half-finished drafts always save. Problems with a step show as "N to fix" in
+    the flow and under each field once you've left it; they only block preview.
+  - If someone else saves while you're editing, you choose whose version to keep.
+    Either way the other one stays in History.
+- Version history: every save is kept. Saves by the same person within 10 minutes
+  are grouped into one entry, and naming a version freezes it. Any version can be
+  previewed, or restored into the editor (which can be undone).
+- Preview: the whole module, or from any step, using the module runner's own
+  screens (`src/components/skills/StepView.tsx`). The AI chat uses the real prompt
+  pipeline through `/api/studio/preview/chat`. Nothing is saved. "Back to editor"
+  stays pinned at the top; Esc and the browser's back button also return to the
+  editor.
+- API under `/api/studio/`: access check, draft CRUD, `modules/[id]/versions`.
+- A draft is stored as JSON:
+  `{ version: 2, settings: { skill, estimatedMinutes }, variants: [{ key, steps: [{ id, type, props }] }] }`.
+  Version 1 drafts (`{ version: 1, steps }`) are read as a Standard version.
   `type` names an entry in `STUDIO_COMPONENTS` (`src/lib/studio/components.ts`),
-  which is the one place to add a component. It is empty for now.
+  which is the one place to add a component. `src/lib/studio/runtime.ts` turns a
+  step into the runner's `ModuleStep`.
+- Answer variables: a reflection, survey question or quiz question can "save the
+  answer as" a name (stored in its props as `saveAs`), and any text in a later step
+  can write `{name}` to show it (the picked option's label, or the reflection text).
+  Text fields offer an "Insert an earlier answer" menu, and the module flow shows
+  which answers each step saves and uses. Problems like a use before the answer, an
+  unknown name, or two answers with one name show up as "to fix". `{name}`,
+  `{backstory}`, `{beliefs}` and `{topic}` stay reserved for the AI chat. A component
+  offers answers through `answers` in its `STUDIO_COMPONENTS` entry. Filling-in
+  is `fillAnswers` in `src/lib/studio/variables.ts`. For the AI chat, the server fills
+  them in after checking the author's settings
+  (`/api/studio/preview/chat` takes `answers`).
+  The real runner doesn't fill them in yet. Export needs to build the answers from
+  `stepResponses` and `statement1/2`, then run `fillAnswers` on each step the
+  `start`/`advance` routes return, and on the topic before `createDebate`.
 
-Next up, in order: drag-and-drop editor with the first components (mirroring
-the existing diagnostic, content, practice and reflection steps), then preview,
-then export to a `ModuleConfig`, then SSO and flag management.
+Next up: export to a `ModuleConfig`, then SSO and flag management.

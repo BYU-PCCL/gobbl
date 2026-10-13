@@ -12,13 +12,16 @@ const MAX_CHARS = 500;
  * talks to /api/studio/preview/chat: nothing is saved, scored, or counted toward anyone's XP.
  *
  * `stepProps` are the settings of the AI chat step being previewed (topic, difficulty, prompt…).
+ * `answers` are earlier answers by name; the server fills them into those settings' {name}s.
  */
 export function PreviewChat({
   stepProps,
+  answers,
   onMessagesChange,
   onFinish,
 }: {
   stepProps: Record<string, unknown>;
+  answers: Record<string, string>;
   onMessagesChange: (messages: ChatMsg[]) => void;
   onFinish: (messages: ChatMsg[]) => void;
 }) {
@@ -35,10 +38,15 @@ export function PreviewChat({
 
   const userTurns = messages.filter((m) => m.role === "user").length;
 
+  // Kept in a ref so a parent passing a fresh function each render doesn't re-run the effect
+  // below on every render (which, since the parent stores the messages, never settles).
+  const onMessagesChangeRef = useRef(onMessagesChange);
+  onMessagesChangeRef.current = onMessagesChange;
+
   useEffect(() => {
-    onMessagesChange(messages);
+    onMessagesChangeRef.current(messages);
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, onMessagesChange]);
+  }, [messages]);
 
   async function ask(history: ChatMsg[]): Promise<ChatMsg[] | null> {
     setLoading(true);
@@ -49,6 +57,7 @@ export function PreviewChat({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           step: stepProps,
+          answers,
           messages: history.map((m) => ({ role: m.role, content: m.content })),
           personaId: partner?.id,
         }),

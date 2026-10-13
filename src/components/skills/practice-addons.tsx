@@ -16,6 +16,9 @@ export interface PracticeAddonProps {
 
 export interface PracticeAddonDef {
   Component: ComponentType<PracticeAddonProps>;
+  /** How Module Studio names this addon to authors. */
+  label: string;
+  description?: string;
   /** The value saved if the user never interacts with the addon. Defaults to null. */
   initialValue?: unknown;
 }
@@ -26,5 +29,10 @@ export interface PracticeAddonDef {
  *   { id: "practice", kind: "practice", ..., addon: "discomfort-button" }
  */
 export const PRACTICE_ADDONS: Record<string, PracticeAddonDef> = {
-  "discomfort-button": { Component: DiscomfortButton, initialValue: { count: 0, presses: [] } },
+  "discomfort-button": {
+    Component: DiscomfortButton,
+    label: "Discomfort button",
+    description: "The learner presses it whenever they feel uncomfortable. Each press is recorded with the message on screen.",
+    initialValue: { count: 0, presses: [] },
+  },
 };
