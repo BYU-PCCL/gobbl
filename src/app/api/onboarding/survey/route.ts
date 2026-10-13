@@ -37,7 +37,10 @@ export async function POST(req: Request) {
     where: { id: userId },
     select: { onboardingCompletedAt: true },
   });
-  if (existing?.onboardingCompletedAt) {
+  if (!existing) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+  if (existing.onboardingCompletedAt) {
     return NextResponse.json(
       { error: "Survey already completed" },
       { status: 409 },
