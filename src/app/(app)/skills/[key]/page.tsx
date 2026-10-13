@@ -6,8 +6,10 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { ChatInterface, type ChatMsg } from "@/components/chat/ChatInterface";
+import { useVisualViewportHeight } from "@/components/chat/useVisualViewportHeight";
 import { getModule } from "@/lib/modules/registry";
 import type { ModuleStep } from "@/lib/modules/types";
 import { isAnswerValid } from "@/lib/survey/questions";
@@ -64,6 +66,9 @@ function ModuleRunner() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The practice chat fills the phone screen, so size it to the visual viewport like the
+  // main debate view does (keeps the composer above the keyboard).
+  useVisualViewportHeight(phase.kind === "practice");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -126,6 +131,14 @@ function ModuleRunner() {
     } finally {
       setBusy(false);
     }
+  }
+
+  /**
+   * Leaving mid-module is always safe: every submitted step is already saved on the server
+   * and `start` resumes the open run, so the user lands back on the step they left.
+   */
+  function leave() {
+    router.push("/skills");
   }
 
   /** Returns true if the failure was handled (caller should stop). */
@@ -235,6 +248,7 @@ function ModuleRunner() {
   if (phase.kind === "intro") {
     return (
       <div className="flex flex-col gap-5">
+        <LeaveBar onLeave={leave} />
         <div>
           <div className="font-body text-xs font-semibold text-ink-muted">
             About {phase.summary.estimatedMinutes} minutes
@@ -269,12 +283,16 @@ function ModuleRunner() {
   if (phase.kind === "practice") {
     const maxTurns = (phase.step.kind === "practice" && phase.step.maxTurns) || 8;
     return (
-      // The page content area grows with its content, so the chat needs an explicit
-      // height to scroll internally: viewport minus the top/bottom bars (mobile) or
-      // the page padding (desktop, where the sidebar replaces both bars).
-      <div className="flex h-[calc(100dvh-13rem)] min-h-[420px] flex-col overflow-hidden rounded-2xl border border-line bg-surface lg:h-[calc(100dvh-7rem)]">
-        <div className="border-b border-line bg-surface px-4 py-2 font-body text-xs text-ink-soft">
-          Practice conversation: {moduleConfig.title}
+      // On phones and tablets the chat takes over the whole screen (above the top bar and
+      // bottom nav) and is sized to the visual viewport, so the composer stays above the
+      // keyboard and the newest messages stay visible. On desktop it is a card inside the
+      // page: the page content grows with its content, so the card needs an explicit height.
+      <div className="fixed inset-x-0 top-0 z-50 flex h-[var(--vvh,100dvh)] flex-col bg-surface lg:static lg:h-[calc(100dvh-7rem)] lg:min-h-[420px] lg:overflow-hidden lg:rounded-2xl lg:border lg:border-line">
+        <div className="flex items-center justify-between gap-3 border-b border-line bg-surface py-1.5 pl-4 pr-2 pt-[max(env(safe-area-inset-top),0.375rem)] lg:pt-1.5">
+          <span className="truncate font-body text-xs text-ink-soft">
+            Practice conversation: {moduleConfig.title}
+          </span>
+          <LeaveButton onLeave={leave} />
         </div>
         {error && (
           // The conversation already ended but recording it failed; without a retry the user is stuck here.
@@ -321,6 +339,7 @@ function ModuleRunner() {
 
   return (
     <div className="flex flex-col gap-5">
+      <LeaveBar onLeave={leave} hint="Finished steps are saved. You can pick this up later." />
       <StepView step={step} answers={answers} onChange={setAnswers} />
       <Button
         disabled={!canContinue || busy}
@@ -411,7 +430,7 @@ function StepView({
         {step.blocks.map((block, i) => (
           <div key={i} className="rounded-2xl border border-line bg-surface p-4">
             <h2 className="font-display text-base font-bold">{block.heading}</h2>
-            <p className="mt-1.5 font-body text-sm text-ink-soft">{block.body}</p>
+            <p className="mt-1.5 whitespace-pre-line font-body text-sm text-ink-soft">{block.body}</p>
           </div>
         ))}
       </div>
@@ -445,6 +464,25 @@ function StepView({
       <span className="text-right font-mono text-[10px] text-ink-muted">
         {text.length}/{step.maxLength}
       </span>
+    </div>
+  );
+}
+
+function LeaveButton({ onLeave }: { onLeave: () => void }) {
+  return (
+    <Button variant="ghost" size="sm" onClick={onLeave} className="shrink-0">
+      <Icon name="close" size={14} strokeWidth={2} />
+      Leave
+    </Button>
+  );
+}
+
+/** Top row of the intro and step screens: an optional hint on the left, "Leave" on the right. */
+function LeaveBar({ onLeave, hint }: { onLeave: () => void; hint?: string }) {
+  return (
+    <div className="-mt-1 flex items-center justify-between gap-3">
+      {hint ? <p className="font-body text-xs text-ink-muted">{hint}</p> : <span />}
+      <LeaveButton onLeave={onLeave} />
     </div>
   );
 }

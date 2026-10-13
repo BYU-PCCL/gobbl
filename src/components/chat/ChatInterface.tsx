@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "../ui/Button";
 import { MessageBubble } from "./MessageBubble";
 import { Icon } from "../ui/Icon";
+import { FlatTurkey } from "../gamification/FlatTurkey";
 import type { EquippedCosmetics } from "@/lib/shop";
 
 export interface ChatMsg {
@@ -42,21 +43,39 @@ const MAX_CHARS = 500;
  *
  * This component owns:
  *  - Scroll region of MessageBubbles
- *  - Typing indicator (3 dots, no emoji)
+ *  - Typing indicator (3 dots, no emoji), shown only while the partner is replying
+ *  - "Wrapping up" overlay while the conversation is being scored
  *  - Rounded-pill text input with an ink "send" button
  */
 export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMsg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // Wrap-up is a separate state from `loading` so the typing dots never show for it.
+  const [finishing, setFinishing] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
   const initialUserTurns = initialMessages.filter((m) => m.role === "user").length;
   const [turnNumber, setTurnNumber] = useState(initialUserTurns);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior });
+  }, []);
+
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, loading]);
+    scrollToBottom();
+  }, [messages, loading, scrollToBottom]);
+
+  // When the on-screen keyboard opens the scroll region gets shorter; keep the newest
+  // message in view instead of leaving the user looking at the middle of the thread.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => scrollToBottom("auto");
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, [scrollToBottom]);
 
   // Auto-grow textarea
   useEffect(() => {
@@ -107,22 +126,57 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
   };
 
   const handleFinish = async () => {
-    setLoading(true);
+    setFinishing(true);
+    setFinishError(null);
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ debateId, message: "", finish: true }),
       });
-      const data = await res.json();
-      if (data.finished) onFinish(data);
-    } finally { setLoading(false); }
+      const data = await res.json().catch(() => ({}));
+      if (data.finished) {
+        // Stay in the "wrapping up" state: the parent swaps this view for the results.
+        onFinish(data);
+        return;
+      }
+      setFinishError(data.error || "We couldn't wrap that up. Give it another try.");
+    } catch {
+      setFinishError("Couldn't reach the server. Check your connection and try again.");
+    }
+    setFinishing(false);
   };
 
   const atMaxTurns = turnNumber >= maxTurns;
+  const busy = loading || finishing;
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
+      {(finishing || finishError) && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/85 px-6 text-center backdrop-blur-sm"
+        >
+          {finishError ? (
+            <>
+              <FlatTurkey stage={1} size="md" />
+              <p className="font-body text-sm text-ink-soft">{finishError}</p>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleFinish}>Try again</Button>
+                <Button size="sm" variant="ghost" onClick={() => setFinishError(null)}>Back to the chat</Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <FlatTurkey stage={3} size="md" animate />
+              <p className="font-display text-lg font-bold tracking-[-0.02em]">Wrapping up…</p>
+              <p className="font-body text-sm text-ink-soft">Scoring your conversation and counting feathers.</p>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Turn progress bar */}
       <div className="border-b border-line px-4 py-2 sm:px-8">
       <div className="mx-auto flex max-w-3xl items-center gap-3">
@@ -136,7 +190,7 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
           />
         </div>
         {turnNumber >= 2 && (
-          <Button variant="outline" size="sm" onClick={handleFinish} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={handleFinish} disabled={busy}>
             Wrap up
           </Button>
         )}
@@ -177,7 +231,7 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
             <p className="mb-3 font-body text-sm text-ink-soft">
               All rounds complete. Let&apos;s see how you did.
             </p>
-            <Button onClick={handleFinish} disabled={loading} loading={loading}>
+            <Button onClick={handleFinish} disabled={busy}>
               See results
             </Button>
           </div>
@@ -194,14 +248,17 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    if (input.trim() && !loading) void sendMessage();
+                    if (input.trim() && !busy) void sendMessage();
                   }
                 }}
+                // The keyboard slides in after focus; re-check the scroll once it has settled.
+                onFocus={() => window.setTimeout(() => scrollToBottom("auto"), 350)}
                 rows={1}
                 placeholder="Your reply…"
                 aria-label="Your message"
-                disabled={loading}
-                className="min-h-[28px] w-full resize-none bg-transparent py-2 font-body text-sm text-ink placeholder:text-ink-muted focus:outline-none"
+                disabled={busy}
+                // 16px on phones: anything smaller makes iOS zoom the page when the field is focused.
+                className="min-h-[28px] w-full resize-none bg-transparent py-2 font-body text-base text-ink placeholder:text-ink-muted focus:outline-none sm:text-sm"
               />
               {input.length > MAX_CHARS * 0.8 && (
                 <span className={`mb-1 self-end font-mono text-[10px] ${input.length >= MAX_CHARS ? "text-red-500" : "text-ink-muted"}`}>
@@ -211,7 +268,7 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
             </div>
             <button
               type="submit"
-              disabled={loading || !input.trim()}
+              disabled={busy || !input.trim()}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-bg transition-opacity disabled:opacity-30"
               aria-label="Send"
             >

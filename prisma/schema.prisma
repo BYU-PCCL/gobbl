@@ -67,7 +67,7 @@ model Debate {
   analysis     Json?
   user         User      @relation(fields: [userId], references: [id])
   messages     Message[]
-  personaRatings PersonaRating[] // [persona-rating: temporary]
+  personaRatings PersonaRating[] // No longer written (rating UI removed); drop with the model below.
 }
 
 model Message {
@@ -114,7 +114,9 @@ model SkillSession {
   user             User      @relation(fields: [userId], references: [id])
 }
 
-// [persona-rating: temporary] — entire model is part of the removable rating system.
+// Unused since the difficulty-rating card was removed. Kept because the Vercel build runs
+// `prisma db push`, which refuses to drop a table holding rows. Drop by hand with
+// --accept-data-loss when convenient, together with Debate.personaRatings.
 model PersonaRating {
   id         String   @id @default(cuid())
   userId     String

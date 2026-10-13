@@ -87,7 +87,7 @@ export default function DebatePage() {
     // chat can own its own scrolling; the long results page needs its own scroll container.
     return (
       <div className="h-full overflow-y-auto">
-        <ScoreSummary result={result} debateId={debate.id} /* [persona-rating: temporary] */ />
+        <ScoreSummary result={result} />
       </div>
     );
   }
@@ -143,6 +143,13 @@ export default function DebatePage() {
             ● {debate.difficulty}
           </div>
         </div>
+        {/* Phones get the civility score here instead of the meter row below, to leave room for the chat. */}
+        {liveCivility != null && (
+          <div className="flex flex-col items-end leading-none sm:hidden">
+            <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-muted">Civility</span>
+            <span className="mt-0.5 font-mono text-sm font-bold text-forest-600 num-tabular">{liveCivility}</span>
+          </div>
+        )}
       </div>
 
       {/* Topic pill */}
@@ -157,7 +164,7 @@ export default function DebatePage() {
 
       {/* Live civility meter */}
       {liveCivility != null && (
-        <div className="mt-2.5 flex items-center gap-2.5">
+        <div className="mt-2.5 hidden items-center gap-2.5 sm:flex">
           <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-muted">
             Civility
           </span>
