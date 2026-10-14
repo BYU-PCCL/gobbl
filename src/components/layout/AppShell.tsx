@@ -6,6 +6,7 @@ import { TopAppBar } from "./TopAppBar";
 import { BottomNav } from "./BottomNav";
 import { SideNav } from "./SideNav";
 import { useUserSummary } from "./useUserSummary";
+import { useVisualViewportHeight } from "@/components/chat/useVisualViewportHeight";
 
 /**
  * Responsive app chrome.
@@ -13,15 +14,17 @@ import { useUserSummary } from "./useUserSummary";
  *   desktop (lg+):           persistent sidebar, wide content canvas
  *
  * The debate view owns its own scrolling and header, so it gets a full-height
- * main with no padding, and no top or bottom bars on small screens.
+ * main with no padding, and no top or bottom bars on small screens. Its height
+ * follows the visual viewport (--vvh) so the composer stays above the phone keyboard.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const user = useUserSummary();
   const isDebateView = /^\/chat\/[^/]+$/.test(pathname) && pathname !== "/chat/setup";
+  useVisualViewportHeight(isDebateView);
 
   return (
-    <div className="flex h-dvh w-full bg-bg">
+    <div className="flex h-[var(--vvh,100dvh)] w-full bg-bg">
       <SideNav user={user} />
       <div className="flex min-w-0 flex-1 flex-col">
         {!isDebateView && <TopAppBar user={user} />}

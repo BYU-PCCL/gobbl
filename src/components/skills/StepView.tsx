@@ -97,7 +97,7 @@ export function StepView({
         {step.blocks.map((block, i) => (
           <div key={i} className="rounded-2xl border border-line bg-surface p-4">
             <h2 className="font-display text-base font-bold">{block.heading}</h2>
-            <p className="mt-1.5 font-body text-sm text-ink-soft">{block.body}</p>
+            <p className="mt-1.5 whitespace-pre-line font-body text-sm text-ink-soft">{block.body}</p>
           </div>
         ))}
       </div>

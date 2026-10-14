@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
+import { ACCOUNT_MISSING_CALLBACK_URL } from "@/lib/signOutReasons";
 import { Button } from "@/components/ui/Button";
 import {
   SURVEY_QUESTIONS,
@@ -38,6 +39,11 @@ export default function OnboardingSurveyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ responses }),
       });
+      if (res.status === 401 || res.status === 404) {
+        // The session's user no longer exists; clear the cookie rather than show an error.
+        await signOut({ callbackUrl: ACCOUNT_MISSING_CALLBACK_URL });
+        return;
+      }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error || "Could not save survey");

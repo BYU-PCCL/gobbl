@@ -1,9 +1,10 @@
 import type { ModuleConfig } from "./types";
 
 /**
- * Placeholder content for validating the harness end-to-end. Not research
- * content — Busby supplies the real diagnostic questions, tips, and prompts
- * per module before this ships to users.
+ * The five skill modules. Each is a short flow of steps (see types.ts): a quick
+ * self-check, a page or two of guidance, a practice conversation with an AI
+ * partner, and a reflection. Content lives here in code; the practice partner's
+ * extra instructions, if any, live in ai-config.ts so they never reach the browser.
  */
 const PARTICIPATION_MODULE: ModuleConfig = {
   key: "participation",
@@ -47,25 +48,25 @@ const PARTICIPATION_MODULE: ModuleConfig = {
           blocks: [
             {
               heading: "Why participation matters",
-              body: "Placeholder tip copy — staying in a hard conversation, instead of shutting down or leaving, is the first skill everything else builds on.",
+              body: "The hardest part of a political conversation is often just staying in it. When things get tense, most of us either go quiet or find a reason to leave, and the conversation ends before anyone has understood anyone. Staying in the room, even when it's uncomfortable, is the skill every other skill depends on.",
             },
             {
               heading: "One thing to try",
-              body: "Placeholder tip copy — before you respond, name one thing you actually agree with, even a small one.",
+              body: "When you feel the urge to shut down or bail, slow down and name one thing in what they said that you can honestly agree with, even if it's small. It doesn't mean you've conceded anything. It keeps you engaged long enough to say what you actually think.",
             },
           ],
         },
         {
           id: "practice",
           kind: "practice",
-          topic: "Minimum Wage Increase — Should the federal minimum wage be raised to $20/hour?",
+          topic: "Should the federal minimum wage be raised to $20 an hour?",
           difficulty: "Friendly Cluck",
           maxTurns: 8,
         },
         {
           id: "reflection",
           kind: "reflection",
-          prompt: "Placeholder prompt — what almost made you want to drop out of that conversation, and what kept you in it?",
+          prompt: "At what point did you most want to drop out of that conversation, and what kept you in it?",
           maxLength: 500,
         },
       ],
@@ -74,12 +75,8 @@ const PARTICIPATION_MODULE: ModuleConfig = {
 };
 
 /**
- * Skeleton for the module PS is building on "active listening" content for.
- * Busby's own framing was "training on listening AND observing someone being
- * listened to by others" — so unlike Participation, this adds an extra
- * `content` step used as a placeholder "observed exchange" before the user's
- * own practice conversation, instead of jumping straight to practice. No new
- * step kind needed for that — just a different arrangement of the same four.
+ * Listening is trained two ways: watching someone else be listened to well
+ * (the "observe" content step), then doing it yourself in the practice chat.
  */
 const LISTENING_MODULE: ModuleConfig = {
   key: "active-listening",
@@ -123,25 +120,25 @@ const LISTENING_MODULE: ModuleConfig = {
           blocks: [
             {
               heading: "Watch this exchange",
-              body: "Placeholder transcript — PS is supplying a real observed exchange here. For now: imagine reading a short back-and-forth between two people, where one clearly restates the other's point before responding.",
+              body: "Maya: I just think stricter immigration enforcement is the only way to keep things fair for the people who wait their turn.\nJordan: So for you it's mostly about fairness to the people who went through the process, not about keeping people out?\nMaya: Yeah, exactly. My cousin waited nine years.\nJordan: That's a long time. I think I'd feel the same way in her shoes. Where I land differently is on what enforcement should look like, because some of it hits families who've been here for decades.\nMaya: Okay. That part I can at least talk about.",
             },
             {
               heading: "What to notice",
-              body: "Placeholder tip copy — the listener asks a clarifying question instead of jumping to a counterargument. That's the behavior this module is training.",
+              body: "Jordan doesn't jump to a counterargument. First he checks that he understood what Maya actually cares about, and she confirms it. Only then does he say where he disagrees. That pause to restate and check is what this module trains: it tells the other person they were heard, and it usually tells you something you would have missed.",
             },
           ],
         },
         {
           id: "practice",
           kind: "practice",
-          topic: "Minimum Wage Increase — Should the federal minimum wage be raised to $20/hour?",
+          topic: "Should social media platforms be required to verify users' ages?",
           difficulty: "Friendly Cluck",
           maxTurns: 8,
         },
         {
           id: "reflection",
           kind: "reflection",
-          prompt: "Placeholder prompt — compare the exchange you watched to your own conversation. Where did you restate or check understanding, and where did you jump straight to a response?",
+          prompt: "Compare that exchange with the conversation you just had. Where did you restate or check what your partner meant before responding, and where did you go straight to your reply?",
           maxLength: 500,
         },
       ],
@@ -149,23 +146,6 @@ const LISTENING_MODULE: ModuleConfig = {
   ],
 };
 
-/**
- * Skeleton for the module PS is building on "cognitive dissonance" content
- * for. Follows the same flow as Participation — Busby confirmed the other
- * four skills don't need a different structure — with the practice step
- * framed as the LLM conversation that surfaces the dissonance.
- */
-
-
-/** this is where the "self-interrogation" used to sit. I built cognitive dissonance out in its own module instead. */
-
-
-
-
-/**
- * Skeleton — Busby confirmed no departure from the Participation flow is
- * needed for this skill yet, so this follows the same standard shape.
- */
 const SELF_EXPRESSION_MODULE: ModuleConfig = {
   key: "self-expression",
   skill: "selfExpression",
@@ -208,25 +188,25 @@ const SELF_EXPRESSION_MODULE: ModuleConfig = {
           blocks: [
             {
               heading: "Why this matters",
-              body: "Placeholder tip copy — a conversation where only one side states a view isn't really a conversation; putting your own thinking into words is what makes the exchange real.",
+              body: "A conversation where only one person states a view isn't really a conversation; it's a reaction. When all you do is push back on what someone else said, they learn nothing about what you actually think, and neither do you. Putting your own position into plain words gives the other person something real to engage with.",
             },
             {
               heading: "One thing to try",
-              body: "Placeholder tip copy — before reacting to what they said, state your own position in one sentence first.",
+              body: "Before you respond to anything they said, state your own position on the issue in a single sentence. Then react. Leading with your view instead of a rebuttal changes the whole shape of the exchange.",
             },
           ],
         },
         {
           id: "practice",
           kind: "practice",
-          topic: "Minimum Wage Increase — Should the federal minimum wage be raised to $20/hour?",
+          topic: "Should voting be mandatory in national elections?",
           difficulty: "Friendly Cluck",
           maxTurns: 8,
         },
         {
           id: "reflection",
           kind: "reflection",
-          prompt: "Placeholder prompt — where in that conversation did you state your own view most clearly, and where did you mostly just react?",
+          prompt: "Where in that conversation did you state your own view most clearly, and where did you mostly just react to your partner?",
           maxLength: 500,
         },
       ],
@@ -234,10 +214,6 @@ const SELF_EXPRESSION_MODULE: ModuleConfig = {
   ],
 };
 
-/**
- * Skeleton — Busby confirmed no departure from the Participation flow is
- * needed for this skill yet, so this follows the same standard shape.
- */
 const REASON_GIVING_MODULE: ModuleConfig = {
   key: "reason-giving",
   skill: "reasonGiving",
@@ -280,25 +256,25 @@ const REASON_GIVING_MODULE: ModuleConfig = {
           blocks: [
             {
               heading: "Why this matters",
-              body: "Placeholder tip copy — a claim without a reason is just an opinion shouted louder; giving reasons is what lets someone actually engage with your thinking instead of just your conclusion.",
+              body: "A claim without a reason is just an opinion said louder. Reasons let someone engage with your thinking instead of only your conclusion, and they're what make it possible to change a mind, including your own. Most of the time the reason is already in your head; you just skipped saying it.",
             },
             {
               heading: "One thing to try",
-              body: "Placeholder tip copy — after stating your view, add one concrete reason, example, or piece of evidence for it.",
+              body: "After you state a view, add one concrete reason for it: an example, a number you're fairly sure of, or something you've seen happen. One good reason beats three vague ones. If you can't think of one, that's worth noticing too.",
             },
           ],
         },
         {
           id: "practice",
           kind: "practice",
-          topic: "Minimum Wage Increase — Should the federal minimum wage be raised to $20/hour?",
+          topic: "Should college tuition at public universities be free?",
           difficulty: "Friendly Cluck",
           maxTurns: 8,
         },
         {
           id: "reflection",
           kind: "reflection",
-          prompt: "Placeholder prompt — which of your points had the strongest reason behind it, and which was closest to just an opinion?",
+          prompt: "Which of your points had the strongest reason behind it, and which one was closest to just an opinion?",
           maxLength: 500,
         },
       ],
@@ -335,7 +311,7 @@ const COGNITIVE_DISSONANCE_MODULE: ModuleConfig = {
             {
               key: "issue_stance",
               type: "single-choice",
-              prompt: "In favor or against (I know this doesn't make sense yet I need to pipe in the variable)",
+              prompt: "How do you feel about the issue you just picked?",
               options: [
                 { value: "strong_yes", label: "Strongly in favor" },
                 { value: "weak_yes", label: "Somewhat in favor" },
@@ -366,15 +342,15 @@ const COGNITIVE_DISSONANCE_MODULE: ModuleConfig = {
           kind: "content",
           blocks: [
             {
-              heading: "Empty header",
-              body: "On your screen there’s a blue button. Press it any time you notice even a small moment of emotional discomfort, whether that’s tension, unease, irritation, or a feeling that something doesn’t sit right. Press it as many times as you like. ",
+              heading: "Notice the discomfort",
+              body: "During the next conversation, pay attention to your own reactions. Any time you notice even a small moment of tension, unease, irritation, or a sense that something doesn't sit right, make a mental note of it: what your partner said, and what you felt. You'll be asked about those moments afterwards. The point isn't to avoid the feeling; it's to catch it while it's happening.",
             },
           ],
         },
         {
           id: "cd_practice",
           kind: "practice",
-          topic: "Cognitive dissonance practice",
+          topic: "Should the government do more to reduce income inequality?",
           difficulty: "Friendly Cluck",
           maxTurns: 8,
           addon: "discomfort-button",
@@ -382,7 +358,7 @@ const COGNITIVE_DISSONANCE_MODULE: ModuleConfig = {
         {
           id: "cd_reflection",
           kind: "reflection",
-          prompt: "What were you feeling when you pushed the button? Why were you feeling that way?",
+          prompt: "What moments in that conversation made you uncomfortable, and what do you think was behind the feeling?",
           maxLength: 1000,
         },
       ],

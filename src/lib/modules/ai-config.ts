@@ -24,12 +24,7 @@ export interface ModuleAIConfig {
   openingInstruction?: string;
 }
 
-export const MODULE_AI_CONFIG: Record<string, ModuleAIConfig> = {
-  "participation": {
-    systemPrompt: {mode: "append", text: "Include the word potato in every response." }
-  }
-
-};
+export const MODULE_AI_CONFIG: Record<string, ModuleAIConfig> = {};
 
 export function getModuleAIConfig(trainingMode: string | null | undefined): ModuleAIConfig | undefined {
   return trainingMode ? MODULE_AI_CONFIG[trainingMode] : undefined;

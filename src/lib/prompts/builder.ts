@@ -4,6 +4,9 @@ import { PARAMETERS, ParameterName } from "./parameters";
 import type { Persona } from "@/lib/personas/pool";
 import type { ModuleAIConfig } from "@/lib/modules/ai-config";
 
+/** Used when a debate has no topic, so the prompt never shows a bare "{topic}". */
+const GENERIC_TOPIC = "political issues in the United States.";
+
 const PLACEHOLDER_MAP: Record<string, ParameterName> = {
   "{participation}": "participation",
   "{expression}": "expression",
@@ -48,7 +51,8 @@ export function buildSystemPrompt(
   let prompt = MASTER_TEMPLATE
     .replaceAll("{name}", persona.initials)
     .replace("{backstory}", persona.backstory)
-    .replace("{beliefs}", BELIEFS[persona.beliefKey]);
+    .replace("{beliefs}", BELIEFS[persona.beliefKey])
+    .replace("{topic}", options.topic?.trim() || GENERIC_TOPIC);
 
   for (const [placeholder, paramName] of Object.entries(PLACEHOLDER_MAP)) {
     const level = persona.params[paramName];

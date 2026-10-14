@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Icon } from "@/components/ui/Icon";
 import { FlatTurkey, FlatTurkeyGlyph, TURKEY_STAGE_LABELS, type TurkeyStage } from "@/components/gamification/FlatTurkey";
+import { ACCOUNT_MISSING_REASON, SIGN_OUT_REASON_PARAM } from "@/lib/signOutReasons";
 
 const STAGES: TurkeyStage[] = [1, 2, 3, 4, 5, 6, 7, 8];
 
@@ -30,10 +31,32 @@ const PROMISES = [
   },
 ];
 
-export default function LandingPage() {
+function LoadingTurkey() {
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-bg">
+      <FlatTurkey stage={1} size="md" animate />
+    </div>
+  );
+}
+
+/** useSearchParams needs a Suspense boundary, so the page body lives in LandingPage below. */
+export default function LandingPageRoute() {
+  return (
+    <Suspense fallback={<LoadingTurkey />}>
+      <LandingPage />
+    </Suspense>
+  );
+}
+
+function LandingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [mode, setMode] = useState<"landing" | "login" | "register">("landing");
+  // Set when the app signed the user out itself because their account no longer exists.
+  const accountMissing =
+    useSearchParams().get(SIGN_OUT_REASON_PARAM) === ACCOUNT_MISSING_REASON;
+  const [mode, setMode] = useState<"landing" | "login" | "register">(
+    accountMissing ? "login" : "landing",
+  );
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -44,11 +67,7 @@ export default function LandingPage() {
   }, [session, router]);
 
   if (status === "loading" || session) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-bg">
-        <FlatTurkey stage={1} size="md" animate />
-      </div>
-    );
+    return <LoadingTurkey />;
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -121,6 +140,16 @@ export default function LandingPage() {
                   : "Every Thunderbird starts as an egg. Pick a username to begin."}
               </p>
             </div>
+
+            {accountMissing && (
+              <p
+                role="status"
+                className="mb-6 rounded-xl border border-line bg-surface px-4 py-3 font-body text-sm text-ink-soft"
+              >
+                We couldn&apos;t find your account, so you&apos;ve been signed out. Sign in again,
+                or create a new account if yours was never moved over.
+              </p>
+            )}
 
             <form onSubmit={isLogin ? handleLogin : handleRegister} className="space-y-4">
               <Input

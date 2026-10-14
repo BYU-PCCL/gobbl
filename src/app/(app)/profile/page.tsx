@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchJson } from "@/lib/fetchJson";
 
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { FlatTurkey, TURKEY_STAGE_LABELS } from "@/components/gamification/FlatTurkey";
@@ -70,6 +71,9 @@ export default function ProfilePage() {
         <p className="font-body text-sm text-ink-soft">
           Couldn&apos;t load your profile: {loadError}
         </p>
+        <Button variant="secondary" size="sm" onClick={() => signOut({ callbackUrl: "/" })}>
+          Sign out
+        </Button>
       </div>
     );
   }
