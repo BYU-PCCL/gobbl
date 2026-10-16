@@ -22,7 +22,6 @@ model User {
   equippedCosmetics  Json?
   surveyResponses    Json?
   onboardingCompletedAt DateTime?
-  pardonPoints       Int             @default(0)
   createdAt          DateTime        @default(now())
   debates            Debate[]
   badges             UserBadge[]
