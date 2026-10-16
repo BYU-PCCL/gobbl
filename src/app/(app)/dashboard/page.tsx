@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { fetchJson } from "@/lib/fetchJson";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
@@ -86,6 +87,9 @@ export default function DashboardPage() {
         <p className="font-body text-sm text-ink-soft">
           Couldn&apos;t load your dashboard: {loadError}
         </p>
+        <Button variant="secondary" size="sm" onClick={() => signOut({ callbackUrl: "/" })}>
+          Sign out
+        </Button>
       </div>
     );
   }

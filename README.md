@@ -6,7 +6,7 @@ A gamified civil discourse training app where you practice respectful political 
 
 ```bash
 npm install
-npx prisma db push
+npm run db:push     # Creates the tables and enables RLS on them
 npm run db:seed     # Creates 5 sample users
 npm run dev         # http://localhost:3000
 ```
@@ -48,14 +48,15 @@ The repo is set up for [Vercel](https://vercel.com): connect your GitHub repo, t
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | Neon Postgres connection string for the Gobbl branch (include `?sslmode=require` if required by Neon) |
+| `DATABASE_URL` | Supabase transaction pooler connection string (port 6543, ending in `?pgbouncer=true`) |
+| `DIRECT_URL` | Supabase session pooler connection string (port 5432), used by `prisma db push` during the build |
 | `GROK_API_KEY` | xAI API key (`xai-...`) |
 | `GROK_MODEL` | Optional. Defaults to `grok-4-1-fast-reasoning` (Grok 4 fast reasoning). Override if xAI renames models. |
 | `GROK_CIVILITY_MODEL` | Optional. Defaults to `grok-3-fast`. Used only for civility JSON scoring (faster than the main reasoning model). |
 | `NEXTAUTH_SECRET` | Random secret (32+ chars), e.g. `openssl rand -base64 32` — use a new value for production |
 | `NEXTAUTH_URL` | Your site URL, e.g. `https://your-project.vercel.app` |
 
-The build runs `prisma generate`, `prisma db push`, then `next build`, so the schema is applied on each deploy. Do not commit `.env` or `.env.local`.
+The build runs `prisma generate`, `npm run db:push` (schema push plus enabling RLS on every table, since Supabase exposes the `public` schema through its Data API), then `next build`, so the schema is applied on each deploy. Do not commit `.env` or `.env.local`.
 
 Repository: [github.com/bostonjsharp/gobbl-app](https://github.com/bostonjsharp/gobbl-app)
 
@@ -63,6 +64,6 @@ Repository: [github.com/bostonjsharp/gobbl-app](https://github.com/bostonjsharp/
 
 - Next.js 14 (App Router, TypeScript)
 - Tailwind CSS with custom turkey-themed palette
-- Prisma + PostgreSQL ([Neon](https://neon.tech))
+- Prisma + PostgreSQL ([Supabase](https://supabase.com))
 - Grok API (xAI) with SAIL Lab prompt architecture
 - NextAuth.js
