@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser, unauthorized } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { analyzeDebate } from "@/lib/ai";
 import type { Prisma } from "@prisma/client";
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const userId = (session.user as { id: string }).id;
+export const maxDuration = 60;
+
+export async function POST(req: Request, { params }: { params: { id: string } }) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return unauthorized();
+  const userId = sessionUser.id;
 
   const debate = await prisma.debate.findFirst({
     where: { id: params.id, userId },

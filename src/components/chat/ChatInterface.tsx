@@ -6,6 +6,7 @@ import { MessageBubble } from "./MessageBubble";
 import { Icon } from "../ui/Icon";
 import { FlatTurkey } from "../gamification/FlatTurkey";
 import type { EquippedCosmetics } from "@/lib/shop";
+import { MAX_MESSAGE_CHARS } from "@/lib/gamification";
 
 export interface ChatMsg {
   role: "user" | "assistant";
@@ -33,7 +34,7 @@ interface ChatInterfaceProps {
 }
 
 const TEXTAREA_MAX_HEIGHT_PX = 200;
-const MAX_CHARS = 500;
+const MAX_CHARS = MAX_MESSAGE_CHARS;
 
 /**
  * Debate arena interface — Harvest direction.
@@ -102,6 +103,14 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
       });
       const data = await res.json();
       if (data.finished) { onFinish(data); return; }
+      if (res.status === 409 && data.code === "MAX_TURNS") {
+        // Server says the limit is reached: drop the unsent message and show the wrap-up state.
+        setMessages((prev) =>
+          prev.length && prev[prev.length - 1].role === "user" ? prev.slice(0, -1) : prev
+        );
+        setTurnNumber(maxTurns);
+        return;
+      }
       setMessages((prev) => {
         const updated = [...prev];
         if (updated.length && updated[updated.length - 1].role === "user") {

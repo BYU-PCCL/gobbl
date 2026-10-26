@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser, unauthorized } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { MODULES } from "@/lib/modules/registry";
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const userId = (session.user as { id: string }).id;
+export async function GET(req: Request) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return unauthorized();
+  const userId = sessionUser.id;
 
   const sessions = await prisma.skillSession.findMany({
     where: { userId, skillKey: { in: MODULES.map((m) => m.key) } },
@@ -27,6 +24,8 @@ export async function GET() {
       title: module.title,
       description: module.description,
       estimatedMinutes: module.estimatedMinutes,
+      variants: module.variants.map((v) => ({ key: v.key, stepCount: v.steps.length })),
+      hasAdvancedVariant: module.variants.some((v) => v.key === "advanced"),
       timesCompleted,
       progress: latest
         ? {

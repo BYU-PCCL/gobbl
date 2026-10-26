@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser, unauthorized } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { getModule } from "@/lib/modules/registry";
+import { stepMeta } from "@/lib/modules/dto";
 
 export async function POST(req: Request, { params }: { params: { key: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const userId = (session.user as { id: string }).id;
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return unauthorized();
+  const userId = sessionUser.id;
 
   const moduleConfig = getModule(params.key);
   if (!moduleConfig) {
@@ -26,10 +24,13 @@ export async function POST(req: Request, { params }: { params: { key: string } }
   if (inProgress) {
     const resumedVariant =
       moduleConfig.variants.find((v) => v.key === inProgress.variant) ?? moduleConfig.variants[0];
+    const resumedStep = resumedVariant.steps.find((s) => s.id === inProgress.stage) ?? null;
     return NextResponse.json({
       sessionId: inProgress.id,
       variant: resumedVariant.key,
-      step: resumedVariant.steps.find((s) => s.id === inProgress.stage) ?? null,
+      step: resumedStep,
+      moduleTitle: moduleConfig.title,
+      ...stepMeta(resumedVariant, resumedStep),
       resumed: true,
     });
   }
@@ -54,5 +55,7 @@ export async function POST(req: Request, { params }: { params: { key: string } }
     sessionId: skillSession.id,
     variant: chosenVariant.key,
     step: firstStep,
+    moduleTitle: moduleConfig.title,
+    ...stepMeta(chosenVariant, firstStep),
   });
 }

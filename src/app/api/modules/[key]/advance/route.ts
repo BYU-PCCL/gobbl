@@ -1,8 +1,54 @@
+/**
+ * POST /api/modules/[key]/advance
+ *
+ * Submits the user's work for the CURRENT step of a skill-module session and moves the
+ * session to the next step. Steps must be taken in order.
+ *
+ * Request body (JSON):
+ *   { sessionId: string, stepId: string, answer?: unknown, action?: string }
+ *   - sessionId / stepId: from the start response (`sessionId`, `step.id`) or the previous
+ *     advance response (`nextStep.id`). stepId must equal the session's current stage,
+ *     otherwise 409 `{ error: "Not the current step", currentStage }`.
+ *
+ * What to send, per `step.kind`:
+ *   - "diagnostic": `answer` = object keyed by question key, one string value for EVERY
+ *       entry in `step.questions` (`{ [question.key]: string }`); each value must pass the
+ *       question's validation. Otherwise 400 "Please answer every question". No `action`.
+ *   - "content": nothing. `answer` and `action` are ignored.
+ *   - "reflection": `answer` = string, trimmed, 1..`step.maxLength` characters. Otherwise
+ *       400. No `action`.
+ *   - "practice" (two calls):
+ *       1. Call WITHOUT `action: "finish"` (omit `action`, no `answer`). Creates (or, on
+ *          re-entry/reload, reuses) the training debate for this step and returns
+ *          `{ debateId }` only. The session does NOT advance. Run the chat on that debate.
+ *       2. Once that debate is completed (`completed` true), call again with
+ *          `action: "finish"` (no `answer`). If the debate is not completed: 409
+ *          "Finish the conversation before continuing". On success the session advances.
+ *       A variant supports at most two practice steps (400 otherwise).
+ *
+ * Response on an advancing call (200):
+ *   {
+ *     nextStep: ModuleStep | null,   // next step object; null when the last step was done
+ *     moduleTitle: string,
+ *     stepIndex: number | null,      // 0-based index of nextStep in the variant; null if nextStep is null
+ *     stepCount: number,             // total steps in the variant
+ *     debateId?: string              // only after a practice "finish"
+ *   }
+ * `nextStep: null` means every step is done; the session stage is now "complete" and the
+ * client should call the module's complete endpoint to finalize it.
+ *
+ * Response to the first practice call (200): `{ debateId: string }` only (no nextStep,
+ * no step metadata).
+ *
+ * Errors: 401 unauthenticated; 404 module/session/step not found; 400 invalid JSON or
+ * invalid answer; 409 session already completed, not the current step, or practice debate
+ * not finished.
+ */
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser, unauthorized } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { getModule } from "@/lib/modules/registry";
+import { stepMeta } from "@/lib/modules/dto";
 import { createDebate } from "@/lib/debates";
 import { isAnswerValid } from "@/lib/survey/questions";
 import type { Prisma } from "@prisma/client";
@@ -10,10 +56,12 @@ import type { Prisma } from "@prisma/client";
 const bad = (error: string, status: number, extra?: Record<string, unknown>) =>
   NextResponse.json({ error, ...extra }, { status });
 
+export const maxDuration = 60; // practice step creates a debate with a blocking AI call
+
 export async function POST(req: Request, { params }: { params: { key: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return bad("Unauthorized", 401);
-  const userId = (session.user as { id: string }).id;
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return bad("Unauthorized", 401);
+  const userId = sessionUser.id;
 
   const moduleConfig = getModule(params.key);
   if (!moduleConfig) return bad("Module not found", 404);
@@ -121,5 +169,10 @@ export async function POST(req: Request, { params }: { params: { key: string } }
   });
   if (advanced.count === 0) return bad("Not the current step", 409);
 
-  return NextResponse.json({ ...responsePayload, nextStep });
+  return NextResponse.json({
+    ...responsePayload,
+    nextStep,
+    moduleTitle: moduleConfig.title,
+    ...stepMeta(variant, nextStep),
+  });
 }

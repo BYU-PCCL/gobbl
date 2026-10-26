@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser, unauthorized } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { SHOP_CATALOG, parseEquippedCosmetics } from "@/lib/shop";
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET(req: Request) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return unauthorized();
 
-  const userId = (session.user as { id: string }).id;
+  const userId = sessionUser.id;
 
   const user = await prisma.user.findUnique({
     where: { id: userId },

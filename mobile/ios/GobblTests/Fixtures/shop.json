@@ -1,0 +1,262 @@
+{
+  "featherBalance": 0,
+  "level": 1,
+  "equipped": {},
+  "items": [
+    {
+      "id": "mortarboard",
+      "name": "Scholar Cap",
+      "slot": "hat",
+      "cost": 250,
+      "accent": "#1F4937",
+      "accentBg": "#D5DFD4",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "crown",
+      "name": "Tiny Crown",
+      "slot": "hat",
+      "cost": 800,
+      "accent": "#E4A547",
+      "accentBg": "#FBE9C4",
+      "isNew": true,
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "beanie",
+      "name": "Knit Beanie",
+      "slot": "hat",
+      "cost": 60,
+      "accent": "#7A2916",
+      "accentBg": "#F4D9CC",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "tophat",
+      "name": "Top Hat",
+      "slot": "hat",
+      "cost": 420,
+      "accent": "#1A1612",
+      "accentBg": "#E8DDC6",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "wizard",
+      "name": "Wizard Hat",
+      "slot": "hat",
+      "cost": 650,
+      "accent": "#1F4937",
+      "accentBg": "#D5DFD4",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "beret",
+      "name": "Painter Beret",
+      "slot": "hat",
+      "cost": 220,
+      "accent": "#7A2916",
+      "accentBg": "#F4E3D5",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "baseball",
+      "name": "Ball Cap",
+      "slot": "hat",
+      "cost": 80,
+      "accent": "#1F4937",
+      "accentBg": "#D5DFD4",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "pumpkin",
+      "name": "Pumpkin Lid",
+      "slot": "hat",
+      "cost": 320,
+      "accent": "#C0461C",
+      "accentBg": "#FBE9C4",
+      "isNew": true,
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "aviators",
+      "name": "Aviators",
+      "slot": "face",
+      "cost": 70,
+      "accent": "#1A1612",
+      "accentBg": "#F4D9CC",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "round",
+      "name": "Wire Frames",
+      "slot": "face",
+      "cost": 50,
+      "accent": "#1A1612",
+      "accentBg": "#D5DFD4",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "monocle",
+      "name": "Gold Monocle",
+      "slot": "face",
+      "cost": 380,
+      "accent": "#E4A547",
+      "accentBg": "#FBE9C4",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "eyepatch",
+      "name": "Eye Patch",
+      "slot": "face",
+      "cost": 240,
+      "accent": "#1A1612",
+      "accentBg": "#E8DDC6",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "starshades",
+      "name": "Star Shades",
+      "slot": "face",
+      "cost": 300,
+      "accent": "#C0461C",
+      "accentBg": "#F4D9CC",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "bowtie",
+      "name": "Bow Tie",
+      "slot": "neck",
+      "cost": 220,
+      "accent": "#7A2916",
+      "accentBg": "#F4D9CC",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "scarf",
+      "name": "Striped Scarf",
+      "slot": "neck",
+      "cost": 340,
+      "accent": "#1F4937",
+      "accentBg": "#D5DFD4",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "pearls",
+      "name": "Pearl Necklace",
+      "slot": "neck",
+      "cost": 540,
+      "accent": "#F4E3D5",
+      "accentBg": "#FBE9C4",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "sheriff",
+      "name": "Sheriff Star",
+      "slot": "chest",
+      "cost": 280,
+      "accent": "#E4A547",
+      "accentBg": "#FBE9C4",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "medal",
+      "name": "Gold Medal",
+      "slot": "chest",
+      "cost": 460,
+      "accent": "#E4A547",
+      "accentBg": "#FBE9C4",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "cape",
+      "name": "Hero Cape",
+      "slot": "cape",
+      "cost": 520,
+      "accent": "#C0461C",
+      "accentBg": "#F4D9CC",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "wings",
+      "name": "Spirit Wings",
+      "slot": "cape",
+      "cost": 900,
+      "accent": "#1F4937",
+      "accentBg": "#D5DFD4",
+      "unlockAt": 6,
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "forest",
+      "name": "Forest Glade",
+      "slot": "background",
+      "cost": 600,
+      "accent": "#1F4937",
+      "accentBg": "#D5DFD4",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "sunset",
+      "name": "Sunset Glow",
+      "slot": "background",
+      "cost": 700,
+      "accent": "#C0461C",
+      "accentBg": "#FCE2C0",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "cosmic",
+      "name": "Cosmic Drift",
+      "slot": "background",
+      "cost": 1200,
+      "accent": "#3A2D5C",
+      "accentBg": "#2A2440",
+      "unlockAt": 6,
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "dots",
+      "name": "Polka Dots",
+      "slot": "background",
+      "cost": 240,
+      "accent": "#C0461C",
+      "accentBg": "#F4ECDD",
+      "owned": false,
+      "canAfford": false
+    },
+    {
+      "id": "confetti",
+      "name": "Confetti Party",
+      "slot": "background",
+      "cost": 380,
+      "accent": "#1F4937",
+      "accentBg": "#1F4937",
+      "isNew": true,
+      "owned": false,
+      "canAfford": false
+    }
+  ]
+}

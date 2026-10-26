@@ -8,8 +8,9 @@ import { fetchJson } from "@/lib/fetchJson";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
-import { TOPICS, getDailyTopic, formatTopicForDebate, type Topic } from "@/lib/topics";
-import { DIFFICULTIES } from "@/lib/gamification";
+import { TOPICS, formatTopicForDebate, type Topic } from "@/lib/topics";
+import { DIFFICULTIES, DAILY_BONUS_FEATHERS } from "@/lib/gamification";
+import { useDailyTopic } from "@/lib/useDailyTopic";
 import { describeFlip } from "@/lib/prompts/flipBelief";
 import { parseBeliefKey, type BeliefKey } from "@/lib/prompts/beliefs";
 
@@ -63,8 +64,9 @@ function SetupContent() {
   const [startError, setStartError] = useState<string | null>(null);
   const [topicDropdownOpen, setTopicDropdownOpen] = useState(false);
 
+  const dailyTopic = useDailyTopic();
   const topic: Topic | null = (() => {
-    if (isDaily) return getDailyTopic();
+    if (isDaily) return dailyTopic;
     if (!selectedTopicId) return null;
     return TOPICS.find((t) => t.id === selectedTopicId) ?? null;
   })();
@@ -135,6 +137,11 @@ function SetupContent() {
       // The server responded, so the request wasn't blocked — something failed on our
       // end. Surface whatever it told us instead of a generic message.
       const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.code === "DAILY_DONE" && data.debateId) {
+        // Today's Daily Gobble is already done — show it instead of an error.
+        router.push(`/chat/${data.debateId}`);
+        return;
+      }
       setStartError(data.error || "Something went wrong on our end. Please try again.");
       setLoading(false);
       return;
@@ -173,7 +180,7 @@ function SetupContent() {
               {topic.title}
             </div>
             <div className="mt-1 font-body text-xs text-ink-soft">
-              +50 feathers · daily bonus
+              +{DAILY_BONUS_FEATHERS} feathers · daily bonus
             </div>
           </div>
         ) : (

@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser, unauthorized } from "@/lib/session";
 import { parseEquippedCosmetics } from "@/lib/shop";
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return unauthorized();
 
   const url = new URL(req.url);
   const sortBy = url.searchParams.get("sort") || "xp";
@@ -42,7 +39,7 @@ export async function GET(req: Request) {
     },
   });
 
-  const currentUserId = (session.user as { id: string }).id;
+  const currentUserId = sessionUser.id;
 
   return NextResponse.json(
     users.map((u, idx) => ({

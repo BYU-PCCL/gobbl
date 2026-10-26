@@ -1,0 +1,16 @@
+{
+  "aiResponse": "Robert is offline — add GROK_API_KEY to your environment to run conversations.",
+  "aiCivility": null,
+  "civility": {
+    "dimensions": {
+      "participation": 6,
+      "selfExpressionReason": 5,
+      "mutualExchange": 7,
+      "interrogation": 8
+    },
+    "overall": 6.5,
+    "feedback": "Nice work asking questions — that shows real engagement with the other side. Your feathers are looking bright!"
+  },
+  "turnNumber": 1,
+  "maxTurns": 8
+}

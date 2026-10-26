@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser, unauthorized } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { getShopItem, isValidItemId } from "@/lib/shop";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return unauthorized();
 
-  const userId = (session.user as { id: string }).id;
+  const userId = sessionUser.id;
 
   let body: { itemId?: string };
   try {
@@ -39,6 +36,10 @@ export async function POST(req: Request) {
 
       if (user.inventory.length > 0) {
         return { alreadyOwned: true as const, featherBalance: user.featherBalance };
+      }
+
+      if (catalogItem.unlockAt !== undefined && user.level < catalogItem.unlockAt) {
+        return { locked: true as const, unlockAt: catalogItem.unlockAt };
       }
 
       if (user.featherBalance < catalogItem.cost) {
@@ -71,13 +72,19 @@ export async function POST(req: Request) {
     }
     if ("alreadyOwned" in result && result.alreadyOwned) {
       return NextResponse.json(
-        { error: "Already owned", featherBalance: result.featherBalance },
+        { error: "Already owned", code: "ALREADY_OWNED", featherBalance: result.featherBalance },
         { status: 409 }
+      );
+    }
+    if ("locked" in result && result.locked) {
+      return NextResponse.json(
+        { error: `Unlocks at level ${result.unlockAt}`, code: "LOCKED", unlockAt: result.unlockAt },
+        { status: 403 }
       );
     }
     if ("insufficient" in result && result.insufficient) {
       return NextResponse.json(
-        { error: "Not enough feathers", featherBalance: result.featherBalance },
+        { error: "Not enough feathers", code: "NOT_ENOUGH_FEATHERS", featherBalance: result.featherBalance },
         { status: 402 }
       );
     }

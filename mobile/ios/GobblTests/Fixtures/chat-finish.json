@@ -1,0 +1,31 @@
+{
+  "finished": true,
+  "overallScore": 6.125,
+  "dimensions": {
+    "participation": 6,
+    "selfExpressionReason": 5.5,
+    "mutualExchange": 6,
+    "interrogation": 7
+  },
+  "xp": {
+    "base": 38,
+    "difficultyBonus": 10,
+    "dailyBonus": 0,
+    "streakMultiplier": 1,
+    "total": 48
+  },
+  "feathers": {
+    "base": 20,
+    "difficultyBonus": 5,
+    "dailyBonus": 0,
+    "total": 25
+  },
+  "previousLevel": 1,
+  "newLevel": 1,
+  "newBadges": [
+    "first-gobble"
+  ],
+  "streak": 1,
+  "civilityScore": 6.125,
+  "equippedCosmetics": {}
+}

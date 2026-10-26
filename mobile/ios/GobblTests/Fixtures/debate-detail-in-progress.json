@@ -1,0 +1,81 @@
+{
+  "id": "cmvpmhvze00049cqs9zm5ou5b",
+  "topic": "School Choice & Vouchers � Should public funding follow students to private schools?",
+  "category": "Education",
+  "difficulty": "Spirited Strut",
+  "beliefKey": "right",
+  "personaInitials": "R.T.",
+  "isDaily": false,
+  "isTraining": false,
+  "trainingMode": null,
+  "allowProfanity": false,
+  "completed": false,
+  "overallScore": null,
+  "xpEarned": 0,
+  "feathersEarned": 0,
+  "createdAt": "2026-10-26T19:01:43.082Z",
+  "completedAt": null,
+  "analysis": null,
+  "messages": [
+    {
+      "id": "cmvpmhw2900069cqsrejadbpf",
+      "role": "assistant",
+      "content": "Robert is offline — add GROK_API_KEY to your environment to run conversations.",
+      "civilityScore": null,
+      "dimensions": null,
+      "createdAt": "2026-10-26T19:01:43.185Z"
+    },
+    {
+      "id": "cmvpmhwjj00089cqsxr7o6pgu",
+      "role": "user",
+      "content": "I think parents deserve options, but I worry about draining public school budgets. What do you make of that tradeoff?",
+      "civilityScore": 6.5,
+      "dimensions": {
+        "participation": 6,
+        "selfExpressionReason": 5,
+        "mutualExchange": 7,
+        "interrogation": 8
+      },
+      "createdAt": "2026-10-26T19:01:43.808Z"
+    },
+    {
+      "id": "cmvpmhwm9000a9cqs24787cdq",
+      "role": "assistant",
+      "content": "Robert is offline — add GROK_API_KEY to your environment to run conversations.",
+      "civilityScore": 5.75,
+      "dimensions": {
+        "participation": 5,
+        "selfExpressionReason": 6,
+        "mutualExchange": 6,
+        "interrogation": 6
+      },
+      "createdAt": "2026-10-26T19:01:43.906Z"
+    },
+    {
+      "id": "cmvpmhwyj000c9cqs78iojrjw",
+      "role": "user",
+      "content": "That is a fair point about accountability. I had not considered rural districts.",
+      "civilityScore": 5.75,
+      "dimensions": {
+        "participation": 6,
+        "selfExpressionReason": 6,
+        "mutualExchange": 5,
+        "interrogation": 6
+      },
+      "createdAt": "2026-10-26T19:01:44.348Z"
+    },
+    {
+      "id": "cmvpmhx1f000e9cqsjyx1xyxm",
+      "role": "assistant",
+      "content": "Robert is offline — add GROK_API_KEY to your environment to run conversations.",
+      "civilityScore": 5.5,
+      "dimensions": {
+        "participation": 6,
+        "selfExpressionReason": 5,
+        "mutualExchange": 5,
+        "interrogation": 6
+      },
+      "createdAt": "2026-10-26T19:01:44.452Z"
+    }
+  ]
+}

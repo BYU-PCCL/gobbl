@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DAILY_BONUS_FEATHERS, DAILY_BONUS_XP } from "@/lib/gamification";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { Icon } from "@/components/ui/Icon";
 
@@ -65,7 +66,7 @@ export function DailyChallenge({ topic, completed = false, className = "" }: Dai
             >
               Start practice
             </Link>
-            <div className="mt-3 font-mono text-[10px] text-bg/55">+50 feathers · +120 XP</div>
+            <div className="mt-3 font-mono text-[10px] text-bg/55">+{DAILY_BONUS_FEATHERS} feathers · +{DAILY_BONUS_XP} XP</div>
           </>
         )}
 

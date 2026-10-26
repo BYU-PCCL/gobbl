@@ -1,33 +1,20 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db";
+import { createAccount, UsernameTakenError, validateRegistration } from "@/lib/credentials";
 
+/** Web signup. Creates the account only; the page then calls NextAuth signIn("credentials"). */
 export async function POST(req: Request) {
   try {
-    const { username, password } = await req.json();
+    const body = await req.json();
 
-    if (!username || !password) {
-      return NextResponse.json({ error: "Username and password are required" }, { status: 400 });
-    }
-    if (username.length < 3 || username.length > 20) {
-      return NextResponse.json({ error: "Username must be 3-20 characters" }, { status: 400 });
-    }
-    if (password.length < 6) {
-      return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
-    }
+    const problem = validateRegistration(body);
+    if (problem) return NextResponse.json({ error: problem }, { status: 400 });
 
-    const existing = await prisma.user.findUnique({ where: { username } });
-    if (existing) {
-      return NextResponse.json({ error: "Username already taken" }, { status: 409 });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({
-      data: { username, passwordHash },
-    });
-
+    const user = await createAccount(body.username, body.password);
     return NextResponse.json({ id: user.id, username: user.username });
-  } catch {
+  } catch (e) {
+    if (e instanceof UsernameTakenError) {
+      return NextResponse.json({ error: e.message }, { status: 409 });
+    }
     return NextResponse.json({ error: "Registration failed" }, { status: 500 });
   }
 }

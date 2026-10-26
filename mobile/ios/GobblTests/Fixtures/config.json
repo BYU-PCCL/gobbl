@@ -1,0 +1,648 @@
+{
+  "configVersion": 1,
+  "minClientVersion": {
+    "ios": "1.0.0"
+  },
+  "rules": {
+    "maxTurns": 8,
+    "maxMessageChars": 500,
+    "dailyBonusXp": 25,
+    "dailyBonusFeathers": 30
+  },
+  "today": {
+    "date": "2026-10-26",
+    "dailyTopic": {
+      "id": "min-wage",
+      "title": "Minimum Wage Increase",
+      "description": "Should the federal minimum wage be raised to $20/hour?",
+      "category": "Economy",
+      "prompt": "The federal minimum wage should be raised to $20/hour. This would help millions of workers afford basic necessities and reduce income inequality."
+    }
+  },
+  "topics": [
+    {
+      "id": "min-wage",
+      "title": "Minimum Wage Increase",
+      "description": "Should the federal minimum wage be raised to $20/hour?",
+      "category": "Economy",
+      "prompt": "The federal minimum wage should be raised to $20/hour. This would help millions of workers afford basic necessities and reduce income inequality."
+    },
+    {
+      "id": "universal-healthcare",
+      "title": "Universal Healthcare",
+      "description": "Should the US adopt a single-payer healthcare system?",
+      "category": "Healthcare",
+      "prompt": "The United States should adopt a single-payer healthcare system similar to those in Canada or the UK. Everyone deserves access to healthcare regardless of employment status."
+    },
+    {
+      "id": "immigration-policy",
+      "title": "Immigration Reform",
+      "description": "How should we reform the immigration system?",
+      "category": "Immigration",
+      "prompt": "We need comprehensive immigration reform that includes a path to citizenship for undocumented immigrants who have been contributing to our communities for years."
+    },
+    {
+      "id": "climate-action",
+      "title": "Climate Policy",
+      "description": "How aggressively should we pursue carbon emission reductions?",
+      "category": "Climate",
+      "prompt": "We should implement aggressive carbon emission targets and transition fully to renewable energy within the next 15 years, even if it means higher energy costs in the short term."
+    },
+    {
+      "id": "school-choice",
+      "title": "School Choice & Vouchers",
+      "description": "Should public funding follow students to private schools?",
+      "category": "Education",
+      "prompt": "Parents should have the right to use public education funding to send their children to the school of their choice, including private and charter schools."
+    },
+    {
+      "id": "ai-regulation",
+      "title": "AI Regulation",
+      "description": "How should governments regulate artificial intelligence?",
+      "category": "Technology",
+      "prompt": "Governments should implement strict regulations on AI development and deployment to prevent job displacement and ensure safety, even if it slows innovation."
+    },
+    {
+      "id": "criminal-justice",
+      "title": "Criminal Justice Reform",
+      "description": "Should we focus more on rehabilitation or punishment in our justice system?",
+      "category": "Justice",
+      "prompt": "Our criminal justice system should prioritize rehabilitation over punishment. Reducing mandatory minimums and investing in education programs within prisons would lower recidivism."
+    },
+    {
+      "id": "gun-policy",
+      "title": "Gun Policy",
+      "description": "What is the right balance between gun rights and public safety?",
+      "category": "Justice",
+      "prompt": "We need stricter background checks and waiting periods for all firearm purchases to reduce gun violence while still respecting the Second Amendment."
+    },
+    {
+      "id": "housing-crisis",
+      "title": "Housing Affordability",
+      "description": "How should we address the housing affordability crisis?",
+      "category": "Economy",
+      "prompt": "Cities should significantly relax zoning regulations and build more high-density housing to address the affordability crisis, even in traditionally single-family neighborhoods."
+    },
+    {
+      "id": "social-media",
+      "title": "Social Media Regulation",
+      "description": "Should the government regulate social media platforms?",
+      "category": "Technology",
+      "prompt": "Social media companies should be legally required to verify user ages and restrict access for minors under 16 to protect children's mental health."
+    },
+    {
+      "id": "student-debt",
+      "title": "Student Debt Relief",
+      "description": "Should the government forgive student loan debt?",
+      "category": "Education",
+      "prompt": "The federal government should forgive a significant portion of student loan debt to help a generation burdened by education costs they were told were necessary."
+    },
+    {
+      "id": "affirmative-action",
+      "title": "Affirmative Action in Admissions",
+      "description": "Should colleges be able to consider race in admissions?",
+      "category": "Civil Rights",
+      "prompt": "Colleges and universities should be allowed to consider race as one factor in admissions to maintain diverse student bodies and address the lasting effects of historical discrimination."
+    },
+    {
+      "id": "drug-policy",
+      "title": "Drug Decriminalization",
+      "description": "Should drug possession be decriminalized?",
+      "category": "Justice",
+      "prompt": "Personal drug possession should be decriminalized and treated as a public health issue rather than a criminal one. Portugal's model has shown this approach works."
+    }
+  ],
+  "categories": [
+    "Economy",
+    "Healthcare",
+    "Immigration",
+    "Climate",
+    "Education",
+    "Technology",
+    "Justice",
+    "Civil Rights"
+  ],
+  "difficulties": [
+    {
+      "key": "Friendly Cluck",
+      "label": "Friendly Cluck",
+      "multiplier": 1,
+      "description": "Warm and encouraging"
+    },
+    {
+      "key": "Spirited Strut",
+      "label": "Spirited Strut",
+      "multiplier": 1.25,
+      "description": "Pushes back firmly"
+    },
+    {
+      "key": "Full Gobble",
+      "label": "Full Gobble",
+      "multiplier": 1.5,
+      "description": "Maximum challenge (1.5× XP & feathers)"
+    }
+  ],
+  "levels": [
+    {
+      "level": 1,
+      "name": "Egg",
+      "xpRequired": 0,
+      "description": "Every great debater starts somewhere"
+    },
+    {
+      "level": 2,
+      "name": "Hatchling",
+      "xpRequired": 200,
+      "description": "You've cracked the shell!"
+    },
+    {
+      "level": 3,
+      "name": "Poult",
+      "xpRequired": 500,
+      "description": "Finding your voice"
+    },
+    {
+      "level": 4,
+      "name": "Youngster",
+      "xpRequired": 1000,
+      "description": "Starting to strut"
+    },
+    {
+      "level": 5,
+      "name": "Tom",
+      "xpRequired": 2000,
+      "description": "A real contender"
+    },
+    {
+      "level": 6,
+      "name": "Gobbler",
+      "xpRequired": 4000,
+      "description": "Your voice carries weight"
+    },
+    {
+      "level": 7,
+      "name": "Grand Gobbler",
+      "xpRequired": 7000,
+      "description": "A force for good discourse"
+    },
+    {
+      "level": 8,
+      "name": "Thunderbird",
+      "xpRequired": 11000,
+      "description": "Legendary civil debater"
+    }
+  ],
+  "badges": [
+    {
+      "key": "first-gobble",
+      "name": "First Gobble",
+      "description": "Complete your first debate"
+    },
+    {
+      "key": "free-range",
+      "name": "Free Range",
+      "description": "Score 7+ civility in 3 debates"
+    },
+    {
+      "key": "warm-nest",
+      "name": "Warm Nest",
+      "description": "Score 9+ on mutual exchange & listening (in a debate)"
+    },
+    {
+      "key": "migration-streak",
+      "name": "Migration Streak",
+      "description": "Maintain a 7-day streak"
+    },
+    {
+      "key": "flock-leader",
+      "name": "Flock Leader",
+      "description": "Complete 10 Full Gobble debates"
+    },
+    {
+      "key": "golden-drumstick",
+      "name": "Golden Drumstick",
+      "description": "Reach level 5 (Tom)"
+    },
+    {
+      "key": "sharp-beak",
+      "name": "Sharp Beak",
+      "description": "Score 9+ on reason & expression (in a debate)"
+    },
+    {
+      "key": "roosting-ritual",
+      "name": "Roosting Ritual",
+      "description": "Complete 30 daily gobbles"
+    }
+  ],
+  "shop": {
+    "slots": [
+      "background",
+      "cape",
+      "hat",
+      "face",
+      "neck",
+      "chest"
+    ],
+    "catalog": [
+      {
+        "id": "mortarboard",
+        "name": "Scholar Cap",
+        "slot": "hat",
+        "cost": 250,
+        "accent": "#1F4937",
+        "accentBg": "#D5DFD4"
+      },
+      {
+        "id": "crown",
+        "name": "Tiny Crown",
+        "slot": "hat",
+        "cost": 800,
+        "accent": "#E4A547",
+        "accentBg": "#FBE9C4",
+        "isNew": true
+      },
+      {
+        "id": "beanie",
+        "name": "Knit Beanie",
+        "slot": "hat",
+        "cost": 60,
+        "accent": "#7A2916",
+        "accentBg": "#F4D9CC"
+      },
+      {
+        "id": "tophat",
+        "name": "Top Hat",
+        "slot": "hat",
+        "cost": 420,
+        "accent": "#1A1612",
+        "accentBg": "#E8DDC6"
+      },
+      {
+        "id": "wizard",
+        "name": "Wizard Hat",
+        "slot": "hat",
+        "cost": 650,
+        "accent": "#1F4937",
+        "accentBg": "#D5DFD4"
+      },
+      {
+        "id": "beret",
+        "name": "Painter Beret",
+        "slot": "hat",
+        "cost": 220,
+        "accent": "#7A2916",
+        "accentBg": "#F4E3D5"
+      },
+      {
+        "id": "baseball",
+        "name": "Ball Cap",
+        "slot": "hat",
+        "cost": 80,
+        "accent": "#1F4937",
+        "accentBg": "#D5DFD4"
+      },
+      {
+        "id": "pumpkin",
+        "name": "Pumpkin Lid",
+        "slot": "hat",
+        "cost": 320,
+        "accent": "#C0461C",
+        "accentBg": "#FBE9C4",
+        "isNew": true
+      },
+      {
+        "id": "aviators",
+        "name": "Aviators",
+        "slot": "face",
+        "cost": 70,
+        "accent": "#1A1612",
+        "accentBg": "#F4D9CC"
+      },
+      {
+        "id": "round",
+        "name": "Wire Frames",
+        "slot": "face",
+        "cost": 50,
+        "accent": "#1A1612",
+        "accentBg": "#D5DFD4"
+      },
+      {
+        "id": "monocle",
+        "name": "Gold Monocle",
+        "slot": "face",
+        "cost": 380,
+        "accent": "#E4A547",
+        "accentBg": "#FBE9C4"
+      },
+      {
+        "id": "eyepatch",
+        "name": "Eye Patch",
+        "slot": "face",
+        "cost": 240,
+        "accent": "#1A1612",
+        "accentBg": "#E8DDC6"
+      },
+      {
+        "id": "starshades",
+        "name": "Star Shades",
+        "slot": "face",
+        "cost": 300,
+        "accent": "#C0461C",
+        "accentBg": "#F4D9CC"
+      },
+      {
+        "id": "bowtie",
+        "name": "Bow Tie",
+        "slot": "neck",
+        "cost": 220,
+        "accent": "#7A2916",
+        "accentBg": "#F4D9CC"
+      },
+      {
+        "id": "scarf",
+        "name": "Striped Scarf",
+        "slot": "neck",
+        "cost": 340,
+        "accent": "#1F4937",
+        "accentBg": "#D5DFD4"
+      },
+      {
+        "id": "pearls",
+        "name": "Pearl Necklace",
+        "slot": "neck",
+        "cost": 540,
+        "accent": "#F4E3D5",
+        "accentBg": "#FBE9C4"
+      },
+      {
+        "id": "sheriff",
+        "name": "Sheriff Star",
+        "slot": "chest",
+        "cost": 280,
+        "accent": "#E4A547",
+        "accentBg": "#FBE9C4"
+      },
+      {
+        "id": "medal",
+        "name": "Gold Medal",
+        "slot": "chest",
+        "cost": 460,
+        "accent": "#E4A547",
+        "accentBg": "#FBE9C4"
+      },
+      {
+        "id": "cape",
+        "name": "Hero Cape",
+        "slot": "cape",
+        "cost": 520,
+        "accent": "#C0461C",
+        "accentBg": "#F4D9CC"
+      },
+      {
+        "id": "wings",
+        "name": "Spirit Wings",
+        "slot": "cape",
+        "cost": 900,
+        "accent": "#1F4937",
+        "accentBg": "#D5DFD4",
+        "unlockAt": 6
+      },
+      {
+        "id": "forest",
+        "name": "Forest Glade",
+        "slot": "background",
+        "cost": 600,
+        "accent": "#1F4937",
+        "accentBg": "#D5DFD4"
+      },
+      {
+        "id": "sunset",
+        "name": "Sunset Glow",
+        "slot": "background",
+        "cost": 700,
+        "accent": "#C0461C",
+        "accentBg": "#FCE2C0"
+      },
+      {
+        "id": "cosmic",
+        "name": "Cosmic Drift",
+        "slot": "background",
+        "cost": 1200,
+        "accent": "#3A2D5C",
+        "accentBg": "#2A2440",
+        "unlockAt": 6
+      },
+      {
+        "id": "dots",
+        "name": "Polka Dots",
+        "slot": "background",
+        "cost": 240,
+        "accent": "#C0461C",
+        "accentBg": "#F4ECDD"
+      },
+      {
+        "id": "confetti",
+        "name": "Confetti Party",
+        "slot": "background",
+        "cost": 380,
+        "accent": "#1F4937",
+        "accentBg": "#1F4937",
+        "isNew": true
+      }
+    ]
+  },
+  "avatarAnchors": {
+    "3": {
+      "hat": {
+        "x": -28,
+        "y": -10
+      },
+      "face": {
+        "x": -38,
+        "y": -6
+      },
+      "neck": {
+        "x": -20,
+        "y": -5
+      },
+      "chest": {
+        "x": -10,
+        "y": -8
+      },
+      "cape": {
+        "x": -10,
+        "y": 0
+      }
+    },
+    "4": {
+      "hat": {
+        "x": -26,
+        "y": -8
+      },
+      "face": {
+        "x": -36,
+        "y": -4
+      },
+      "neck": {
+        "x": -18,
+        "y": -4
+      },
+      "chest": {
+        "x": -8,
+        "y": -6
+      },
+      "cape": {
+        "x": -8,
+        "y": 0
+      }
+    }
+  },
+  "survey": {
+    "questions": [
+      {
+        "key": "political_affiliation",
+        "type": "single-choice",
+        "prompt": "Where do you see yourself politically?",
+        "options": [
+          {
+            "value": "strong_left",
+            "label": "Strongly left"
+          },
+          {
+            "value": "lean_left",
+            "label": "Lean left"
+          },
+          {
+            "value": "center",
+            "label": "Center"
+          },
+          {
+            "value": "lean_right",
+            "label": "Lean right"
+          },
+          {
+            "value": "strong_right",
+            "label": "Strongly right"
+          },
+          {
+            "value": "prefer_not",
+            "label": "Prefer not to say"
+          }
+        ]
+      },
+      {
+        "key": "discuss_frequency",
+        "type": "single-choice",
+        "prompt": "How often do you discuss politics with people who disagree with you?",
+        "options": [
+          {
+            "value": "never",
+            "label": "Never"
+          },
+          {
+            "value": "rarely",
+            "label": "Rarely"
+          },
+          {
+            "value": "sometimes",
+            "label": "Sometimes"
+          },
+          {
+            "value": "often",
+            "label": "Often"
+          }
+        ]
+      },
+      {
+        "key": "top_issue",
+        "type": "single-choice",
+        "prompt": "What issue matters most to you right now?",
+        "options": [
+          {
+            "value": "civil_rights",
+            "label": "Civil rights"
+          },
+          {
+            "value": "climate_environment",
+            "label": "Climate & environment"
+          },
+          {
+            "value": "crime_safety",
+            "label": "Crime & public safety"
+          },
+          {
+            "value": "economy_jobs",
+            "label": "Economy & jobs"
+          },
+          {
+            "value": "education",
+            "label": "Education"
+          },
+          {
+            "value": "foreign_policy",
+            "label": "Foreign policy"
+          },
+          {
+            "value": "healthcare",
+            "label": "Healthcare"
+          },
+          {
+            "value": "immigration",
+            "label": "Immigration"
+          }
+        ]
+      }
+    ]
+  },
+  "ideologyOptions": [
+    {
+      "key": "left",
+      "label": "Left",
+      "description": "Strong progressive"
+    },
+    {
+      "key": "lean-left",
+      "label": "Lean Left",
+      "description": "Moderate liberal"
+    },
+    {
+      "key": "center",
+      "label": "Center",
+      "description": "Moderate / mixed"
+    },
+    {
+      "key": "lean-right",
+      "label": "Lean Right",
+      "description": "Moderate conservative"
+    },
+    {
+      "key": "right",
+      "label": "Right",
+      "description": "Strong conservative"
+    }
+  ],
+  "civility": {
+    "dimensions": [
+      {
+        "key": "participation",
+        "label": "Participation",
+        "description": "Staying in the conversation. High scores mean you kept engaging with what the other person said, even when it got tense — rather than dodging, shutting down, or leaving."
+      },
+      {
+        "key": "selfExpressionReason",
+        "label": "Reason & expression",
+        "description": "Saying what you think and why. High scores mean you shared your own view and backed it up with reasons, examples, or personal experience instead of just stating a position."
+      },
+      {
+        "key": "mutualExchange",
+        "label": "Mutual exchange & listening",
+        "description": "Treating the other person as a real conversation partner. High scores mean you acknowledged their points, asked clarifying questions, and aimed to understand rather than to win."
+      },
+      {
+        "key": "interrogation",
+        "label": "Interrogating preconceptions",
+        "description": "Questioning your own view. High scores mean you admitted fair counterpoints, showed some humility, and stayed open to adjusting what you think."
+      }
+    ]
+  }
+}

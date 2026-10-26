@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
 import { waitUntil } from "@vercel/functions";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser, unauthorized } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { getAIResponse, scoreCivility, scoreConversationHolistic, ChatMessage } from "@/lib/ai";
-import { calculateXP, calculateFeathers, getLevelInfo, checkNewBadges } from "@/lib/gamification";
+import { calculateXP, calculateFeathers, getLevelInfo, checkNewBadges, MAX_TURNS, MAX_MESSAGE_CHARS } from "@/lib/gamification";
 import { parseEquippedCosmetics } from "@/lib/shop";
 import { fallbackHolisticFromUserMessages, parseStoredDimensions } from "@/lib/civility";
 import { getPersonaById, pickPersona, isTier } from "@/lib/personas/pool";
 
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const maxDuration = 60;
 
-  const userId = (session.user as { id: string }).id;
+export async function POST(req: Request) {
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return unauthorized();
+
+  const userId = sessionUser.id;
   const { debateId, message, finish } = await req.json();
   const hasMessage = typeof message === "string" && message.trim().length > 0;
 
@@ -34,13 +33,31 @@ export async function POST(req: Request) {
 
   // Without this, re-posting "finish" re-awards XP/feathers every time.
   if (debate.completed) {
-    return NextResponse.json({ error: "This debate is already finished" }, { status: 409 });
+    return NextResponse.json({ error: "This debate is already finished", code: "ALREADY_COMPLETED" }, { status: 409 });
   }
 
   // "Wrap up" carries no new message. Don't record a blank one — it would be scored,
   // stored in the transcript, and counted toward the user's message total (feathers).
   if (!hasMessage) {
     return await finishDebate(userId, debateId, 5);
+  }
+
+  if (message.length > MAX_MESSAGE_CHARS) {
+    return NextResponse.json(
+      { error: `Messages are limited to ${MAX_MESSAGE_CHARS} characters`, code: "MESSAGE_TOO_LONG" },
+      { status: 400 }
+    );
+  }
+
+  // Enforced server-side so a native client can't exceed the turn limit.
+  const userTurnsSoFar = debate.messages.filter((m) => m.role === "user").length;
+  if (userTurnsSoFar >= MAX_TURNS) {
+    // At the limit no further message may be recorded: a finish request is a plain wrap-up.
+    if (finish) return await finishDebate(userId, debateId, 5);
+    return NextResponse.json(
+      { error: "This debate has reached its turn limit — wrap it up to see your results", code: "MAX_TURNS" },
+      { status: 409 }
+    );
   }
 
   const conversationHistory: ChatMessage[] = debate.messages.map((m) => ({
@@ -105,7 +122,7 @@ export async function POST(req: Request) {
     aiCivility: null,
     civility: civilityResult,
     turnNumber: userMsgCount,
-    maxTurns: 8,
+    maxTurns: MAX_TURNS,
   });
 }
 

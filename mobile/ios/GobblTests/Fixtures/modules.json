@@ -1,0 +1,87 @@
+[
+  {
+    "key": "participation",
+    "skill": "participation",
+    "title": "Participation",
+    "description": "Practice staying in the conversation, even when it gets uncomfortable.",
+    "estimatedMinutes": 10,
+    "variants": [
+      {
+        "key": "standard",
+        "stepCount": 4
+      }
+    ],
+    "hasAdvancedVariant": false,
+    "timesCompleted": 0,
+    "progress": {
+      "sessionId": "cmvpmhzia000i9cqs0h09s8fb",
+      "stage": "diagnostic",
+      "variant": "standard",
+      "inProgress": true
+    }
+  },
+  {
+    "key": "active-listening",
+    "skill": "listening",
+    "title": "Active Listening",
+    "description": "Notice what good listening looks like, then practice it yourself.",
+    "estimatedMinutes": 12,
+    "variants": [
+      {
+        "key": "standard",
+        "stepCount": 4
+      }
+    ],
+    "hasAdvancedVariant": false,
+    "timesCompleted": 0,
+    "progress": null
+  },
+  {
+    "key": "cognitive-dissonance",
+    "skill": "cognitiveDissonance",
+    "title": "Cognitive Dissonance",
+    "description": "Practice accepting contradictory inner views and confronting nuance.",
+    "estimatedMinutes": 10,
+    "variants": [
+      {
+        "key": "standard",
+        "stepCount": 6
+      }
+    ],
+    "hasAdvancedVariant": false,
+    "timesCompleted": 0,
+    "progress": null
+  },
+  {
+    "key": "self-expression",
+    "skill": "selfExpression",
+    "title": "Self-Expression",
+    "description": "Practice putting your own view into words, not just reacting to theirs.",
+    "estimatedMinutes": 10,
+    "variants": [
+      {
+        "key": "standard",
+        "stepCount": 4
+      }
+    ],
+    "hasAdvancedVariant": false,
+    "timesCompleted": 0,
+    "progress": null
+  },
+  {
+    "key": "reason-giving",
+    "skill": "reasonGiving",
+    "title": "Reason-Giving",
+    "description": "Back up what you believe with something more than a gut feeling.",
+    "estimatedMinutes": 10,
+    "variants": [
+      {
+        "key": "standard",
+        "stepCount": 4
+      }
+    ],
+    "hasAdvancedVariant": false,
+    "timesCompleted": 0,
+    "progress": null
+  }
+]

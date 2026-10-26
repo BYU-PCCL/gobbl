@@ -10,7 +10,8 @@
     "db:push": "prisma db push && prisma db execute --file prisma/supabase-rls.sql --schema prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "export:avatars": "tsx --tsconfig scripts/tsconfig.json scripts/export-avatars.tsx"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",

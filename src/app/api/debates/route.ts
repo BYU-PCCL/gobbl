@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser, unauthorized } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { createDebate } from "@/lib/debates";
-import { getPersonaById } from "@/lib/personas/pool";
+import { getDailyTopicForDate, utcDayBounds } from "@/lib/daily";
+import { formatTopicForDebate } from "@/lib/topics";
+import { toDebateDTO, toDebateSummaryDTO } from "@/lib/dto";
+
+// Creating a debate makes a blocking Grok call for the opening line.
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return unauthorized();
 
-  const userId = (session.user as { id: string }).id;
+  const userId = sessionUser.id;
 
   let body: {
     topic?: string;
@@ -26,7 +28,43 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  const { topic, category, difficulty, personaId, isDaily, allowProfanity } = body;
+  const { difficulty, personaId, isDaily, allowProfanity } = body;
+  let { topic, category } = body;
+
+  if (isDaily) {
+    // The server owns the Daily Gobble: one topic per UTC day (published by /api/config),
+    // one daily debate per user per day. Clients can't pick the topic or repeat the bonus.
+    const now = new Date();
+    const daily = getDailyTopicForDate(now);
+    topic = formatTopicForDebate(daily);
+    category = daily.category;
+
+    const { start, end } = utcDayBounds(now);
+    const existing = await prisma.debate.findFirst({
+      where: { userId, isDaily: true, createdAt: { gte: start, lt: end } },
+      orderBy: { createdAt: "desc" },
+      include: { messages: { orderBy: { createdAt: "asc" } } },
+    });
+    if (existing && !existing.completed) {
+      // Resume rather than stack a second daily (double-tap, second device).
+      const opening = existing.messages.find((m) => m.role === "assistant");
+      return NextResponse.json({
+        id: existing.id,
+        topic: existing.topic,
+        difficulty: existing.difficulty,
+        personaInitials: toDebateSummaryDTO(existing).personaInitials,
+        openingMessage: opening?.content ?? "",
+        resumed: true,
+      });
+    }
+    if (existing) {
+      return NextResponse.json(
+        { error: "You've already done today's Daily Gobble", code: "DAILY_DONE", debateId: existing.id },
+        { status: 409 }
+      );
+    }
+  }
+
   if (!topic) {
     return NextResponse.json({ error: "A topic is required" }, { status: 400 });
   }
@@ -51,12 +89,10 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const sessionUser = await getSessionUser(req);
+  if (!sessionUser) return unauthorized();
 
-  const userId = (session.user as { id: string }).id;
+  const userId = sessionUser.id;
   const url = new URL(req.url);
   const debateId = url.searchParams.get("id");
 
@@ -68,11 +104,7 @@ export async function GET(req: Request) {
     if (!debate) {
       return NextResponse.json({ error: "Debate not found" }, { status: 404 });
     }
-    const persona = getPersonaById(debate.personaId);
-    return NextResponse.json({
-      ...debate,
-      personaInitials: persona?.initials ?? null,
-    });
+    return NextResponse.json(toDebateDTO(debate));
   }
 
   const debates = await prisma.debate.findMany({
@@ -81,5 +113,5 @@ export async function GET(req: Request) {
     take: 20,
   });
 
-  return NextResponse.json(debates);
+  return NextResponse.json(debates.map(toDebateSummaryDTO));
 }

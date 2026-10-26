@@ -1,0 +1,51 @@
+{
+  "sessionId": "cmvpmhzia000i9cqs0h09s8fb",
+  "variant": "standard",
+  "step": {
+    "id": "diagnostic",
+    "kind": "diagnostic",
+    "questions": [
+      {
+        "key": "speaks_up_when_disagree",
+        "type": "single-choice",
+        "prompt": "How often do you speak up when you disagree with someone?",
+        "options": [
+          {
+            "value": "rarely",
+            "label": "Rarely — I usually stay quiet"
+          },
+          {
+            "value": "sometimes",
+            "label": "Sometimes, if it feels safe"
+          },
+          {
+            "value": "often",
+            "label": "Often — I say what I think"
+          }
+        ]
+      },
+      {
+        "key": "leaves_hard_conversations",
+        "type": "single-choice",
+        "prompt": "When a political conversation gets tense, what do you usually do?",
+        "options": [
+          {
+            "value": "exit",
+            "label": "Change the subject or leave"
+          },
+          {
+            "value": "go_quiet",
+            "label": "Stay, but go quiet"
+          },
+          {
+            "value": "stay_engaged",
+            "label": "Stay engaged and keep talking"
+          }
+        ]
+      }
+    ]
+  },
+  "moduleTitle": "Participation",
+  "stepIndex": 0,
+  "stepCount": 4
+}

@@ -1,0 +1,3 @@
+#include "Shared.xcconfig"
+
+API_BASE_URL = https:/$()/CHANGE-ME.vercel.app   // TODO: production domain

@@ -1,0 +1,14 @@
+{
+  "analysis": [
+    {
+      "turn": 1,
+      "wellDone": "You stayed in the conversation and responded directly to what they said.",
+      "tryInstead": "Try asking a follow-up question before making your next point."
+    },
+    {
+      "turn": 2,
+      "wellDone": "You stayed in the conversation and responded directly to what they said.",
+      "tryInstead": "Try asking a follow-up question before making your next point."
+    }
+  ]
+}

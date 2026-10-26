@@ -1,0 +1,9 @@
+{
+  "accessToken": "REDACTED.FIXTURE.TOKEN",
+  "expiresAt": "2026-11-25T19:01:01.103Z",
+  "user": {
+    "id": "cmvpmgyye00009cqskzjvvzft",
+    "username": "fixture_1793041258",
+    "onboardingCompletedAt": null
+  }
+}

@@ -1,0 +1,10 @@
+#include "Shared.xcconfig"
+
+// `//` starts a comment in xcconfig, so the URL scheme is written as `https:/$()/`.
+// Point Debug at a Vercel preview deployment by default: it carries the real env vars and
+// is reachable from a physical iPhone, unlike localhost. Override per developer with
+// the GOBBL_API_BASE environment variable in the scheme's Run action.
+API_BASE_URL = https:/$()/CHANGE-ME-preview.vercel.app   // TODO: your preview URL
+
+// Allow http://localhost:3000 (Simulator only) when iterating against `npm run dev`.
+INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES

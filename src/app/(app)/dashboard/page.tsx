@@ -16,7 +16,7 @@ import { XPBar } from "@/components/gamification/XPBar";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { DailyChallenge } from "@/components/dashboard/DailyChallenge";
 import { LevelUpModal } from "@/components/gamification/LevelUpModal";
-import { getDailyTopic } from "@/lib/topics";
+import { useDailyTopic } from "@/lib/useDailyTopic";
 import { LEVELS } from "@/lib/gamification";
 import type { EquippedCosmetics } from "@/lib/shop";
 
@@ -56,6 +56,7 @@ export default function DashboardPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const dailyTopic = useDailyTopic();
 
   // Level-up detection: cache previous level in sessionStorage; show modal when it jumps.
   const [levelUp, setLevelUp] = useState<{ from: number; to: number } | null>(null);
@@ -101,8 +102,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  const dailyTopic = getDailyTopic();
 
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:gap-6">
@@ -183,11 +182,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Daily Gobble */}
-      <DailyChallenge
-        topic={dailyTopic}
-        completed={userData.dailyCompleted}
-        className="lg:order-2 lg:col-span-5"
-      />
+      {dailyTopic && (
+        <DailyChallenge
+          topic={dailyTopic}
+          completed={userData.dailyCompleted}
+          className="lg:order-2 lg:col-span-5"
+        />
+      )}
 
       {/* Recent */}
       {userData.recentDebates.length > 0 && (

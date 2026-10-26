@@ -12,6 +12,7 @@ import { MessageBubble } from "@/components/chat/MessageBubble";
 import { FlatTurkey, FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
 import { Button } from "@/components/ui/Button";
 import { IDEOLOGY_OPTIONS } from "@/lib/prompts/beliefs";
+import { MAX_TURNS } from "@/lib/gamification";
 
 interface TurnFeedback {
   turn: number;
@@ -241,7 +242,7 @@ export default function DebatePage() {
         <ChatInterface
           debateId={debate.id}
           initialMessages={initialMessages}
-          maxTurns={8}
+          maxTurns={MAX_TURNS}
           onFinish={(r) => setResult(r)}
         />
       </div>

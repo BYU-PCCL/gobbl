@@ -13,3 +13,9 @@ next-env.d.ts
 
 # Claude Code local settings (machine paths, local permission grants)
 .claude/settings.local.json
+
+# iOS app (mobile/ios) build products
+mobile/ios/build/
+mobile/ios/DerivedData/
+**/xcuserdata/
+*.xcuserstate

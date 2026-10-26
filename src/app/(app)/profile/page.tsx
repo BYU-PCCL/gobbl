@@ -50,6 +50,26 @@ export default function ProfilePage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function deleteAccount() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/user", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "DELETE" }),
+      });
+      if (res.status !== 204) throw new Error("Couldn't delete your account. Please try again.");
+      await signOut({ callbackUrl: "/" });
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Couldn't delete your account.");
+      setDeleting(false);
+    }
+  }
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -222,6 +242,42 @@ export default function ProfilePage() {
           <span className="font-body text-sm font-semibold text-plume-500">Fly the Coop</span>
           <ChevronRight />
         </button>
+      </div>
+
+      {/* Delete account */}
+      <div className="px-1 text-center">
+        {confirmingDelete ? (
+          <div className="flex flex-col items-center gap-3">
+            <p className="font-body text-xs text-ink-soft">
+              This permanently deletes your account, debates, badges and feathers. It can&apos;t be undone.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="danger" size="sm" loading={deleting} onClick={deleteAccount}>
+                Yes, delete everything
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={deleting}
+                onClick={() => {
+                  setConfirmingDelete(false);
+                  setDeleteError(null);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+            {deleteError && <p className="font-body text-xs text-plume-500">{deleteError}</p>}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(true)}
+            className="font-body text-xs text-ink-muted underline hover:text-ink-soft"
+          >
+            Delete account
+          </button>
+        )}
       </div>
       </div>
     </div>

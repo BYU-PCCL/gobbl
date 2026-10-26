@@ -1,3 +1,13 @@
+/**
+ * Debate rules shared by the server (enforced in /api/chat and /api/debates) and
+ * every client (web pages, iOS via /api/config). Change them here only.
+ */
+export const MAX_TURNS = 8;
+export const MAX_MESSAGE_CHARS = 500;
+/** Bonus awarded on top of a completed Daily Gobble — see calculateXP / calculateFeathers. */
+export const DAILY_BONUS_XP = 25;
+export const DAILY_BONUS_FEATHERS = 30;
+
 export interface LevelDef {
   level: number;
   name: string;
@@ -110,7 +120,7 @@ export function calculateXP(
   const base = Math.round(20 + (civilityScore / 10) * 30);
   const diffMult = DIFFICULTY_MULTIPLIER[difficulty] || 1.0;
   const difficultyBonus = Math.round(base * (diffMult - 1));
-  const dailyBonus = isDaily ? 25 : 0;
+  const dailyBonus = isDaily ? DAILY_BONUS_XP : 0;
   const streakMultiplier = Math.min(2.0, 1 + streakDays * 0.1);
   const total = Math.round((base + difficultyBonus + dailyBonus) * streakMultiplier);
   return { base, difficultyBonus, dailyBonus, streakMultiplier, total };
@@ -130,7 +140,7 @@ export function calculateFeathers(
   const diffMult = DIFFICULTY_MULTIPLIER[difficulty] || 1.0;
   const afterDifficulty = Math.round(base * diffMult);
   const difficultyBonus = afterDifficulty - base;
-  const dailyBonus = isDaily ? 30 : 0;
+  const dailyBonus = isDaily ? DAILY_BONUS_FEATHERS : 0;
   const total = afterDifficulty + dailyBonus;
   return { base, difficultyBonus, dailyBonus, total };
 }

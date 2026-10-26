@@ -1,0 +1,40 @@
+{
+  "id": "cmvpmhvfg00029cqs67uvis0x",
+  "username": "fixture_1793041302",
+  "xp": 48,
+  "featherBalance": 25,
+  "level": 1,
+  "levelInfo": {
+    "level": 1,
+    "name": "Egg",
+    "xpRequired": 0,
+    "description": "Every great debater starts somewhere",
+    "xpForNext": 200,
+    "xpProgress": 48,
+    "progressPercent": 24
+  },
+  "equippedCosmetics": {},
+  "ownedItemIds": [],
+  "civilityScore": 6.125,
+  "currentStreak": 1,
+  "longestStreak": 1,
+  "dailyCompleted": false,
+  "badges": [
+    "first-gobble"
+  ],
+  "beliefKey": "center",
+  "recentDebates": [
+    {
+      "id": "cmvpmhvze00049cqs9zm5ou5b",
+      "topic": "School Choice & Vouchers � Should public funding follow students to private schools?",
+      "category": "Education",
+      "difficulty": "Spirited Strut",
+      "score": 6.125,
+      "xpEarned": 48,
+      "feathersEarned": 25,
+      "completedAt": "2026-10-26T19:01:45.316Z"
+    }
+  ],
+  "createdAt": "2026-10-26T19:01:42.365Z",
+  "onboardingCompletedAt": "2026-10-26T19:01:42.776Z"
+}
