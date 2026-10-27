@@ -25,13 +25,19 @@ export function StudioNavLink() {
 
   if (!allowed) return null;
 
+  const linkClass =
+    "flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-[15px] font-semibold text-ink-soft transition-colors hover:bg-surface hover:text-ink";
+
   return (
-    <Link
-      href="/studio"
-      className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-[15px] font-semibold text-ink-soft transition-colors hover:bg-surface hover:text-ink"
-    >
-      <Icon name="sparkle" />
-      Module Studio
-    </Link>
+    <>
+      <Link href="/studio" className={linkClass}>
+        <Icon name="sparkle" />
+        Module Studio
+      </Link>
+      <Link href="/lab/knowledge" className={linkClass}>
+        <Icon name="target" />
+        Gobbl Lab
+      </Link>
+    </>
   );
 }

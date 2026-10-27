@@ -17,11 +17,17 @@ const MAX_CHARS = 500;
 export function PreviewChat({
   stepProps,
   answers,
+  guideName,
   onMessagesChange,
   onFinish,
 }: {
   stepProps: Record<string, unknown>;
   answers: Record<string, string>;
+  /**
+   * For a chat whose partner is a guide rather than a debate opponent: shown in place of the
+   * opposing persona's initials (which would suggest the guide is someone arguing the other side).
+   */
+  guideName?: string;
   onMessagesChange: (messages: ChatMsg[]) => void;
   onFinish: (messages: ChatMsg[]) => void;
 }) {
@@ -103,7 +109,7 @@ export function PreviewChat({
     <div className="flex h-full min-h-[26rem] flex-col rounded-2xl border border-line bg-surface">
       <div className="flex items-center gap-3 border-b border-line px-4 py-2">
         <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted">
-          {partner ? `${partner.initials} · ` : ""}Round {userTurns}/{maxTurns}
+          {guideName ? `${guideName} · ` : partner ? `${partner.initials} · ` : ""}Round {userTurns}/{maxTurns}
         </span>
         <div className="flex-1" />
         {userTurns >= 2 && !finished && (
@@ -131,7 +137,9 @@ export function PreviewChat({
         {messages.map((m, i) => (
           <MessageBubble key={i} role={m.role} content={m.content} />
         ))}
-        {loading && <p className="font-body text-xs text-ink-muted">{partner?.initials ?? "The partner"} is typing…</p>}
+        {loading && (
+          <p className="font-body text-xs text-ink-muted">{guideName ?? partner?.initials ?? "The partner"} is typing…</p>
+        )}
         {error && (
           <div className="flex items-center gap-3 font-body text-sm text-plume-500">
             <span>{error}</span>
