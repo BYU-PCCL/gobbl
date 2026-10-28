@@ -1,3 +1,8 @@
+/** XP for finishing a module's Learn pages (first time per module). */
+export const XP_LEARN = 40;
+/** XP for passing a module's Teach quiz (first time per module). */
+export const XP_TEACH = 60;
+
 export interface LevelDef {
   level: number;
   name: string;
@@ -6,14 +11,14 @@ export interface LevelDef {
 }
 
 export const LEVELS: LevelDef[] = [
-  { level: 1, name: "Egg", xpRequired: 0, description: "Every great debater starts somewhere" },
+  { level: 1, name: "Egg", xpRequired: 0, description: "Every great conversation starts somewhere" },
   { level: 2, name: "Hatchling", xpRequired: 200, description: "You've cracked the shell!" },
   { level: 3, name: "Poult", xpRequired: 500, description: "Finding your voice" },
   { level: 4, name: "Youngster", xpRequired: 1000, description: "Starting to strut" },
   { level: 5, name: "Tom", xpRequired: 2000, description: "A real contender" },
   { level: 6, name: "Gobbler", xpRequired: 4000, description: "Your voice carries weight" },
   { level: 7, name: "Grand Gobbler", xpRequired: 7000, description: "A force for good discourse" },
-  { level: 8, name: "Thunderbird", xpRequired: 11000, description: "Legendary civil debater" },
+  { level: 8, name: "Thunderbird", xpRequired: 11000, description: "A legend of civil conversation" },
 ];
 
 export interface BadgeDefinition {
@@ -26,17 +31,17 @@ export const BADGES: BadgeDefinition[] = [
   {
     key: "first-gobble",
     name: "First Gobble",
-    description: "Complete your first debate",
+    description: "Finish your first conversation",
   },
   {
     key: "free-range",
     name: "Free Range",
-    description: "Score 7+ civility in 3 debates",
+    description: "Score 7+ civility in 3 conversations",
   },
   {
     key: "warm-nest",
     name: "Warm Nest",
-    description: "Score 9+ on mutual exchange & listening (in a debate)",
+    description: "Score 9+ on mutual exchange & listening (in a conversation)",
   },
   {
     key: "migration-streak",
@@ -46,7 +51,7 @@ export const BADGES: BadgeDefinition[] = [
   {
     key: "flock-leader",
     name: "Flock Leader",
-    description: "Complete 10 Full Gobble debates",
+    description: "Finish 10 Full Gobble conversations",
   },
   {
     key: "golden-drumstick",
@@ -56,7 +61,7 @@ export const BADGES: BadgeDefinition[] = [
   {
     key: "sharp-beak",
     name: "Sharp Beak",
-    description: "Score 9+ on reason & expression (in a debate)",
+    description: "Score 9+ on reason & expression (in a conversation)",
   },
   {
     key: "roosting-ritual",

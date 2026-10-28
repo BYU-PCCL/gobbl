@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import { getAIOpening } from "@/lib/ai";
 import { getUserBelief } from "@/lib/prompts/userBelief";
+import { getModule } from "@/lib/modules/registry";
+import { MAX_TURNS, type Stance } from "@/lib/conversation";
 import { getPersonaById, isTier, opposingPersonas, pickOpposingPersona } from "@/lib/personas/pool";
 
 interface CreateDebateParams {
@@ -16,6 +18,15 @@ interface CreateDebateParams {
   trainingMode?: string;
   /** Setup-screen opt-in; dropped unless the tier is Full Gobble. */
   allowProfanity?: boolean;
+  /** Which side the user said they take; the partner takes the other. */
+  userStance?: Stance | null;
+}
+
+/** User messages allowed in a debate: the module's first practice step `maxTurns`, else MAX_TURNS. */
+export function maxTurnsForDebate(trainingMode: string | null): number {
+  if (!trainingMode) return MAX_TURNS;
+  const practice = getModule(trainingMode)?.variants[0]?.steps.find((s) => s.kind === "practice");
+  return practice && practice.kind === "practice" && practice.maxTurns ? practice.maxTurns : MAX_TURNS;
 }
 
 /**
@@ -32,6 +43,7 @@ export async function createDebate({
   isTraining,
   trainingMode,
   allowProfanity,
+  userStance,
 }: CreateDebateParams) {
   const tier = difficulty && isTier(difficulty) ? difficulty : "Friendly Cluck";
   const profanity = tier === "Full Gobble" && allowProfanity === true;
@@ -65,12 +77,14 @@ export async function createDebate({
       // waiting on — only "text" is implemented, so every debate is created as one today.
       mode: "text",
       allowProfanity: profanity,
+      userStance: userStance ?? null,
     },
   });
 
   const aiOpening = await getAIOpening(topic, persona, {
     allowProfanity: profanity,
     moduleKey: trainingMode,
+    userStance: userStance ?? null,
   });
 
   await prisma.message.create({

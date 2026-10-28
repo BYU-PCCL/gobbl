@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { MODULES } from "@/lib/modules/registry";
+import { companionStage, getSpecies } from "@/lib/companion";
 
 interface ModuleListItem {
   key: string;
@@ -64,6 +65,7 @@ export default function SkillsPage() {
   const router = useRouter();
   const [modules, setModules] = useState<ModuleListItem[] | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [me, setMe] = useState<{ speciesId: string | null; stage: number } | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -71,6 +73,12 @@ export default function SkillsPage() {
       return;
     }
     if (status === "authenticated") {
+      fetch("/api/user")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d) setMe({ speciesId: d.companion?.speciesId ?? null, stage: companionStage(d.level ?? 1, !!d.companion?.hatched) });
+        })
+        .catch(() => {});
       fetch("/api/modules")
         .then((r) => {
           if (!r.ok) throw new Error("load failed");
@@ -105,6 +113,8 @@ export default function SkillsPage() {
   }
 
   const active = modules.find((m) => m.progress?.inProgress);
+  const myPalette = getSpecies(me?.speciesId).palette;
+  const myStage = me?.stage ?? 1;
   const activePercent = active ? percentComplete(active) : 0;
 
   return (
@@ -120,10 +130,10 @@ export default function SkillsPage() {
           </h1>
         </div>
         <div className="lg:hidden">
-          <FlatTurkey stage={4} size={60} />
+          <FlatTurkey stage={myStage} size={60} palette={myPalette} />
         </div>
         <div className="hidden lg:block">
-          <FlatTurkey stage={4} size={120} />
+          <FlatTurkey stage={myStage} size={120} palette={myPalette} />
         </div>
       </div>
 

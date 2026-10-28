@@ -38,6 +38,8 @@ export async function GET(req: Request) {
       currentStreak: true,
       longestStreak: true,
       equippedCosmetics: true,
+      companionSpecies: true,
+      companionHatchedAt: true,
       _count: { select: { debates: { where: { completed: true } } } },
     },
   });
@@ -57,6 +59,8 @@ export async function GET(req: Request) {
       totalDebates: u._count.debates,
       isCurrentUser: u.id === currentUserId,
       equippedCosmetics: parseEquippedCosmetics(u.equippedCosmetics),
+      companionSpecies: u.companionSpecies,
+      companionHatchedAt: u.companionHatchedAt,
     }))
   );
 }

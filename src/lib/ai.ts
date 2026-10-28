@@ -8,6 +8,7 @@ import {
 import { ANALYZE_SYSTEM } from "./prompts/analyze";
 import { buildSystemPrompt, profanityAllowed } from "./prompts/builder";
 import { breaksLanguageRules, LANGUAGE_REMINDER, scrubLanguage } from "./prompts/language";
+import type { Stance } from "@/lib/conversation";
 import type { Persona } from "@/lib/personas/pool";
 import { getModuleAIConfig } from "@/lib/modules/ai-config";
 
@@ -77,6 +78,16 @@ const OPENING_USER_TEMPLATES = [
 
 const OPENING_BANNED_PHRASING = `Do not use "Spill it," "spill the beans," or similar pushy/casual clichés when asking for their view — vary your wording naturally.`;
 
+function buildStanceOpeningContent(topic: string, stance: Stance): string {
+  const theirs = stance === "for" ? "for" : "against";
+  const yours = stance === "for" ? "against" : "for";
+  return `The question on the table is: ${topic}
+
+First message. They have already told you they are ${theirs} it, and you are ${yours} it, per the stance you hold. Ask them why they see it that way, in a specific way tied to this topic (not a generic "why?"), and hint at your own opposite view in one short clause. Do not build a straw man or argue their side for them. Stay in character, keep it short and conversational.
+
+${OPENING_BANNED_PHRASING}`;
+}
+
 function buildOpeningUserContent(topic: string): string {
   const template = OPENING_USER_TEMPLATES[Math.floor(Math.random() * OPENING_USER_TEMPLATES.length)];
   return `${template.replace("{topic}", topic)}\n\n${OPENING_BANNED_PHRASING}`;
@@ -86,6 +97,8 @@ export interface PromptOptions {
   allowProfanity?: boolean;
   /** Debate.trainingMode — picks up that module's prompt/model from modules/ai-config.ts. */
   moduleKey?: string | null;
+  /** Side the user said they take; the partner holds the opposite. */
+  userStance?: Stance | null;
 }
 
 export async function getAIOpening(
@@ -98,7 +111,9 @@ export async function getAIOpening(
   const moduleAI = getModuleAIConfig(options.moduleKey);
   const content = moduleAI?.openingInstruction
     ? moduleAI.openingInstruction.replaceAll("{topic}", topic)
-    : buildOpeningUserContent(topic);
+    : options.userStance
+      ? buildStanceOpeningContent(topic, options.userStance)
+      : buildOpeningUserContent(topic);
   const text = await generateInCharacter("opening", persona, topic, options, {
     messages: [{ role: "user", content }],
     temperature: moduleAI?.temperature?.opening ?? 0.92,

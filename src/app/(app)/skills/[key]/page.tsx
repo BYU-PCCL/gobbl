@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -8,11 +8,24 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
-import { ChatInterface, type ChatMsg } from "@/components/chat/ChatInterface";
+import { LevelUpModal } from "@/components/gamification/LevelUpModal";
+import { Companion } from "@/components/companion/Companion";
+import { HatchOverlay } from "@/components/companion/HatchOverlay";
+import { TopicPicker } from "@/components/conversation/TopicPicker";
+import { StancePicker } from "@/components/conversation/StancePicker";
+import { ConversationScene, type ConversationYou } from "@/components/conversation/ConversationScene";
+import { ConversationResults } from "@/components/conversation/ConversationResults";
+import { QuizStep } from "@/components/skills/QuizStep";
+import { InlineToast } from "@/components/skills/InlineToast";
 import { useVisualViewportHeight } from "@/components/chat/useVisualViewportHeight";
+import { companionLine, type CompanionInfo } from "@/lib/companion";
+import { MAX_TURNS, isStance, type ConvMsg, type FinishResult, type Stance } from "@/lib/conversation";
+import { availableMoves, type Move } from "@/lib/moves";
 import { getModule } from "@/lib/modules/registry";
 import type { ModuleStep } from "@/lib/modules/types";
 import { isAnswerValid } from "@/lib/survey/questions";
+import type { EquippedCosmetics } from "@/lib/shop";
+import { MODULE_TOPIC, TOPICS, getTopic } from "@/lib/topics";
 
 interface ModuleProgressSummary {
   key: string;
@@ -25,6 +38,7 @@ interface ModuleProgressSummary {
     stage: string;
     variant: "standard" | "advanced";
     inProgress: boolean;
+    linkedDebates?: { pre: string | null; post: string | null };
   } | null;
 }
 
@@ -35,16 +49,67 @@ interface CompleteResult {
   feathersEarned: number;
 }
 
+interface UserInfo {
+  level: number;
+  companion: CompanionInfo;
+  equippedCosmetics: EquippedCosmetics | null;
+}
+
+interface XpGain {
+  amount: number;
+  previousLevel: number;
+  newLevel: number;
+}
+
 type RunnerPhase =
   | { kind: "loading" }
   | { kind: "load-error" }
   | { kind: "not-found" }
   | { kind: "intro"; summary: ModuleProgressSummary }
-  | { kind: "step"; sessionId: string; step: ModuleStep }
-  | { kind: "practice"; sessionId: string; step: ModuleStep; debateId: string; initialMessages: ChatMsg[] }
+  /** `linked`: the server already has a conversation for this practice step, so resume it without the pickers. */
+  | { kind: "step"; sessionId: string; step: ModuleStep; linked?: boolean }
+  | {
+      kind: "practice";
+      sessionId: string;
+      step: ModuleStep;
+      debateId: string;
+      topic: string;
+      personaInitials: string;
+      difficulty: string;
+      userStance: Stance | null;
+      maxTurns: number;
+      initialMessages: ConvMsg[];
+    }
+  | { kind: "practice-results"; sessionId: string; step: ModuleStep; debateId: string; result: FinishResult }
   | { kind: "complete"; result: CompleteResult };
 
+/** Quiz passed with a hatch: the overlay shows before the lesson moves on. */
+interface HatchPending {
+  sessionId: string;
+  nextStep: ModuleStep | null;
+  moveName: string;
+  xp: XpGain | null;
+}
+
 const GENERIC_ERROR = "Something went wrong. Please try again.";
+
+/** Remembers that a practice conversation was started in this browser, so a reload resumes it without the pickers. */
+const practiceKey = (sessionId: string, stepId: string) => `gobbl:practice:${sessionId}:${stepId}`;
+function practiceStarted(sessionId: string, stepId: string): boolean {
+  try {
+    return sessionStorage.getItem(practiceKey(sessionId, stepId)) === "1";
+  } catch {
+    return false;
+  }
+}
+function markPractice(sessionId: string, stepId: string, on: boolean) {
+  try {
+    if (on) sessionStorage.setItem(practiceKey(sessionId, stepId), "1");
+    else sessionStorage.removeItem(practiceKey(sessionId, stepId));
+  } catch {
+    /* storage unavailable: a reload shows the pickers again and the server returns the same conversation */
+  }
+}
 
 /** Modules are reading-and-writing flows, so they keep a comfortable column width on desktop. */
 export default function ModuleRunnerPage() {
@@ -66,14 +131,41 @@ function ModuleRunner() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The practice chat fills the phone screen, so size it to the visual viewport like the
-  // main debate view does (keeps the composer above the keyboard).
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [levelUp, setLevelUp] = useState<{ from: number; to: number } | null>(null);
+  const [hatch, setHatch] = useState<HatchPending | null>(null);
+  const [topicId, setTopicId] = useState<string | null>(MODULE_TOPIC[moduleKey] ?? null);
+  const [stance, setStance] = useState<Stance | null>(null);
+  const resumeTried = useRef<string | null>(null);
+  // The practice conversation fills the phone screen, so size it to the visual viewport
+  // (keeps the composer above the keyboard).
   useVisualViewportHeight(phase.kind === "practice");
+
+  const hideToast = useCallback(() => setToast(null), []);
+
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await fetch("/api/user");
+      if (!res.ok) return;
+      const d = await res.json();
+      setUser({
+        level: d.level ?? 1,
+        companion: d.companion ?? { speciesId: null, hatched: false, stage: 1, learnedMoves: [], lastTopicId: null },
+        equippedCosmetics: d.equippedCosmetics ?? null,
+      });
+    } catch {
+      /* the companion falls back to defaults */
+    }
+  }, []);
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/");
       return;
+    }
+    if (status === "authenticated") {
+      void refreshUser();
     }
     if (status === "authenticated" && moduleConfig) {
       (async () => {
@@ -101,13 +193,7 @@ function ModuleRunner() {
         setPhase(resumeStep(moduleConfig, summary) ?? { kind: "intro", summary });
       })().catch(() => setPhase({ kind: "load-error" }));
     }
-  }, [status, moduleKey, moduleConfig, router]);
-
-  if (!moduleConfig) {
-    return <NotFoundView />;
-  }
-
-  const hasAdvancedVariant = moduleConfig.variants.some((v) => v.key === "advanced");
+  }, [status, moduleKey, moduleConfig, router, refreshUser]);
 
   async function post(path: string, body: unknown) {
     const res = await fetch(`/api/modules/${moduleKey}/${path}`, {
@@ -158,6 +244,7 @@ function ModuleRunner() {
   async function finalize(sessionId: string) {
     const r = await post("complete", { sessionId });
     if (handleFailure(r)) return;
+    void refreshUser();
     setPhase({ kind: "complete", result: r.data });
   }
 
@@ -167,6 +254,8 @@ function ModuleRunner() {
       return;
     }
     setAnswers({});
+    setStance(null);
+    setTopicId(MODULE_TOPIC[moduleKey] ?? null);
     setPhase({ kind: "step", sessionId, step: nextStep });
   }
 
@@ -180,47 +269,158 @@ function ModuleRunner() {
         await finalize(r.data.sessionId);
         return;
       }
-      setPhase({ kind: "step", sessionId: r.data.sessionId, step: r.data.step });
+      const resumedVariant =
+        moduleConfig?.variants.find((v) => v.key === r.data.variant) ?? moduleConfig?.variants[0];
+      const linked = resumedVariant ? practiceLinked(resumedVariant.steps, r.data.step, r.data.linkedDebates) : false;
+      setPhase({ kind: "step", sessionId: r.data.sessionId, step: r.data.step, linked });
     });
   }
 
-  function enterPractice(sessionId: string, step: ModuleStep) {
+  /** Posts the practice start. `choice` is omitted when resuming: the server returns the linked conversation. */
+  async function startPractice(sessionId: string, step: ModuleStep, choice?: { topicId: string; userStance: Stance }) {
+    const r = await post("advance", { sessionId, stepId: step.id, ...(choice ? { answer: choice } : {}) });
+    if (handleFailure(r)) return;
+    const debateRes = await fetch(`/api/debates?id=${r.data.debateId}`);
+    if (!debateRes.ok) {
+      setError(GENERIC_ERROR);
+      return;
+    }
+    const debate = await debateRes.json();
+    markPractice(sessionId, step.id, true);
+    if (!choice && debate.completed) {
+      // Resumed a conversation that was already wrapped up: just record it and move on.
+      await completePractice(sessionId, step);
+      return;
+    }
+    const stepMax = step.kind === "practice" ? step.maxTurns : undefined;
+    setPhase({
+      kind: "practice",
+      sessionId,
+      step,
+      debateId: r.data.debateId,
+      topic: debate.topic,
+      personaInitials: debate.personaInitials ?? "",
+      difficulty: debate.difficulty,
+      userStance: isStance(debate.userStance) ? debate.userStance : null,
+      maxTurns: debate.maxTurns ?? stepMax ?? MAX_TURNS,
+      initialMessages: (debate.messages as { role: string; content: string; moveId?: string | null }[]).map((m) => ({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: m.content,
+        moveId: m.moveId ?? null,
+      })),
+    });
+  }
+
+  async function completePractice(sessionId: string, step: ModuleStep) {
+    const r = await post("advance", { sessionId, stepId: step.id, action: "finish" });
+    if (handleFailure(r)) return;
+    markPractice(sessionId, step.id, false);
+    await goToNextStep(sessionId, r.data.nextStep);
+  }
+
+  function enterPractice(sessionId: string, step: ModuleStep, fresh: boolean) {
     return run(async () => {
-      const r = await post("advance", { sessionId, stepId: step.id });
-      if (handleFailure(r)) return;
-      const debateRes = await fetch(`/api/debates?id=${r.data.debateId}`);
-      if (!debateRes.ok) {
-        setError(GENERIC_ERROR);
-        return;
+      if (fresh) {
+        if (!topicId || !stance) return;
+        await startPractice(sessionId, step, { topicId, userStance: stance });
+      } else {
+        await startPractice(sessionId, step);
       }
-      const debate = await debateRes.json();
-      const initialMessages: ChatMsg[] = debate.messages.map(
-        (m: { role: string; content: string; civilityScore: number | null }) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-          civilityScore: m.civilityScore,
-        })
-      );
-      setPhase({ kind: "practice", sessionId, step, debateId: r.data.debateId, initialMessages });
     });
   }
 
   function finishPractice(sessionId: string, step: ModuleStep) {
+    return run(() => completePractice(sessionId, step));
+  }
+
+  function noteXp(xp: XpGain | null | undefined, message: string) {
+    if (!xp) return;
+    setToast(message);
+    if (xp.newLevel > xp.previousLevel) setLevelUp({ from: xp.previousLevel, to: xp.newLevel });
+  }
+
+  function advance(sessionId: string, step: ModuleStep, answer: unknown) {
+    if (step.kind === "practice") return enterPractice(sessionId, step, true);
     return run(async () => {
-      const r = await post("advance", { sessionId, stepId: step.id, action: "finish" });
+      const r = await post("advance", { sessionId, stepId: step.id, answer });
       if (handleFailure(r)) return;
+      if (r.data.xp) {
+        noteXp(r.data.xp, `+${r.data.xp.amount} XP · Your turkey feels the lesson coming.`);
+        void refreshUser();
+      }
       await goToNextStep(sessionId, r.data.nextStep);
     });
   }
 
-  function advance(sessionId: string, step: ModuleStep, answer: unknown) {
-    if (step.kind === "practice") return enterPractice(sessionId, step);
-    return run(async () => {
+  /** Submits the quiz. Resolves "failed" when not passed so QuizStep can offer a retry. */
+  async function submitQuiz(sessionId: string, step: ModuleStep, answer: number[]): Promise<"failed" | "other"> {
+    let outcome: "failed" | "other" = "other";
+    await run(async () => {
       const r = await post("advance", { sessionId, stepId: step.id, answer });
       if (handleFailure(r)) return;
-      await goToNextStep(sessionId, r.data.nextStep);
+      if (!r.data.passed) {
+        outcome = "failed";
+        return;
+      }
+      const learned: Move | null = r.data.learnedMove ?? null;
+      const xp: XpGain | null = r.data.xp ?? null;
+      const nextStep: ModuleStep | null = r.data.nextStep ?? null;
+      void refreshUser();
+      if (r.data.hatched) {
+        setHatch({ sessionId, nextStep, moveName: learned?.name ?? "", xp });
+        return;
+      }
+      if (xp) noteXp(xp, `+${xp.amount} XP${learned ? ` · ${learned.name} learned` : ""}`);
+      else if (learned) setToast(`${learned.name} sharpened`);
+      await goToNextStep(sessionId, nextStep);
     });
+    return outcome;
   }
+
+  function finishHatch() {
+    if (!hatch) return;
+    const h = hatch;
+    setHatch(null);
+    if (h.xp) noteXp(h.xp, `+${h.xp.amount} XP${h.moveName ? ` · ${h.moveName} learned` : ""}`);
+    void run(() => goToNextStep(h.sessionId, h.nextStep));
+  }
+
+  // Resume: a practice conversation the server already linked (or one started in this browser) skips the pickers.
+  useEffect(() => {
+    if (phase.kind !== "step" || phase.step.kind !== "practice") return;
+    const id = `${phase.sessionId}:${phase.step.id}`;
+    const started = phase.linked === true || practiceStarted(phase.sessionId, phase.step.id);
+    if (resumeTried.current === id || !started) return;
+    resumeTried.current = id;
+    void enterPractice(phase.sessionId, phase.step, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  if (!moduleConfig) {
+    return <NotFoundView />;
+  }
+
+  const hasAdvancedVariant = moduleConfig.variants.some((v) => v.key === "advanced");
+  const you: ConversationYou = {
+    speciesId: user?.companion.speciesId ?? null,
+    level: user?.level ?? 1,
+    hatched: user?.companion.hatched ?? false,
+    equipped: user?.equippedCosmetics ?? null,
+  };
+
+  const overlays = (
+    <>
+      <InlineToast message={toast} onHide={hideToast} />
+      {hatch && <HatchOverlay speciesId={you.speciesId} moveName={hatch.moveName} onDone={finishHatch} />}
+      <LevelUpModal
+        open={levelUp !== null && !hatch}
+        fromLevel={levelUp?.from ?? 1}
+        toLevel={levelUp?.to ?? 1}
+        rewards={{ feathers: 0 }}
+        onClose={() => setLevelUp(null)}
+      />
+    </>
+  );
 
   if (phase.kind === "loading") {
     return (
@@ -276,41 +476,65 @@ function ModuleRunner() {
           </Button>
         )}
         {error && <p className="text-center font-body text-sm text-plume-500">{error}</p>}
+        {overlays}
       </div>
     );
   }
 
   if (phase.kind === "practice") {
-    const maxTurns = (phase.step.kind === "practice" && phase.step.maxTurns) || 8;
     return (
-      // On phones and tablets the chat takes over the whole screen (above the top bar and
+      // On phones and tablets the conversation takes over the whole screen (above the top bar and
       // bottom nav) and is sized to the visual viewport, so the composer stays above the
-      // keyboard and the newest messages stay visible. On desktop it is a card inside the
-      // page: the page content grows with its content, so the card needs an explicit height.
+      // keyboard. On desktop it is a card inside the page: the page content grows with its
+      // content, so the card needs an explicit height.
       <div className="fixed inset-x-0 top-0 z-50 flex h-[var(--vvh,100dvh)] flex-col bg-surface lg:static lg:h-[calc(100dvh-7rem)] lg:min-h-[420px] lg:overflow-hidden lg:rounded-2xl lg:border lg:border-line">
-        <div className="flex items-center justify-between gap-3 border-b border-line bg-surface py-1.5 pl-4 pr-2 pt-[max(env(safe-area-inset-top),0.375rem)] lg:pt-1.5">
-          <span className="truncate font-body text-xs text-ink-soft">
-            Practice conversation: {moduleConfig.title}
-          </span>
-          <LeaveButton onLeave={leave} />
+        <div className="flex-1 overflow-hidden">
+          <ConversationScene
+            debateId={phase.debateId}
+            topic={phase.topic}
+            personaInitials={phase.personaInitials}
+            difficulty={phase.difficulty}
+            userStance={phase.userStance}
+            initialMessages={phase.initialMessages}
+            maxTurns={phase.maxTurns}
+            moves={availableMoves(user?.companion.learnedMoves ?? [])}
+            you={you}
+            onFinish={(result) =>
+              setPhase({
+                kind: "practice-results",
+                sessionId: phase.sessionId,
+                step: phase.step,
+                debateId: phase.debateId,
+                result,
+              })
+            }
+            onLeave={leave}
+          />
         </div>
+        {overlays}
+      </div>
+    );
+  }
+
+  if (phase.kind === "practice-results") {
+    return (
+      <div className="flex flex-col gap-3">
+        <ConversationResults
+          debateId={phase.debateId}
+          result={phase.result}
+          you={you}
+          continueLabel="Continue the lesson"
+          onContinue={() => finishPractice(phase.sessionId, phase.step)}
+        />
         {error && (
-          // The conversation already ended but recording it failed; without a retry the user is stuck here.
-          <div className="flex items-center justify-between gap-3 border-b border-line bg-plume-100 px-4 py-2 font-body text-xs text-plume-700">
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-plume-100 px-4 py-2 font-body text-xs text-plume-700">
             <span>{error}</span>
             <Button size="sm" variant="outline" disabled={busy} onClick={() => finishPractice(phase.sessionId, phase.step)}>
               Retry
             </Button>
           </div>
         )}
-        <div className="flex-1 overflow-hidden">
-          <ChatInterface
-            debateId={phase.debateId}
-            initialMessages={phase.initialMessages}
-            maxTurns={maxTurns}
-            onFinish={() => finishPractice(phase.sessionId, phase.step)}
-          />
-        </div>
+        {overlays}
       </div>
     );
   }
@@ -318,7 +542,14 @@ function ModuleRunner() {
   if (phase.kind === "complete") {
     return (
       <div className="flex flex-col items-center gap-4 py-10 text-center">
-        <FlatTurkey stage={6} size="lg" />
+        <Companion
+          variant="scene"
+          speciesId={you.speciesId}
+          level={you.level}
+          hatched={you.hatched}
+          equipped={you.equipped}
+          line="We did it. I remember every word."
+        />
         <h1 className="font-display text-2xl font-bold">Module complete</h1>
         <p className="font-body text-sm text-ink-soft">
           +{phase.result.feathersEarned} feathers
@@ -330,25 +561,68 @@ function ModuleRunner() {
         <Link href="/skills">
           <Button>Back to skills</Button>
         </Link>
+        {overlays}
       </div>
     );
   }
 
   const { sessionId, step } = phase;
-  const canContinue = isStepComplete(step, answers);
+  const isLastStep = moduleConfig.variants.some((v) => v.steps[v.steps.length - 1]?.id === step.id);
+  const line = companionLine(isLastStep ? "last" : step.kind, you.hatched);
+
+  if (step.kind === "quiz") {
+    return (
+      <div className="flex flex-col gap-5">
+        <LeaveBar onLeave={leave} hint="Finished steps are saved. You can pick this up later." />
+        <QuizStep
+          questions={step.questions}
+          speciesId={you.speciesId}
+          level={you.level}
+          hatched={you.hatched}
+          equipped={you.equipped}
+          busy={busy}
+          onSubmit={(answer) => submitQuiz(sessionId, step, answer)}
+          onBack={() => router.push("/dashboard")}
+        />
+        {error && <p className="text-center font-body text-sm text-plume-500">{error}</p>}
+        {overlays}
+      </div>
+    );
+  }
+
+  const canContinue = isStepComplete(step, answers) && (step.kind !== "practice" || (!!topicId && !!stance));
 
   return (
     <div className="flex flex-col gap-5">
       <LeaveBar onLeave={leave} hint="Finished steps are saved. You can pick this up later." />
-      <StepView step={step} answers={answers} onChange={setAnswers} />
+      <Companion
+        variant="row"
+        speciesId={you.speciesId}
+        level={you.level}
+        hatched={you.hatched}
+        equipped={you.equipped}
+        line={line}
+      />
+      <StepView
+        step={step}
+        answers={answers}
+        onChange={setAnswers}
+        moduleTitle={moduleConfig.title}
+        moduleKey={moduleKey}
+        topicId={topicId}
+        onTopic={setTopicId}
+        stance={stance}
+        onStance={setStance}
+      />
       <Button
         disabled={!canContinue || busy}
         loading={busy}
         onClick={() => advance(sessionId, step, answerPayload(step, answers))}
       >
-        {step.kind === "practice" ? "Start conversation" : "Continue"}
+        {step.kind === "practice" ? "Start the conversation" : "Continue"}
       </Button>
       {error && <p className="text-center font-body text-sm text-plume-500">{error}</p>}
+      {overlays}
     </div>
   );
 }
@@ -362,7 +636,19 @@ function resumeStep(
     moduleConfig.variants.find((v) => v.key === summary.progress?.variant) ?? moduleConfig.variants[0];
   const step = variant.steps.find((s) => s.id === summary.progress?.stage);
   if (!step) return null;
-  return { kind: "step", sessionId: summary.progress.sessionId, step };
+  const linked = practiceLinked(variant.steps, step, summary.progress.linkedDebates);
+  return { kind: "step", sessionId: summary.progress.sessionId, step, linked };
+}
+
+/** True when the server already holds a conversation for this practice step (first practice = pre slot, second = post). */
+function practiceLinked(
+  steps: ModuleStep[],
+  step: ModuleStep,
+  ids: { pre: string | null; post: string | null } | undefined
+): boolean {
+  if (step.kind !== "practice" || !ids) return false;
+  const practiceIndex = steps.filter((s) => s.kind === "practice").findIndex((s) => s.id === step.id);
+  return Boolean(practiceIndex === 0 ? ids.pre : practiceIndex === 1 ? ids.post : null);
 }
 
 function isStepComplete(step: ModuleStep, answers: Record<string, string>): boolean {
@@ -386,10 +672,22 @@ function StepView({
   step,
   answers,
   onChange,
+  moduleTitle,
+  moduleKey,
+  topicId,
+  onTopic,
+  stance,
+  onStance,
 }: {
   step: ModuleStep;
   answers: Record<string, string>;
   onChange: (next: Record<string, string>) => void;
+  moduleTitle: string;
+  moduleKey: string;
+  topicId: string | null;
+  onTopic: (id: string) => void;
+  stance: Stance | null;
+  onStance: (s: Stance) => void;
 }) {
   if (step.kind === "diagnostic") {
     return (
@@ -438,15 +736,23 @@ function StepView({
   }
 
   if (step.kind === "practice") {
+    const topic = getTopic(topicId);
     return (
-      <div className="rounded-2xl border border-line bg-surface p-4">
-        <h2 className="font-display text-base font-bold">Practice conversation</h2>
-        <p className="mt-1.5 font-body text-sm text-ink-soft">
-          Topic: {step.topic} — Difficulty: {step.difficulty}
-        </p>
+      <div className="flex flex-col gap-5">
+        <TopicPicker
+          topics={TOPICS}
+          suggestedTopicId={MODULE_TOPIC[moduleKey]}
+          suggestedLabel={moduleTitle}
+          value={topicId}
+          onChange={onTopic}
+        />
+        {topic && <StancePicker question={topic.description} value={stance} onChange={onStance} />}
       </div>
     );
   }
+
+  // The quiz step is rendered by QuizStep, never through this view.
+  if (step.kind === "quiz") return null;
 
   // reflection
   const text = answers.text ?? "";

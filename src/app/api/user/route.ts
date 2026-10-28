@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { getLevelInfo } from "@/lib/gamification";
 import { parseEquippedCosmetics } from "@/lib/shop";
 import { getUserBelief } from "@/lib/prompts/userBelief";
+import { companionStage, isHatched, type CompanionInfo, type SpeciesId } from "@/lib/companion";
+import { parseLearnedMoves } from "@/lib/moves";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -47,6 +49,15 @@ export async function GET() {
 
   const equippedCosmetics = parseEquippedCosmetics(user.equippedCosmetics);
 
+  const hatched = isHatched(user);
+  const companion: CompanionInfo = {
+    speciesId: (user.companionSpecies as SpeciesId | null) ?? null,
+    hatched,
+    stage: companionStage(user.level, hatched),
+    learnedMoves: parseLearnedMoves(user.learnedMoves),
+    lastTopicId: user.lastTopicId ?? null,
+  };
+
   return NextResponse.json({
     id: user.id,
     username: user.username,
@@ -55,10 +66,12 @@ export async function GET() {
     level: user.level,
     levelInfo,
     equippedCosmetics,
+    companion,
     ownedItemIds: user.inventory.map((i) => i.itemId),
     civilityScore: user.civilityScore,
     currentStreak: user.currentStreak,
     longestStreak: user.longestStreak,
+    lastActiveDate: user.lastActiveDate,
     dailyCompleted: !!dailyDebateToday,
     badges: user.badges.map((b) => b.badgeKey),
     beliefKey: getUserBelief(user.surveyResponses),

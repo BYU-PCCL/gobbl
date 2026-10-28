@@ -2,6 +2,7 @@
 
 import React from "react";
 import { FlatTurkey, type FlatTurkeyPalette } from "./FlatTurkey";
+import type { EggPattern } from "@/lib/companion";
 import { ItemLayer, ITEM_RENDERERS } from "./ItemLayers";
 import { getShopItem } from "@/lib/shop";
 import type { EquippedCosmetics } from "@/lib/shop";
@@ -18,6 +19,7 @@ export interface AvatarWithItemsProps {
   size?: number | "xs" | "sm" | "md" | "lg" | "xl";
   equipped?: EquippedCosmetics;
   palette?: FlatTurkeyPalette;
+  eggPattern?: EggPattern;
   animate?: boolean;
   showShadow?: boolean;
   className?: string;
@@ -28,6 +30,7 @@ export function AvatarWithItems({
   size = "md",
   equipped = {},
   palette,
+  eggPattern,
   animate = false,
   showShadow = true,
   className,
@@ -60,7 +63,7 @@ export function AvatarWithItems({
       {equipped.cape && <ItemLayer id={equipped.cape} translate={getSlotOffset(stage, "cape")} />}
       {/* Turkey */}
       <div style={{ position: "absolute", inset: 0 }}>
-        <FlatTurkey stage={stage} size={px} palette={palette} animate={animate} />
+        <FlatTurkey stage={stage} size={px} palette={palette} eggPattern={eggPattern} animate={animate} />
       </div>
       {/* Hat */}
       {equipped.hat && <ItemLayer id={equipped.hat} translate={getSlotOffset(stage, "hat")} />}

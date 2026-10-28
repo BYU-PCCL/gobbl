@@ -5,7 +5,8 @@ import Link from "next/link";
 import { DIMENSION_LABELS, DIMENSION_DESCRIPTIONS } from "@/lib/civility";
 import { BADGES, LEVELS } from "@/lib/gamification";
 import type { EquippedCosmetics } from "@/lib/shop";
-import { FinishResult } from "./ChatInterface";
+import type { FinishResult } from "@/lib/conversation";
+import type { FlatTurkeyPalette } from "../gamification/FlatTurkey";
 import { Button } from "../ui/Button";
 import { Icon } from "../ui/Icon";
 import { AvatarWithItems } from "../gamification/AvatarWithItems";
@@ -15,15 +16,17 @@ interface ScoreSummaryProps {
   result: FinishResult;
 }
 
-function LevelUpOverlay({
+export function LevelUpOverlay({
   previousLevel,
   newLevel,
   equippedCosmetics,
+  palette,
   onDismiss,
 }: {
   previousLevel: number;
   newLevel: number;
   equippedCosmetics?: EquippedCosmetics;
+  palette?: FlatTurkeyPalette;
   onDismiss: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
@@ -50,11 +53,11 @@ function LevelUpOverlay({
           <div className="mt-4 flex min-h-[200px] items-center justify-center">
             {revealed ? (
               <div className="animate-level-pulse">
-                <AvatarWithItems stage={newLevel} size={180} equipped={equippedCosmetics ?? {}} />
+                <AvatarWithItems stage={newLevel} size={180} equipped={equippedCosmetics ?? {}} palette={palette} />
               </div>
             ) : (
               <div className="opacity-60">
-                <AvatarWithItems stage={previousLevel} size={150} animate={false} />
+                <AvatarWithItems stage={previousLevel} size={150} animate={false} palette={palette} />
               </div>
             )}
           </div>
@@ -83,7 +86,7 @@ function LevelUpOverlay({
 }
 
 /** Hover (mouse) or tap/click (touch, keyboard) the label to read what the dimension means. */
-function DimensionRow({ dimKey, value }: { dimKey: string; value: number }) {
+export function DimensionRow({ dimKey, value }: { dimKey: string; value: number }) {
   const label = DIMENSION_LABELS[dimKey as keyof typeof DIMENSION_LABELS] || dimKey;
   const description = DIMENSION_DESCRIPTIONS[dimKey as keyof typeof DIMENSION_DESCRIPTIONS];
   const [pinned, setPinned] = useState(false);
@@ -138,12 +141,91 @@ function DimensionRow({ dimKey, value }: { dimKey: string; value: number }) {
   );
 }
 
-function LedgerRow({ label, value, tone = "text-ink" }: { label: string; value: string; tone?: string }) {
+export function LedgerRow({ label, value, tone = "text-ink" }: { label: string; value: string; tone?: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1.5">
       <span className="font-body text-sm text-ink-soft">{label}</span>
       <span className={`font-mono text-sm font-semibold num-tabular ${tone}`}>{value}</span>
     </div>
+  );
+}
+
+export function XpLedger({ xp }: { xp: FinishResult["xp"] }) {
+  return (
+      <section className="rounded-2xl border border-line bg-surface p-5">
+        <h3 className="flex items-center gap-2 font-display text-lg font-bold tracking-[-0.02em]">
+          <Icon name="xp" size={18} className="text-primary" />
+          XP earned
+        </h3>
+        <p className="mb-2 mt-1 font-body text-xs text-ink-muted">
+          From civility, difficulty, the daily topic and your streak. XP grows your turkey.
+        </p>
+        <LedgerRow label="Base" value={`+${xp.base}`} />
+        {xp.difficultyBonus > 0 && (
+          <LedgerRow label="Difficulty bonus" value={`+${xp.difficultyBonus}`} tone="text-plume-500" />
+        )}
+        {xp.dailyBonus > 0 && (
+          <LedgerRow label="Daily Gobble" value={`+${xp.dailyBonus}`} tone="text-golden-600" />
+        )}
+        {xp.streakMultiplier > 1 && (
+          <LedgerRow label="Streak multiplier" value={`×${xp.streakMultiplier.toFixed(1)}`} tone="text-primary" />
+        )}
+        <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-2.5">
+          <span className="font-body text-sm font-bold">Total</span>
+          <span className="font-mono text-base font-bold text-primary num-tabular">+{xp.total} XP</span>
+        </div>
+      </section>
+  );
+}
+
+export function FeatherLedger({ feathers }: { feathers: FinishResult["feathers"] }) {
+  return (
+      <section className="rounded-2xl border border-line bg-surface p-5">
+        <h3 className="flex items-center gap-2 font-display text-lg font-bold tracking-[-0.02em]">
+          <Icon name="feather" size={18} />
+          Feathers earned
+        </h3>
+        <p className="mb-2 mt-1 font-body text-xs text-ink-muted">
+          From how much you took part. Spend them in the shop.
+        </p>
+        <LedgerRow label="Messages sent" value={`+${feathers.base}`} />
+        {feathers.difficultyBonus !== 0 && (
+          <LedgerRow label="Difficulty" value={`+${feathers.difficultyBonus}`} tone="text-plume-500" />
+        )}
+        {feathers.dailyBonus > 0 && (
+          <LedgerRow label="Daily Gobble" value={`+${feathers.dailyBonus}`} tone="text-golden-600" />
+        )}
+        <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-2.5">
+          <span className="font-body text-sm font-bold">Total</span>
+          <span className="font-mono text-base font-bold text-golden-700 num-tabular">
+            +{feathers.total}
+          </span>
+        </div>
+      </section>
+  );
+}
+
+export function BadgeGrid({ badges }: { badges: string[] }) {
+  if (badges.length === 0) return null;
+  return (
+    <section className="mt-4 rounded-2xl border-2 border-ochre bg-ochre-soft/40 p-5 lg:mt-6">
+      <h3 className="mb-4 text-center font-display text-lg font-bold tracking-[-0.02em]">
+        {badges.length === 1 ? "New badge" : "New badges"}
+      </h3>
+      <div className="flex flex-wrap justify-center gap-6">
+        {badges.map((key) => {
+          const badge = BADGES.find((b) => b.key === key);
+          if (!badge) return null;
+          return (
+            <div key={key} className="flex w-28 flex-col items-center gap-2 text-center animate-hatch">
+              <BadgeMark badgeKey={key} size={56} />
+              <span className="font-body text-sm font-bold text-ink">{badge.name}</span>
+              <span className="font-body text-xs text-ink-soft">{badge.description}</span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -208,78 +290,16 @@ export function ScoreSummary({ result }: ScoreSummaryProps) {
           </section>
         )}
 
-        <section className="rounded-2xl border border-line bg-surface p-5">
-          <h3 className="flex items-center gap-2 font-display text-lg font-bold tracking-[-0.02em]">
-            <Icon name="xp" size={18} className="text-primary" />
-            XP earned
-          </h3>
-          <p className="mb-2 mt-1 font-body text-xs text-ink-muted">
-            From civility, difficulty, the daily topic and your streak. XP grows your turkey.
-          </p>
-          <LedgerRow label="Base" value={`+${result.xp.base}`} />
-          {result.xp.difficultyBonus > 0 && (
-            <LedgerRow label="Difficulty bonus" value={`+${result.xp.difficultyBonus}`} tone="text-plume-500" />
-          )}
-          {result.xp.dailyBonus > 0 && (
-            <LedgerRow label="Daily Gobble" value={`+${result.xp.dailyBonus}`} tone="text-golden-600" />
-          )}
-          {result.xp.streakMultiplier > 1 && (
-            <LedgerRow label="Streak multiplier" value={`×${result.xp.streakMultiplier.toFixed(1)}`} tone="text-primary" />
-          )}
-          <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-2.5">
-            <span className="font-body text-sm font-bold">Total</span>
-            <span className="font-mono text-base font-bold text-primary num-tabular">+{result.xp.total} XP</span>
-          </div>
-        </section>
+        <XpLedger xp={result.xp} />
 
-        <section className="rounded-2xl border border-line bg-surface p-5">
-          <h3 className="flex items-center gap-2 font-display text-lg font-bold tracking-[-0.02em]">
-            <Icon name="feather" size={18} />
-            Feathers earned
-          </h3>
-          <p className="mb-2 mt-1 font-body text-xs text-ink-muted">
-            From how much you took part. Spend them in the shop.
-          </p>
-          <LedgerRow label="Messages sent" value={`+${result.feathers.base}`} />
-          {result.feathers.difficultyBonus !== 0 && (
-            <LedgerRow label="Difficulty" value={`+${result.feathers.difficultyBonus}`} tone="text-plume-500" />
-          )}
-          {result.feathers.dailyBonus > 0 && (
-            <LedgerRow label="Daily Gobble" value={`+${result.feathers.dailyBonus}`} tone="text-golden-600" />
-          )}
-          <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-2.5">
-            <span className="font-body text-sm font-bold">Total</span>
-            <span className="font-mono text-base font-bold text-golden-700 num-tabular">
-              +{result.feathers.total}
-            </span>
-          </div>
-        </section>
+        <FeatherLedger feathers={result.feathers} />
       </div>
 
-      {result.newBadges.length > 0 && (
-        <section className="mt-4 rounded-2xl border-2 border-ochre bg-ochre-soft/40 p-5 lg:mt-6">
-          <h3 className="mb-4 text-center font-display text-lg font-bold tracking-[-0.02em]">
-            {result.newBadges.length === 1 ? "New badge" : "New badges"}
-          </h3>
-          <div className="flex flex-wrap justify-center gap-6">
-            {result.newBadges.map((key) => {
-              const badge = BADGES.find((b) => b.key === key);
-              if (!badge) return null;
-              return (
-                <div key={key} className="flex w-28 flex-col items-center gap-2 text-center animate-hatch">
-                  <BadgeMark badgeKey={key} size={56} />
-                  <span className="font-body text-sm font-bold text-ink">{badge.name}</span>
-                  <span className="font-body text-xs text-ink-soft">{badge.description}</span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      <BadgeGrid badges={result.newBadges} />
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
         <Link href="/chat">
-          <Button className="w-full sm:w-auto">Start another debate</Button>
+          <Button className="w-full sm:w-auto">Start another conversation</Button>
         </Link>
         <Link href="/dashboard">
           <Button variant="secondary" className="w-full sm:w-auto">Back to home</Button>

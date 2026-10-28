@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
 import { PRIMARY_NAV, SECONDARY_NAV, type NavItem } from "./navItems";
+import { getSpecies } from "@/lib/companion";
 import type { UserSummary } from "./useUserSummary";
 
 /**
@@ -13,7 +14,7 @@ import type { UserSummary } from "./useUserSummary";
  */
 export function SideNav({ user }: { user: UserSummary | null }) {
   const pathname = usePathname();
-  const initial = (user?.username?.[0] ?? "G").toUpperCase();
+  const palette = getSpecies(user?.companion?.speciesId).palette;
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-line bg-surface-2/40 px-4 py-6 lg:flex">
@@ -47,8 +48,8 @@ export function SideNav({ user }: { user: UserSummary | null }) {
           href="/profile"
           className="flex items-center gap-3 rounded-2xl border border-line bg-surface px-3 py-2.5 transition-colors hover:border-ink-muted"
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary font-display text-sm font-bold text-white">
-            {initial}
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-soft">
+            <FlatTurkeyGlyph size={26} palette={palette} />
           </div>
           <div className="min-w-0 leading-tight">
             <div className="truncate font-body text-sm font-semibold text-ink">{user?.username ?? " "}</div>

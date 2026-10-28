@@ -37,7 +37,7 @@ export const TOPICS: Topic[] = [
   {
     id: "immigration-policy",
     title: "Immigration Reform",
-    description: "How should we reform the immigration system?",
+    description: "Should long-settled undocumented immigrants get a path to citizenship?",
     category: "Immigration",
     prompt:
       "We need comprehensive immigration reform that includes a path to citizenship for undocumented immigrants who have been contributing to our communities for years.",
@@ -46,7 +46,7 @@ export const TOPICS: Topic[] = [
     id: "climate-action",
     title: "Climate Policy",
     description:
-      "How aggressively should we pursue carbon emission reductions?",
+      "Should we cut carbon emissions fast, even if energy costs rise for a while?",
     category: "Climate",
     prompt:
       "We should implement aggressive carbon emission targets and transition fully to renewable energy within the next 15 years, even if it means higher energy costs in the short term.",
@@ -62,7 +62,7 @@ export const TOPICS: Topic[] = [
   {
     id: "ai-regulation",
     title: "AI Regulation",
-    description: "How should governments regulate artificial intelligence?",
+    description: "Should governments strictly regulate AI, even if it slows innovation?",
     category: "Technology",
     prompt:
       "Governments should implement strict regulations on AI development and deployment to prevent job displacement and ensure safety, even if it slows innovation.",
@@ -71,7 +71,7 @@ export const TOPICS: Topic[] = [
     id: "criminal-justice",
     title: "Criminal Justice Reform",
     description:
-      "Should we focus more on rehabilitation or punishment in our justice system?",
+      "Should prisons focus on rehabilitation over punishment?",
     category: "Justice",
     prompt:
       "Our criminal justice system should prioritize rehabilitation over punishment. Reducing mandatory minimums and investing in education programs within prisons would lower recidivism.",
@@ -80,7 +80,7 @@ export const TOPICS: Topic[] = [
     id: "gun-policy",
     title: "Gun Policy",
     description:
-      "What is the right balance between gun rights and public safety?",
+      "Should all gun purchases require background checks and waiting periods?",
     category: "Justice",
     prompt:
       "We need stricter background checks and waiting periods for all firearm purchases to reduce gun violence while still respecting the Second Amendment.",
@@ -125,7 +125,44 @@ export const TOPICS: Topic[] = [
     prompt:
       "Personal drug possession should be decriminalized and treated as a public health issue rather than a criminal one. Portugal's model has shown this approach works.",
   },
+  {
+    id: "income-inequality",
+    title: "Income Inequality",
+    description: "Should the government do more to reduce income inequality?",
+    category: "Economy",
+    prompt:
+      "The government should do more to reduce income inequality through progressive taxation and stronger social programs, because a widening wealth gap undermines opportunity for everyone.",
+  },
+  {
+    id: "mandatory-voting",
+    title: "Mandatory Voting",
+    description: "Should voting be mandatory in national elections?",
+    category: "Civil Rights",
+    prompt:
+      "Voting should be mandatory in national elections, as it is in Australia. Higher turnout would make government more representative of the whole country.",
+  },
+  {
+    id: "free-tuition",
+    title: "Free Public College",
+    description: "Should college tuition at public universities be free?",
+    category: "Education",
+    prompt:
+      "Tuition at public colleges and universities should be free so that no one is kept from a degree by cost, and graduates start adult life without debt.",
+  },
 ];
+
+/** The topic each module's practice step suggests first (keyed by ModuleConfig.key). */
+export const MODULE_TOPIC: Record<string, string> = {
+  participation: "min-wage",
+  "active-listening": "social-media",
+  "cognitive-dissonance": "income-inequality",
+  "self-expression": "mandatory-voting",
+  "reason-giving": "free-tuition",
+};
+
+export function getTopic(id: string | null | undefined): Topic | undefined {
+  return id ? TOPICS.find((t) => t.id === id) : undefined;
+}
 
 /** Neutral label for storage and AI — not the one-sided `prompt` paragraph. */
 export function formatTopicForDebate(t: Topic): string {

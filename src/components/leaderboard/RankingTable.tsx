@@ -2,6 +2,7 @@
 
 import type { EquippedCosmetics } from "@/lib/shop";
 import { AvatarWithItems } from "../gamification/AvatarWithItems";
+import { companionStage, getSpecies, isHatched } from "@/lib/companion";
 
 export interface RankEntry {
   rank: number;
@@ -15,6 +16,8 @@ export interface RankEntry {
   totalDebates: number;
   isCurrentUser: boolean;
   equippedCosmetics?: EquippedCosmetics;
+  companionSpecies?: string | null;
+  companionHatchedAt?: string | null;
 }
 
 interface RankingTableProps {
@@ -51,7 +54,7 @@ export function RankingTable({ data, sortBy }: RankingTableProps) {
     return (
       <div className="rounded-2xl border border-dashed border-line py-12 text-center">
         <p className="font-body text-sm text-ink-soft">
-          Nobody has finished a debate yet. Finish one to take the top spot.
+          Nobody has finished a conversation yet. Finish one to take the top spot.
         </p>
       </div>
     );
@@ -65,7 +68,7 @@ export function RankingTable({ data, sortBy }: RankingTableProps) {
             <th scope="col" className="w-14 py-3 pl-4 pr-2">Rank</th>
             <th scope="col" className="px-2 py-3">Turkey</th>
             <th scope="col" className="hidden px-2 py-3 text-right sm:table-cell">Level</th>
-            <th scope="col" className="hidden px-2 py-3 text-right md:table-cell">Debates</th>
+            <th scope="col" className="hidden px-2 py-3 text-right md:table-cell">Conversations</th>
             <th scope="col" className="py-3 pl-2 pr-4 text-right">{COLUMN_LABEL[sortBy] ?? "XP"}</th>
           </tr>
         </thead>
@@ -90,7 +93,9 @@ export function RankingTable({ data, sortBy }: RankingTableProps) {
               <td className="px-2 py-3">
                 <div className="flex items-center gap-3">
                   <AvatarWithItems
-                    stage={entry.level}
+                    stage={companionStage(entry.level, isHatched({ companionHatchedAt: entry.companionHatchedAt, level: entry.level }))}
+                    palette={getSpecies(entry.companionSpecies).palette}
+                    eggPattern={getSpecies(entry.companionSpecies).eggPattern}
                     size="xs"
                     equipped={entry.equippedCosmetics ?? {}}
                     animate={false}

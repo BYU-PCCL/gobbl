@@ -9,8 +9,8 @@ export interface NavItem {
 
 /** Primary destinations, shared by the mobile bottom nav and the desktop sidebar. */
 export const PRIMARY_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Home", icon: "home", matches: (p) => p === "/" || p.startsWith("/dashboard") },
-  { href: "/chat", label: "Debate", icon: "debate", matches: (p) => p.startsWith("/chat") },
+  { href: "/dashboard", label: "Nest", icon: "home", matches: (p) => p === "/" || p.startsWith("/dashboard") },
+  { href: "/chat", label: "Playground", icon: "debate", matches: (p) => p.startsWith("/chat") },
   { href: "/skills", label: "Skills", icon: "skills", matches: (p) => p.startsWith("/skills") },
   { href: "/shop", label: "Shop", icon: "shop", matches: (p) => p.startsWith("/shop") },
   { href: "/profile", label: "You", icon: "profile", matches: (p) => p.startsWith("/profile") },

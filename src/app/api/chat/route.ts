@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { waitUntil } from "@vercel/functions";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -7,6 +8,9 @@ import { getAIResponse, scoreCivility, scoreConversationHolistic, ChatMessage } 
 import { calculateXP, calculateFeathers, getLevelInfo, checkNewBadges } from "@/lib/gamification";
 import { parseEquippedCosmetics } from "@/lib/shop";
 import { fallbackHolisticFromUserMessages, parseStoredDimensions } from "@/lib/civility";
+import { maxTurnsForDebate } from "@/lib/debates";
+import { MIN_TURNS_TO_FINISH } from "@/lib/conversation";
+import { isMoveId } from "@/lib/moves";
 import { getPersonaById, pickPersona, isTier } from "@/lib/personas/pool";
 
 export async function POST(req: Request) {
@@ -16,7 +20,7 @@ export async function POST(req: Request) {
   }
 
   const userId = (session.user as { id: string }).id;
-  const { debateId, message, finish } = await req.json();
+  const { debateId, message, finish, moveId } = await req.json();
   const hasMessage = typeof message === "string" && message.trim().length > 0;
 
   if (!hasMessage && !finish) {
@@ -29,18 +33,29 @@ export async function POST(req: Request) {
   });
 
   if (!debate) {
-    return NextResponse.json({ error: "Debate not found" }, { status: 404 });
+    return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
 
-  // Without this, re-posting "finish" re-awards XP/feathers every time.
+  const maxTurns = maxTurnsForDebate(debate.trainingMode);
+  const priorUserCount = debate.messages.filter((m) => m.role === "user").length;
+
   if (debate.completed) {
-    return NextResponse.json({ error: "This debate is already finished" }, { status: 409 });
+    // A lost "wrap up" response must not strand the user: replay the stored summary (no new rewards).
+    if (finish) return await alreadyFinished(userId, debate);
+    return NextResponse.json({ error: "This conversation is already finished" }, { status: 409 });
   }
 
   // "Wrap up" carries no new message. Don't record a blank one — it would be scored,
   // stored in the transcript, and counted toward the user's message total (feathers).
   if (!hasMessage) {
+    if (priorUserCount < Math.min(MIN_TURNS_TO_FINISH, maxTurns)) {
+      return NextResponse.json({ error: "Say a little more before wrapping up" }, { status: 400 });
+    }
     return await finishDebate(userId, debateId, 5);
+  }
+
+  if (priorUserCount >= maxTurns && !finish) {
+    return NextResponse.json({ error: "Round limit reached" }, { status: 409 });
   }
 
   const conversationHistory: ChatMessage[] = debate.messages.map((m) => ({
@@ -61,6 +76,7 @@ export async function POST(req: Request) {
     finish ? null : getAIResponse(historyWithUser, debate.topic, persona, {
           allowProfanity: debate.allowProfanity,
           moduleKey: debate.trainingMode,
+          userStance: debate.userStance === "for" || debate.userStance === "against" ? debate.userStance : null,
         }),
   ]);
 
@@ -69,6 +85,7 @@ export async function POST(req: Request) {
       debateId,
       role: "user",
       content: message,
+      moveId: isMoveId(moveId) ? moveId : null,
       civilityScore: civilityResult.overall,
       dimensions: JSON.stringify(civilityResult.dimensions),
     },
@@ -98,14 +115,10 @@ export async function POST(req: Request) {
       .catch((err) => console.error("[chat] partner scoring failed", err))
   );
 
-  const userMsgCount = debate.messages.filter((m) => m.role === "user").length + 1;
-
   return NextResponse.json({
     aiResponse,
-    aiCivility: null,
-    civility: civilityResult,
-    turnNumber: userMsgCount,
-    maxTurns: 8,
+    turnNumber: priorUserCount + 1,
+    maxTurns,
   });
 }
 
@@ -116,7 +129,7 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
   });
 
   if (!debate) {
-    return NextResponse.json({ error: "Debate not found" }, { status: 404 });
+    return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
 
   const userMessages = debate.messages.filter((m) => m.role === "user");
@@ -169,7 +182,6 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
   }
 
   const newXp = user.xp + xpResult.total;
-  const newFeatherBalance = user.featherBalance + featherResult.total;
   const newLevel = getLevelInfo(newXp).level;
 
   const completedDebates = user.debates.filter((d) => d.completed);
@@ -204,35 +216,41 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
   const existingBadgeKeys = user.badges.map((b) => b.badgeKey);
   const newBadges = checkNewBadges(stats, existingBadgeKeys);
 
-  await prisma.$transaction([
-    prisma.debate.update({
-      where: { id: debateId },
+  // Two racing "finish" calls (double tap, two tabs) must pay out once: the guarded updateMany picks the winner.
+  const paid = await prisma.$transaction(async (tx) => {
+    const won = await tx.debate.updateMany({
+      where: { id: debateId, completed: false },
       data: {
         completed: true,
+        dimensions: holisticResult.dimensions as unknown as Prisma.InputJsonObject,
         overallScore: overallScore,
         xpEarned: xpResult.total,
         feathersEarned: featherResult.total,
         completedAt: new Date(),
       },
-    }),
-    prisma.user.update({
+    });
+    if (won.count === 0) return false;
+    await tx.user.update({
       where: { id: userId },
       data: {
-        xp: newXp,
-        featherBalance: newFeatherBalance,
+        xp: { increment: xpResult.total },
+        featherBalance: { increment: featherResult.total },
         level: newLevel,
         civilityScore: newCivility,
         currentStreak: newStreak,
         longestStreak: Math.max(user.longestStreak, newStreak),
         lastActiveDate: new Date(),
       },
-    }),
-    ...newBadges.map((badgeKey) =>
-      prisma.userBadge.create({
-        data: { userId, badgeKey },
-      })
-    ),
-  ]);
+    });
+    for (const badgeKey of newBadges) {
+      await tx.userBadge.create({ data: { userId, badgeKey } });
+    }
+    return true;
+  });
+  if (!paid) {
+    const fresh = await prisma.debate.findUnique({ where: { id: debateId } });
+    if (fresh) return await alreadyFinished(userId, fresh);
+  }
 
   const dimensionsOut = {
     participation: holisticResult.dimensions.participation,
@@ -252,6 +270,36 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
     newBadges,
     streak: newStreak,
     civilityScore: newCivility,
+    equippedCosmetics: parseEquippedCosmetics(user.equippedCosmetics),
+  });
+}
+
+/** Replays the stored summary of a finished conversation so a lost response never strands the client. */
+async function alreadyFinished(
+  userId: string,
+  debate: { overallScore: number | null; dimensions: Prisma.JsonValue | null }
+) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  // Debate.dimensions is a Json column (object), unlike Message.dimensions (JSON string).
+  const dims = parseStoredDimensions(debate.dimensions ? JSON.stringify(debate.dimensions) : null) ?? {
+    participation: 0,
+    selfExpressionReason: 0,
+    mutualExchange: 0,
+    interrogation: 0,
+  };
+  return NextResponse.json({
+    finished: true,
+    alreadyCompleted: true,
+    overallScore: debate.overallScore ?? 0,
+    dimensions: dims,
+    xp: { base: 0, difficultyBonus: 0, dailyBonus: 0, streakMultiplier: 1, total: 0 },
+    feathers: { base: 0, difficultyBonus: 0, dailyBonus: 0, total: 0 },
+    previousLevel: user.level,
+    newLevel: user.level,
+    newBadges: [],
+    streak: user.currentStreak,
+    civilityScore: user.civilityScore,
     equippedCosmetics: parseEquippedCosmetics(user.equippedCosmetics),
   });
 }

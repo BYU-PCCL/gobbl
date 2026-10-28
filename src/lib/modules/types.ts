@@ -1,4 +1,5 @@
 import type { SurveyQuestion } from "@/lib/survey/questions";
+import type { QuizQuestion } from "@/lib/quizzes";
 
 export type ModuleSkillKey =
   | "participation"
@@ -12,6 +13,8 @@ export type ModuleStep =
   | { id: string; kind: "diagnostic"; questions: SurveyQuestion[] }
   | { id: string; kind: "content"; blocks: { heading: string; body: string }[] }
   | { id: string; kind: "practice"; topic: string; difficulty: string; maxTurns?: number }
+  /** "Teach": the turkey quizzes the user on the lesson; passing (>= passScore) hatches the egg and teaches the module's move. */
+  | { id: string; kind: "quiz"; questions: QuizQuestion[]; passScore: number }
   | { id: string; kind: "reflection"; prompt: string; maxLength: number };
 
 export interface ModuleVariant {

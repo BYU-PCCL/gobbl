@@ -51,7 +51,7 @@ export default function OnboardingSurveyPage() {
         return;
       }
       await update({ onboardingCompletedAt: data.onboardingCompletedAt });
-      window.location.href = "/dashboard";
+      window.location.href = "/onboarding/egg";
     } catch {
       setError("Network error");
       setSubmitting(false);

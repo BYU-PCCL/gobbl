@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { createDebate } from "@/lib/debates";
+import { createDebate, maxTurnsForDebate } from "@/lib/debates";
+import { isStance } from "@/lib/conversation";
+import { getTopic } from "@/lib/topics";
 import { getPersonaById } from "@/lib/personas/pool";
 
 export async function POST(req: Request) {
@@ -20,13 +22,16 @@ export async function POST(req: Request) {
     personaId?: string;
     isDaily?: boolean;
     allowProfanity?: boolean;
+    userStance?: unknown;
+    topicId?: string;
   };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  const { topic, category, difficulty, personaId, isDaily, allowProfanity } = body;
+  const { topic, category, difficulty, personaId, isDaily, allowProfanity, topicId } = body;
+  const userStance = isStance(body.userStance) ? body.userStance : null;
   if (!topic) {
     return NextResponse.json({ error: "A topic is required" }, { status: 400 });
   }
@@ -40,13 +45,17 @@ export async function POST(req: Request) {
       personaId,
       isDaily,
       allowProfanity,
+      userStance,
     });
+    if (typeof topicId === "string" && getTopic(topicId)) {
+      await prisma.user.update({ where: { id: userId }, data: { lastTopicId: topicId } }).catch(() => {});
+    }
     return NextResponse.json(result);
   } catch {
     // Without this, a failure here (e.g. the Grok call for the opening message) bubbles
     // up as Next's generic unhandled-error response instead of the JSON the client reads
     // `data.error` from.
-    return NextResponse.json({ error: "Couldn't start the debate — please try again" }, { status: 502 });
+    return NextResponse.json({ error: "Couldn't start the conversation — please try again" }, { status: 502 });
   }
 }
 
@@ -66,11 +75,26 @@ export async function GET(req: Request) {
       include: { messages: { orderBy: { createdAt: "asc" } } },
     });
     if (!debate) {
-      return NextResponse.json({ error: "Debate not found" }, { status: 404 });
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
     const persona = getPersonaById(debate.personaId);
+    // No feedback mid-conversation: scores are withheld until the debate is finished.
+    const messages = debate.completed
+      ? debate.messages
+      : debate.messages.map((m) => ({
+          id: m.id,
+          debateId: m.debateId,
+          role: m.role,
+          content: m.content,
+          moveId: m.moveId,
+          createdAt: m.createdAt,
+        }));
     return NextResponse.json({
       ...debate,
+      messages,
+      userStance: debate.userStance,
+      dimensions: debate.dimensions,
+      maxTurns: maxTurnsForDebate(debate.trainingMode),
       personaInitials: persona?.initials ?? null,
     });
   }

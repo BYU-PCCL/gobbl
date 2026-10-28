@@ -2,6 +2,7 @@ import { MASTER_TEMPLATE } from "./template";
 import { BELIEFS } from "./beliefs";
 import { PARAMETERS, ParameterName } from "./parameters";
 import type { Persona } from "@/lib/personas/pool";
+import type { Stance } from "@/lib/conversation";
 import type { ModuleAIConfig } from "@/lib/modules/ai-config";
 
 /** Used when a debate has no topic, so the prompt never shows a bare "{topic}". */
@@ -36,7 +37,7 @@ export function profanityAllowed(persona: Persona, { allowProfanity = false }: {
  */
 export function buildSystemPrompt(
   persona: Persona,
-  options: { allowProfanity?: boolean; moduleAI?: ModuleAIConfig; topic?: string } = {}
+  options: { allowProfanity?: boolean; moduleAI?: ModuleAIConfig; topic?: string; userStance?: Stance | null } = {}
 ): string {
   const custom = options.moduleAI?.systemPrompt;
   if (custom?.mode === "replace") {
@@ -45,7 +46,7 @@ export function buildSystemPrompt(
       .replaceAll("{backstory}", persona.backstory)
       .replaceAll("{beliefs}", BELIEFS[persona.beliefKey])
       .replaceAll("{topic}", options.topic ?? "");
-    return prompt + profanityRule(persona, options);
+    return prompt + stanceRule(options) + profanityRule(persona, options);
   }
 
   let prompt = MASTER_TEMPLATE
@@ -74,7 +75,17 @@ MODULE INSTRUCTIONS:
 ${custom.text}`;
   }
 
-  return prompt + profanityRule(persona, options);
+  return prompt + stanceRule(options) + profanityRule(persona, options);
+}
+
+/** When the user declared a side, the partner takes the opposite one for the whole conversation. */
+function stanceRule(options: { topic?: string; userStance?: Stance | null }): string {
+  if (!options.userStance) return "";
+  const mine = options.userStance === "for" ? "FOR" : "AGAINST";
+  const yours = options.userStance === "for" ? "AGAINST" : "FOR";
+  return `
+
+THEIR STANCE: The other person has said they are ${mine} the question "${options.topic?.trim() || GENERIC_TOPIC}". You take the OPPOSITE side (${yours}) and hold it for the whole conversation while staying in character. Do not switch sides or drift into agreement just to be agreeable; you may concede a fair point without giving up your position.`;
 }
 
 /**

@@ -1,5 +1,8 @@
 "use client";
 
+import { useId } from "react";
+import type { EggPattern } from "@/lib/companion";
+
 /**
  * FlatTurkey — Headspace-style flat illustrated turkey across 8 evolution stages.
  *
@@ -78,6 +81,57 @@ export interface FlatTurkeyProps {
   /** Subtle idle motion — float/wiggle on high stages */
   animate?: boolean;
   className?: string;
+  /** Stage-1 only: the species' egg markings, drawn with palette.speck / palette.white. */
+  eggPattern?: EggPattern;
+}
+
+function EggMarks({ pattern, clipId, speck, white }: { pattern?: EggPattern; clipId: string; speck: string; white: string }) {
+  switch (pattern) {
+    case "flecks":
+      return (
+        <>
+          {([[115, 118, 3], [95, 138, 2.6], [120, 92, 2.4], [78, 116, 2.2], [104, 70, 2], [86, 98, 1.8], [124, 136, 2]] as const).map(([x, y, r], i) => (
+            <circle key={i} cx={x} cy={y} r={r} fill={speck} opacity="0.75" />
+          ))}
+        </>
+      );
+    case "rings":
+      return (
+        <>
+          {([[116, 96, 6], [82, 118, 7], [104, 138, 5.5]] as const).map(([x, y, r], i) => (
+            <g key={i}>
+              <circle cx={x} cy={y} r={r} fill="none" stroke={speck} strokeWidth="2.4" opacity="0.85" />
+              <circle cx={x} cy={y} r="1.4" fill={speck} opacity="0.85" />
+            </g>
+          ))}
+        </>
+      );
+    case "split":
+      return (
+        <g clipPath={`url(#${clipId})`}>
+          <path d="M102 36 C92 64 112 84 100 100 C90 118 110 138 100 164 L160 164 L160 36 Z" fill={speck} />
+        </g>
+      );
+    case "stripe":
+      return (
+        <g clipPath={`url(#${clipId})`}>
+          <path d="M50 130 L150 80 L150 100 L50 150 Z" fill={speck} opacity="0.85" />
+        </g>
+      );
+    case "tips":
+      return (
+        <>
+          {([[100, 56], [89, 64], [111, 64], [100, 72], [80, 74], [120, 74], [92, 82], [108, 82]] as const).map(([x, y], i) => (
+            <g key={i}>
+              <circle cx={x} cy={y} r="3.2" fill={speck} />
+              <circle cx={x} cy={y - 1.6} r="1.7" fill={white} />
+            </g>
+          ))}
+        </>
+      );
+    default:
+      return null;
+  }
 }
 
 export function FlatTurkey({
@@ -86,7 +140,10 @@ export function FlatTurkey({
   palette,
   animate = false,
   className,
+  eggPattern,
 }: FlatTurkeyProps) {
+  const rawId = useId();
+  const clipId = `egg-clip-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const s = Math.max(1, Math.min(8, stage)) as TurkeyStage;
   const px = typeof size === "number" ? size : SIZE_PX[size];
   const p = { ...DEFAULT_PALETTE, ...palette };
@@ -106,13 +163,24 @@ export function FlatTurkey({
 
   if (s === 1) return (
     <svg {...common}>
+      {eggPattern && (
+        <defs>
+          <clipPath id={clipId}><ellipse cx="100" cy="100" rx="46" ry="58" /></clipPath>
+        </defs>
+      )}
       <ellipse cx="105" cy="105" rx="46" ry="58" fill={p.bodyDark} opacity="0.18" />
       <ellipse cx="100" cy="100" rx="46" ry="58" fill={p.egg} />
       <ellipse cx="86" cy="80" rx="10" ry="15" fill={p.white} opacity="0.7" />
-      <circle cx="115" cy="118" r="2.5" fill={p.speck} opacity="0.5" />
-      <circle cx="95" cy="138" r="2"   fill={p.speck} opacity="0.5" />
-      <circle cx="120" cy="95" r="2"   fill={p.speck} opacity="0.5" />
-      <circle cx="78" cy="115" r="1.8" fill={p.speck} opacity="0.5" />
+      {eggPattern ? (
+        <EggMarks pattern={eggPattern} clipId={clipId} speck={p.speck} white={p.white} />
+      ) : (
+        <>
+          <circle cx="115" cy="118" r="2.5" fill={p.speck} opacity="0.5" />
+          <circle cx="95" cy="138" r="2"   fill={p.speck} opacity="0.5" />
+          <circle cx="120" cy="95" r="2"   fill={p.speck} opacity="0.5" />
+          <circle cx="78" cy="115" r="1.8" fill={p.speck} opacity="0.5" />
+        </>
+      )}
     </svg>
   );
 

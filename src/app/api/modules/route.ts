@@ -34,6 +34,8 @@ export async function GET() {
             stage: latest.stage,
             variant: latest.variant,
             inProgress: !latest.completedAt,
+            /** Debates already linked to the variant's practice steps, so a reload can resume without the pickers. */
+            linkedDebates: { pre: latest.preDebateId ?? null, post: latest.postDebateId ?? null },
           }
         : null,
     };

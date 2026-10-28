@@ -7,90 +7,81 @@ import { fetchJson } from "@/lib/fetchJson";
 
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
+import { Icon } from "@/components/ui/Icon";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
-import { TOPICS, getDailyTopic, formatTopicForDebate, type Topic } from "@/lib/topics";
+import { Companion } from "@/components/companion/Companion";
+import { TopicPicker } from "@/components/conversation/TopicPicker";
+import { StancePicker } from "@/components/conversation/StancePicker";
+import { TOPICS, MODULE_TOPIC, getTopic, getDailyTopic, formatTopicForDebate, type Topic } from "@/lib/topics";
 import { DIFFICULTIES } from "@/lib/gamification";
-import { describeFlip } from "@/lib/prompts/flipBelief";
-import { parseBeliefKey, type BeliefKey } from "@/lib/prompts/beliefs";
+import { companionLine, playgroundPickedLine, isHatched, PARTNER_PALETTE, partnerStage, type SpeciesId } from "@/lib/companion";
+import { getMove } from "@/lib/moves";
+import type { Stance } from "@/lib/conversation";
+import type { EquippedCosmetics } from "@/lib/shop";
 
-const MODES: { key: "text" | "audio" | "video"; label: string; disabled?: boolean }[] = [
-  { key: "text", label: "Text" },
-  { key: "audio", label: "Audio", disabled: true },
-  { key: "video", label: "Video", disabled: true },
-];
+interface UserData {
+  level?: number;
+  equippedCosmetics?: EquippedCosmetics | null;
+  companion?: {
+    speciesId: SpeciesId | null;
+    hatched: boolean;
+    stage: number;
+    learnedMoves: string[];
+    lastTopicId: string | null;
+  } | null;
+}
 
-// Map difficulty key → stage avatar + tone for the picker.
-const DIFFICULTY_META: Record<string, { stage: number; tone: "forest" | "primary" | "rust"; xp: number }> = {
-  "Friendly Cluck": { stage: 3, tone: "forest",  xp: 60  },
-  "Spirited Strut": { stage: 5, tone: "primary", xp: 120 },
-  "Full Gobble":    { stage: 7, tone: "rust",    xp: 200 },
-};
+interface ModuleSummary {
+  key: string;
+  title: string;
+  progress: { stage: number; inProgress: boolean } | null;
+  timesCompleted: number;
+}
 
-const TONE_BG: Record<string, string> = {
-  forest:  "bg-forest-100",
-  primary: "bg-primary-soft",
-  rust:    "bg-plume-100",
-};
-const TONE_FG: Record<string, string> = {
-  forest:  "text-forest-600",
-  primary: "text-primary",
-  rust:    "text-plume-500",
-};
-const TONE_BORDER: Record<string, string> = {
-  forest:  "border-forest-500",
-  primary: "border-primary",
-  rust:    "border-plume-500",
-};
-
-function SetupContent() {
+function PlaygroundContent() {
   const { status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const isDaily = searchParams.get("daily") === "true";
-  const topicId = searchParams.get("topic");
+  const topicParam = searchParams.get("topic");
 
-  const initialDifficulty = searchParams.get("difficulty") ?? "Spirited Strut";
-  const [selectedDifficulty, setSelectedDifficulty] = useState(initialDifficulty);
-  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(
-    isDaily ? null : (topicId ?? null),
-  );
-  const [userBelief, setUserBelief] = useState<BeliefKey | null>(null);
-  const [partner, setPartner] = useState<{ id: string; initials: string; beliefKey: BeliefKey } | null>(null);
-  const [mode, setMode] = useState<"text" | "audio" | "video">("text");
+  const [difficulty, setDifficulty] = useState(searchParams.get("difficulty") ?? "Spirited Strut");
+  const [topicId, setTopicId] = useState<string | null>(isDaily ? null : (getTopic(topicParam)?.id ?? null));
+  const [stance, setStance] = useState<Stance | null>(null);
+  const [step, setStep] = useState<1 | 2>(isDaily ? 2 : 1);
+  const [user, setUser] = useState<UserData | null>(null);
+  const [modules, setModules] = useState<ModuleSummary[] | null>(null);
+  const [partner, setPartner] = useState<{ id: string; initials: string } | null>(null);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [allowProfanity, setAllowProfanity] = useState(false);
-  const isFullGobble = selectedDifficulty === "Full Gobble";
+  const [line, setLine] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
-  const [topicDropdownOpen, setTopicDropdownOpen] = useState(false);
 
-  const topic: Topic | null = (() => {
-    if (isDaily) return getDailyTopic();
-    if (!selectedTopicId) return null;
-    return TOPICS.find((t) => t.id === selectedTopicId) ?? null;
-  })();
+  const isFullGobble = difficulty === "Full Gobble";
+  const topic: Topic | null = isDaily ? getDailyTopic() : (getTopic(topicId) ?? null);
 
   useEffect(() => {
     if (status === "unauthenticated") { router.push("/"); return; }
     if (status === "authenticated") {
-      // Non-critical: on failure the setup screen just keeps its default belief.
-      fetchJson<{ beliefKey: string | null }>("/api/user")
-        .then((data) => setUserBelief(parseBeliefKey(data.beliefKey)))
-        .catch(() => {});
+      // Non-critical: without these the Playground still works with defaults.
+      fetchJson<UserData>("/api/user").then(setUser).catch(() => {});
+      fetchJson<ModuleSummary[]>("/api/modules").then(setModules).catch(() => {});
     }
   }, [status, router]);
 
-  // Preview the partner for the chosen difficulty so the setup screen shows the same
-  // initials the debate screen will; re-picked whenever the difficulty changes.
+  // Preview the partner for the chosen difficulty so this screen shows the same
+  // initials the conversation will; re-picked whenever the difficulty changes.
   useEffect(() => {
     if (status !== "authenticated") return;
     let cancelled = false;
     setPartner(null);
-    fetch(`/api/personas/preview?tier=${encodeURIComponent(selectedDifficulty)}`)
+    fetch(`/api/personas/preview?tier=${encodeURIComponent(difficulty)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (!cancelled && data) setPartner(data); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [status, selectedDifficulty]);
+  }, [status, difficulty]);
 
   if (status === "loading") {
     return (
@@ -100,14 +91,31 @@ function SetupContent() {
     );
   }
 
-  const startDebate = async () => {
-    if (!topic) return;
+  const companion = user?.companion ?? null;
+  const hatched = companion?.hatched ?? isHatched({ companionHatchedAt: null, level: user?.level ?? 1 });
+  const learned = companion?.learnedMoves ?? [];
+  const moveName = (learned.length ? getMove(learned[learned.length - 1])?.name : undefined) ?? "ASK";
+
+  // Current module: the one in progress, else the first never completed.
+  const currentModule = modules?.find((m) => m.progress?.inProgress) ?? modules?.find((m) => m.timesCompleted === 0);
+  const moduleTopicId = currentModule ? MODULE_TOPIC[currentModule.key] : undefined;
+  const suggestedTopicId = companion?.lastTopicId && getTopic(companion.lastTopicId) ? companion.lastTopicId : (moduleTopicId ?? null);
+  const suggestedLabel = companion?.lastTopicId && getTopic(companion.lastTopicId) ? "you" : currentModule?.title;
+
+  const pickTopic = (id: string) => {
+    setTopicId(id);
+    setStance(null);
+    const t = getTopic(id);
+    if (t) setLine(playgroundPickedLine(t.title, moveName));
+  };
+
+  const startConversation = async () => {
+    if (!topic || !stance) return;
     setLoading(true);
     setStartError(null);
 
-    // Split into two failure modes instead of one catch-all: whether the request
-    // reached the server at all changes what's actually worth telling the user (and
-    // what's worth asking them to report back).
+    // Split into two failure modes: whether the request reached the server at all
+    // changes what's worth telling the user.
     let res: Response;
     try {
       res = await fetch("/api/debates", {
@@ -116,24 +124,22 @@ function SetupContent() {
         body: JSON.stringify({
           topic: formatTopicForDebate(topic),
           category: topic.category,
-          difficulty: selectedDifficulty,
+          difficulty,
           personaId: partner?.id,
           isDaily,
           // The toggle's state survives switching tiers, so only send it for Full Gobble.
           allowProfanity: isFullGobble && allowProfanity,
+          userStance: stance,
+          topicId: topic.id,
         }),
       });
     } catch {
-      // fetch() itself threw — the request never reached the server (offline, DNS,
-      // or something in the browser blocked it outright).
-      setStartError("Couldn't reach the server — check your connection and try again.");
+      setStartError("Couldn't reach the server. Check your connection and try again.");
       setLoading(false);
       return;
     }
 
     if (!res.ok) {
-      // The server responded, so the request wasn't blocked — something failed on our
-      // end. Surface whatever it told us instead of a generic message.
       const data = await res.json().catch(() => ({}));
       setStartError(data.error || "Something went wrong on our end. Please try again.");
       setLoading(false);
@@ -144,260 +150,150 @@ function SetupContent() {
     router.push(`/chat/${data.id}`);
   };
 
-  return (
-    <div className="flex flex-col gap-5 pb-8 lg:gap-8">
-      <p className="font-body text-sm font-semibold text-primary">
-        {isDaily ? "Daily Gobble" : "New debate"}
-      </p>
-
-      <div>
-        <h1 className="font-display text-[38px] font-bold leading-none tracking-[-0.035em] lg:text-[56px]">
-          Set up your debate.
-        </h1>
-        <p className="mt-2 font-body text-sm text-ink-soft lg:mt-3 lg:text-base">
-          Pick a topic and how hard you want {partner?.initials ?? "your partner"} to push back.
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-5 lg:grid lg:grid-cols-2 lg:items-start lg:gap-10">
-      <div className="flex flex-col gap-5">
-      <section>
-        <h2 className="mb-2.5 font-display text-base font-bold tracking-[-0.01em]">Topic</h2>
-
-        {isDaily && topic ? (
-          <div className="relative rounded-2xl border-2 border-primary bg-surface p-4">
-            <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-primary">
-              {topic.category} · Daily
+  const optionsBlock = (
+    <div className="rounded-2xl border border-line bg-surface">
+      <button
+        type="button"
+        onClick={() => setOptionsOpen((o) => !o)}
+        aria-expanded={optionsOpen}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <span className="font-body text-sm font-semibold text-ink">Options</span>
+        <span className="flex items-center gap-2 font-body text-xs text-ink-soft">
+          {difficulty}
+          <Icon name="chevron-down" size={16} className={optionsOpen ? "rotate-180" : ""} />
+        </span>
+      </button>
+      {optionsOpen && (
+        <div className="space-y-4 border-t border-line px-4 py-4">
+          <div>
+            <p className="eyebrow mb-2">How hard should {partner?.initials ?? "your partner"} push back?</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Difficulty">
+              {DIFFICULTIES.map((d) => (
+                <Chip key={d.key} selected={difficulty === d.key} onClick={() => setDifficulty(d.key)}>
+                  {d.label}
+                </Chip>
+              ))}
             </div>
-            <div className="mt-1.5 font-display text-[20px] font-bold tracking-[-0.02em]">
-              {topic.title}
-            </div>
-            <div className="mt-1 font-body text-xs text-ink-soft">
-              +50 feathers · daily bonus
+            <p className="mt-2 font-body text-xs text-ink-soft">
+              {DIFFICULTIES.find((d) => d.key === difficulty)?.description}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 rounded-xl bg-bg px-3 py-2.5">
+            <FlatTurkey stage={partnerStage(difficulty)} size={44} palette={PARTNER_PALETTE} />
+            <div className="min-w-0">
+              <p className="font-body text-sm font-semibold text-ink">{partner?.initials ?? "Your partner"}</p>
+              <p className="font-body text-xs text-ink-soft">Takes the other side of whatever you choose.</p>
             </div>
           </div>
-        ) : (
-          <>
+
+          {isFullGobble && (
             <button
               type="button"
-              onClick={() => setTopicDropdownOpen((open) => !open)}
-              aria-expanded={topicDropdownOpen}
-              className={`flex w-full items-center justify-between gap-3 rounded-2xl border-2 bg-surface p-4 text-left transition-colors ${
-                topic ? "border-primary" : "border-line hover:border-ink-muted"
-              }`}
+              role="switch"
+              aria-checked={allowProfanity}
+              onClick={() => setAllowProfanity((on) => !on)}
+              className="flex w-full items-center gap-3 rounded-xl border border-line bg-bg px-3.5 py-3 text-left"
             >
               <div className="min-w-0 flex-1">
-                {topic ? (
-                  <>
-                    <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-primary">
-                      {topic.category}
-                    </div>
-                    <div className="mt-1.5 truncate font-display text-[18px] font-bold tracking-[-0.02em]">
-                      {topic.title}
-                    </div>
-                    <div className="mt-1 line-clamp-2 font-body text-xs text-ink-soft">
-                      {topic.description}
-                    </div>
-                  </>
-                ) : (
-                  <span className="font-body text-sm text-ink-muted">Choose a topic…</span>
-                )}
+                <div className="font-body text-sm font-semibold text-ink">Allow profanity</div>
+                <div className="mt-0.5 font-body text-[11px] text-ink-soft">
+                  {partner?.initials ?? "Your partner"} may curse when things get heated. No slurs, ever.
+                </div>
               </div>
-              <svg
-                className={`shrink-0 transition-transform ${topicDropdownOpen ? "rotate-180" : ""}`}
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <span aria-hidden="true" className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${allowProfanity ? "bg-plume-500" : "bg-line"}`}>
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${allowProfanity ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+              </span>
             </button>
-
-            {topicDropdownOpen && (
-              <div className="mt-2 max-h-72 overflow-y-auto rounded-2xl lg:max-h-[26rem] border border-line bg-surface">
-                {TOPICS.map((t, i) => {
-                  const selected = selectedTopicId === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedTopicId(t.id);
-                        setTopicDropdownOpen(false);
-                      }}
-                      className={`flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors ${
-                        i < TOPICS.length - 1 ? "border-b border-line" : ""
-                      } ${selected ? "bg-primary-soft" : "hover:bg-bg"}`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-body text-[13px] font-medium text-ink">
-                          {t.title}
-                        </div>
-                        <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-muted">
-                          {t.category}
-                        </div>
-                      </div>
-                      {selected && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M5 13l4 4 10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-primary" />
-                        </svg>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
-      </section>
-
-      {/* Robert auto-flip note */}
-      <div className="flex items-center gap-3 rounded-2xl border border-forest-300/40 bg-forest-100 px-3.5 py-3">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-forest-500 text-white">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M21 7L12 17l-4-4M3 12l4 4M14 7l3 3"
-              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          )}
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="font-body text-xs font-bold text-forest-700">
-            {partner?.initials ?? "Your partner"} opposes you today.
-          </div>
-          <div className="mt-0.5 font-body text-[11px] text-ink-soft">
-            {describeFlip(userBelief, partner?.beliefKey)}
-          </div>
-        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="mx-auto flex max-w-3xl flex-col gap-5 pb-8">
+      <div>
+        <p className="font-body text-sm font-semibold text-primary">{isDaily ? "Daily Gobble" : "Playground"}</p>
+        <h1 className="mt-1 font-display text-[34px] font-bold leading-none tracking-[-0.035em] lg:text-[48px]">
+          {step === 1 ? "Pick a topic." : "Where do you land?"}
+        </h1>
       </div>
 
-      </div>
-
-      <div className="flex flex-col gap-5 lg:sticky lg:top-0">
-      <section>
-        <h2 className="mb-2.5 font-display text-base font-bold tracking-[-0.01em]">Difficulty</h2>
-        <div className="flex flex-col gap-2.5">
-          {DIFFICULTIES.map((d) => {
-            const meta = DIFFICULTY_META[d.key];
-            const selected = selectedDifficulty === d.key;
-            return (
-              <button
-                key={d.key}
-                type="button"
-                onClick={() => setSelectedDifficulty(d.key)}
-                className={`relative flex items-center gap-3.5 rounded-2xl border-2 bg-surface p-3.5 text-left transition-colors ${
-                  selected ? TONE_BORDER[meta.tone] : "border-line hover:border-ink-muted"
-                }`}
-              >
-                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${TONE_BG[meta.tone]}`}>
-                  <FlatTurkey stage={meta.stage} size={50} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className={`font-display text-base font-bold tracking-[-0.02em] ${TONE_FG[meta.tone]}`}>
-                    {d.label}
-                  </div>
-                  <div className="mt-0.5 font-body text-xs text-ink-soft">{d.description}</div>
-                </div>
-                <div className={`whitespace-nowrap font-mono text-[11px] font-semibold ${TONE_FG[meta.tone]}`}>
-                  +{meta.xp} XP
-                </div>
-                {selected && (
-                  <div
-                    className={`absolute -top-2 right-3.5 rounded-full px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-white`}
-                    style={{ background: `var(--tw-color, currentColor)` }}
-                  >
-                    <span className={TONE_FG[meta.tone]}>Selected</span>
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {isFullGobble && (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={allowProfanity}
-            onClick={() => setAllowProfanity((on) => !on)}
-            className="mt-2.5 flex w-full items-center gap-3 rounded-2xl border border-line bg-surface px-3.5 py-3 text-left transition-colors hover:border-ink-muted"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="font-body text-sm font-semibold text-ink">Allow profanity</div>
-              <div className="mt-0.5 font-body text-[11px] text-ink-soft">
-                {partner?.initials ?? "Your partner"} may curse when things get heated. No slurs, ever.
-              </div>
-            </div>
-            <span
-              aria-hidden="true"
-              className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${
-                allowProfanity ? "bg-plume-500" : "bg-line"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                  allowProfanity ? "translate-x-[18px]" : "translate-x-0.5"
-                }`}
-              />
-            </span>
-          </button>
-        )}
-      </section>
-
-      <section>
-        <h2 className="mb-2.5 font-display text-base font-bold tracking-[-0.01em]">Mode</h2>
-        <div className="flex gap-2.5">
-          {MODES.map((m) => {
-            const selected = mode === m.key;
-            return (
-              <button
-                key={m.key}
-                type="button"
-                disabled={m.disabled}
-                onClick={() => setMode(m.key)}
-                className={`relative flex flex-1 flex-col items-center gap-1 rounded-2xl border-2 bg-surface py-3 text-center transition-colors ${
-                  selected ? "border-primary" : "border-line hover:border-ink-muted"
-                } ${m.disabled ? "opacity-50" : ""}`}
-              >
-                <span className="font-body text-sm font-semibold text-ink">{m.label}</span>
-                {m.disabled && (
-                  <span className="font-mono text-[9px] uppercase tracking-[0.06em] text-ink-muted">
-                    Coming soon
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {startError && (
-        <p className="text-center font-body text-sm text-plume-500">{startError}</p>
+      {user && (
+        <Companion
+          variant="row"
+          speciesId={companion?.speciesId ?? null}
+          level={user.level ?? 1}
+          hatched={hatched}
+          equipped={user.equippedCosmetics ?? null}
+          line={line ?? companionLine("playground", hatched)}
+        />
       )}
 
-      <Button
-        size="lg"
-        className="w-full shadow-lift"
-        onClick={startDebate}
-        disabled={!topic || loading}
-        loading={loading}
-      >
-        {topic ? "Start the debate" : "Pick a topic to continue"}
-      </Button>
-      </div>
-      </div>
+      {step === 1 && !isDaily && (
+        <>
+          {topic && (
+            <div className="sticky top-0 z-10 -mx-1 flex items-center gap-3 rounded-2xl border border-primary bg-surface px-4 py-2.5 shadow-soft">
+              <div className="min-w-0 flex-1">
+                <p className="eyebrow">Chosen</p>
+                <p className="truncate font-display text-sm font-bold">{topic.title}</p>
+              </div>
+              <Button size="sm" onClick={() => setStep(2)}>
+                Next
+              </Button>
+            </div>
+          )}
+          <TopicPicker
+            topics={TOPICS}
+            suggestedTopicId={suggestedTopicId}
+            suggestedLabel={suggestedLabel}
+            value={topicId}
+            onChange={pickTopic}
+          />
+          {optionsBlock}
+        </>
+      )}
+
+      {step === 2 && topic && (
+        <>
+          <div className="rounded-2xl border-2 border-primary bg-surface p-4">
+            <p className="eyebrow text-primary">{topic.category}{isDaily ? " · Daily" : ""}</p>
+            <p className="mt-1 font-display text-lg font-bold tracking-[-0.02em]">{topic.title}</p>
+            {isDaily && <p className="mt-1 font-body text-xs text-ink-soft">+50 feathers, daily bonus</p>}
+          </div>
+
+          <StancePicker question={topic.description} value={stance} onChange={setStance} />
+
+          {optionsBlock}
+
+          {startError && <p role="alert" className="text-center font-body text-sm text-plume-500">{startError}</p>}
+
+          <div className="flex flex-col gap-2 sm:flex-row-reverse">
+            <Button size="lg" className="w-full shadow-lift sm:flex-1" onClick={startConversation} disabled={!topic || !stance || loading} loading={loading}>
+              Head to the Playground
+            </Button>
+            {!isDaily && (
+              <Button size="lg" variant="ghost" className="w-full sm:w-auto" onClick={() => setStep(1)} disabled={loading}>
+                Back to topics
+              </Button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-export default function ChatSetupPage() {
+export default function PlaygroundPage() {
   return (
     <Suspense fallback={
       <div className="flex min-h-[60vh] items-center justify-center">
         <FlatTurkey stage={1} size="md" animate />
       </div>
     }>
-      <SetupContent />
+      <PlaygroundContent />
     </Suspense>
   );
 }

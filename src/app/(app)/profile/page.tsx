@@ -14,6 +14,7 @@ import { AvatarWithItems } from "@/components/gamification/AvatarWithItems";
 import { BadgeMark } from "@/components/gamification/BadgeMark";
 import { Icon } from "@/components/ui/Icon";
 import { BADGES } from "@/lib/gamification";
+import { companionStage, getSpecies, isHatched, type CompanionInfo } from "@/lib/companion";
 import type { EquippedCosmetics } from "@/lib/shop";
 
 interface UserData {
@@ -29,6 +30,7 @@ interface UserData {
   badges: string[];
   recentDebates: { id: string; topic: string; score: number | null; difficulty: string; completedAt: string }[];
   createdAt: string;
+  companion?: CompanionInfo;
 }
 
 // Replace this map with real per-dimension scores once the API exposes them.
@@ -86,9 +88,11 @@ export default function ProfilePage() {
     );
   }
 
+  const species = getSpecies(userData.companion?.speciesId);
+  const hatched = userData.companion?.hatched ?? isHatched({ companionHatchedAt: null, level: userData.level });
+  const myStage = companionStage(userData.level, hatched);
   const stages: number[] = [1, 2, 3, 4, 5, 6, 7, 8];
-  const totalDebates = userData.recentDebates.length;
-  const civilityRows = userData.civilityScore > 0 ? civilityBreakdown(userData.civilityScore) : null;
+    const civilityRows = userData.civilityScore > 0 ? civilityBreakdown(userData.civilityScore) : null;
 
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
@@ -106,7 +110,7 @@ export default function ProfilePage() {
             Joined {new Date(userData.createdAt).toLocaleDateString()}. {userData.featherBalance.toLocaleString()} feathers.
           </p>
           <div className="mt-3 flex justify-center">
-            <AvatarWithItems stage={userData.level} size={180} equipped={userData.equippedCosmetics} animate />
+            <AvatarWithItems stage={myStage} size={180} equipped={userData.equippedCosmetics} palette={species.palette} eggPattern={species.eggPattern} animate />
           </div>
           <div className="mt-3 flex justify-center gap-1.5">
             <MiniStat k="Civility" v={userData.civilityScore > 0 ? Math.round(userData.civilityScore * 10) : "—"} />
@@ -121,13 +125,13 @@ export default function ProfilePage() {
       <section>
         <div className="mb-2.5 flex items-baseline justify-between">
           <h2 className="font-display text-xl font-bold tracking-[-0.02em]">Evolution</h2>
-          <span className="font-body text-xs text-ink-muted">{userData.level} of 8 unlocked</span>
+          <span className="font-body text-xs text-ink-muted">{myStage} of 8 unlocked</span>
         </div>
         <Card className="p-4">
           <div className="grid grid-cols-4 gap-x-1.5 gap-y-3.5 xl:grid-cols-8">
             {stages.map((s) => {
-              const unlocked = s <= userData.level;
-              const current = s === userData.level;
+              const unlocked = s <= myStage;
+              const current = s === myStage;
               return (
                 <div
                   key={s}
@@ -136,7 +140,7 @@ export default function ProfilePage() {
                   }`}
                 >
                   <div className={unlocked ? "" : "opacity-35 grayscale"}>
-                    <FlatTurkey stage={s} size={56} />
+                    <FlatTurkey stage={s} size={56} palette={species.palette} eggPattern={species.eggPattern} />
                   </div>
                   <div className={`font-mono text-[10px] font-semibold ${unlocked ? "text-ink" : "text-ink-muted"}`}>
                     {s}

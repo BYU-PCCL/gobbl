@@ -14,7 +14,10 @@ async function main() {
     { username: "BridgeBot", xp: 420, level: 2, civilityScore: 7.0, currentStreak: 2, longestStreak: 3 },
   ];
 
-  for (const u of users) {
+  const species = ["eastern", "ocellated", "goulds", "rio", "merriams"];
+  for (let i = 0; i < users.length; i++) {
+    const u = users[i];
+    const companion = { companionSpecies: species[i % species.length], companionHatchedAt: new Date() };
     await prisma.user.upsert({
       where: { username: u.username },
       update: {},
@@ -28,6 +31,7 @@ async function main() {
         currentStreak: u.currentStreak,
         longestStreak: u.longestStreak,
         lastActiveDate: new Date(),
+        ...companion,
       },
     });
   }

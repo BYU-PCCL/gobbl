@@ -22,6 +22,14 @@ model User {
   equippedCosmetics  Json?
   surveyResponses    Json?
   onboardingCompletedAt DateTime?
+  /// Gobbl Hatch companion: egg species picked at onboarding (see src/lib/companion.ts).
+  companionSpecies   String?
+  /// Set when the user first passes a module quiz ("Teach"); the egg hatches.
+  companionHatchedAt DateTime?
+  /// Move ids learned from passed quizzes, e.g. ["common-ground"] (see src/lib/moves.ts).
+  learnedMoves       Json?
+  /// Last topic picked on the Playground, preselected next time.
+  lastTopicId        String?
   createdAt          DateTime        @default(now())
   debates            Debate[]
   badges             UserBadge[]
@@ -64,6 +72,10 @@ model Debate {
   /// Opt-in from the setup screen; only honored for Full Gobble debates.
   allowProfanity Boolean @default(false)
   analysis     Json?
+  /// "for" | "against": the side the user chose before the conversation; the partner takes the other.
+  userStance   String?
+  /// Holistic civility dimensions persisted at finish so results can be re-shown.
+  dimensions   Json?
   user         User      @relation(fields: [userId], references: [id])
   messages     Message[]
   personaRatings PersonaRating[] // No longer written (rating UI removed); drop with the model below.
@@ -76,6 +88,8 @@ model Message {
   content        String
   civilityScore  Float?
   dimensions     String?
+  /// Coaching move the user tapped before sending this message (see src/lib/moves.ts).
+  moveId         String?
   createdAt      DateTime @default(now())
   debate         Debate   @relation(fields: [debateId], references: [id])
 }

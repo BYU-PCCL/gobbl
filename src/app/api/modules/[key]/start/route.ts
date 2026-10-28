@@ -31,6 +31,7 @@ export async function POST(req: Request, { params }: { params: { key: string } }
       variant: resumedVariant.key,
       step: resumedVariant.steps.find((s) => s.id === inProgress.stage) ?? null,
       resumed: true,
+      linkedDebates: { pre: inProgress.preDebateId ?? null, post: inProgress.postDebateId ?? null },
     });
   }
 

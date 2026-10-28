@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Icon } from "@/components/ui/Icon";
+import { FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
+import { getSpecies } from "@/lib/companion";
 import type { UserSummary } from "./useUserSummary";
 
 /**
@@ -12,14 +14,14 @@ import type { UserSummary } from "./useUserSummary";
 export function TopAppBar({ user }: { user: UserSummary | null }) {
   const { data: session } = useSession();
   const name = user?.username ?? session?.user?.name ?? "";
-  const initial = (name[0] ?? "G").toUpperCase();
+  const palette = getSpecies(user?.companion?.speciesId).palette;
 
   return (
     <header className="sticky top-0 z-40 bg-bg lg:hidden">
       <div className="mx-auto flex max-w-2xl items-center justify-between px-5 py-3 sm:px-8">
         <Link href="/profile" className="group flex items-center gap-2.5 rounded-full">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary font-display text-base font-bold text-white shadow-soft transition-transform group-active:scale-95">
-            {initial}
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-soft shadow-soft transition-transform group-active:scale-95">
+            <FlatTurkeyGlyph size={28} palette={palette} />
           </div>
           <div className="leading-tight">
             <div className="font-body text-sm font-semibold text-ink">Hey, {name || "friend"}</div>

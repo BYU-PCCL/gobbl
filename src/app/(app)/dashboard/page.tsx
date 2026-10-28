@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { fetchJson } from "@/lib/fetchJson";
+import { useEffect, useMemo, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -9,84 +8,81 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { FlatTurkey } from "@/components/gamification/FlatTurkey";
-import { FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
-import { AvatarWithItems } from "@/components/gamification/AvatarWithItems";
+import { Icon } from "@/components/ui/Icon";
+import { FlatTurkey, FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
 import { XPBar } from "@/components/gamification/XPBar";
-import { StatsCard } from "@/components/dashboard/StatsCard";
 import { DailyChallenge } from "@/components/dashboard/DailyChallenge";
 import { LevelUpModal } from "@/components/gamification/LevelUpModal";
+import { NestScene } from "@/components/nest/NestScene";
+import { NestMeters } from "@/components/nest/NestMeters";
+import { NestActions } from "@/components/nest/NestActions";
+import { useCompanion } from "@/components/companion/useCompanion";
+import { fetchJson } from "@/lib/fetchJson";
 import { getDailyTopic } from "@/lib/topics";
-import { LEVELS } from "@/lib/gamification";
-import type { EquippedCosmetics } from "@/lib/shop";
+import { STAGE_LABELS, getSpecies, nestLine, warmthFrom } from "@/lib/companion";
+import { MODULES, getModule } from "@/lib/modules/registry";
 
-interface UserData {
-  username: string;
-  xp: number;
-  featherBalance: number;
-  level: number;
-  equippedCosmetics: EquippedCosmetics;
-  levelInfo: {
-    level: number;
-    name: string;
-    xpForNext: number;
-    xpProgress: number;
-    progressPercent: number;
-  };
-  civilityScore: number;
-  currentStreak: number;
-  longestStreak: number;
-  dailyCompleted: boolean;
-  badges: string[];
-  recentDebates: {
-    id: string;
-    topic: string;
-    category: string;
-    difficulty: string;
-    score: number | null;
-    xpEarned: number;
-    feathersEarned: number;
-    completedAt: string;
-  }[];
+interface ModuleRow {
+  key: string;
+  title: string;
+  timesCompleted: number;
+  progress: { sessionId: string; stage: string; variant: string; inProgress: boolean } | null;
 }
 
-export default function DashboardPage() {
+export default function NestPage() {
   const { status } = useSession();
   const router = useRouter();
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  // Level-up detection: cache previous level in sessionStorage; show modal when it jumps.
+  const { data, companion, error } = useCompanion();
+  const [modules, setModules] = useState<ModuleRow[] | null>(null);
   const [levelUp, setLevelUp] = useState<{ from: number; to: number } | null>(null);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/");
-      return;
-    }
-    if (status === "authenticated") {
-      fetchJson<UserData>("/api/user")
-        .then((data) => {
-          setUserData(data);
-          if (typeof window !== "undefined") {
-            const prev = Number(sessionStorage.getItem("gobbl:lastLevel") || data.level);
-            if (data.level > prev) setLevelUp({ from: prev, to: data.level });
-            sessionStorage.setItem("gobbl:lastLevel", String(data.level));
-          }
-        })
-        .catch((err: Error) => setLoadError(err.message))
-        .finally(() => setLoading(false));
-    }
+    if (status === "unauthenticated") router.push("/");
   }, [status, router]);
 
-  if (loadError) {
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    fetchJson<ModuleRow[] | { modules: ModuleRow[] }>("/api/modules")
+      .then((m) => setModules(Array.isArray(m) ? m : m.modules))
+      .catch(() => setModules([]));
+  }, [status]);
+
+  // Level-up detection: cache previous level in sessionStorage; show modal when it jumps.
+  useEffect(() => {
+    if (!data || typeof window === "undefined") return;
+    try {
+      const prev = Number(sessionStorage.getItem("gobbl:lastLevel") || data.level);
+      if (data.level > prev) setLevelUp({ from: prev, to: data.level });
+      sessionStorage.setItem("gobbl:lastLevel", String(data.level));
+    } catch {
+      /* storage unavailable */
+    }
+  }, [data]);
+
+  const current = useMemo(() => {
+    if (!modules || !companion) return null;
+    const species = getSpecies(companion.speciesId);
+    const byKey = (k: string) => modules.find((m) => m.key === k);
+    const inProgress = modules.find((m) => m.progress?.inProgress);
+    const suggested = byKey(species.suggestedModuleKey);
+    const pick =
+      inProgress ??
+      (suggested && suggested.timesCompleted === 0 ? suggested : undefined) ??
+      modules.find((m) => m.timesCompleted === 0) ??
+      suggested ??
+      modules[0];
+    if (!pick) return null;
+    const config = getModule(pick.key) ?? MODULES.find((m) => m.key === pick.key);
+    if (!config) return null;
+    const live = pick.progress?.inProgress ? pick.progress : null;
+    return { config, stage: live ? live.stage : null, variantKey: live ? live.variant : null };
+  }, [modules, companion]);
+
+  if (error) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
         <FlatTurkey stage={1} size="md" />
-        <p className="font-body text-sm text-ink-soft">
-          Couldn&apos;t load your dashboard: {loadError}
-        </p>
+        <p className="font-body text-sm text-ink-soft">Couldn&apos;t load your nest: {error}</p>
         <Button variant="secondary" size="sm" onClick={() => signOut({ callbackUrl: "/" })}>
           Sign out
         </Button>
@@ -94,7 +90,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (loading || !userData) {
+  if (!data || !companion) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <FlatTurkey stage={1} size="md" animate />
@@ -102,123 +98,97 @@ export default function DashboardPage() {
     );
   }
 
+  const species = getSpecies(companion.speciesId);
+  const warmth = warmthFrom(data.lastActiveDate);
+  const mood = data.civilityScore > 0 ? data.civilityScore : null;
+  const line = nestLine({ hatched: companion.hatched, warmth, mood, seed: data.xp });
   const dailyTopic = getDailyTopic();
+  const info = data.levelInfo;
+  const recent = data.recentDebates.slice(0, 3);
 
   return (
-    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:gap-6">
-      {/* Headline */}
-      <div className="pt-1 lg:order-first lg:col-span-12 lg:pb-4">
-        <h1 className="font-display text-[38px] font-bold leading-[0.95] tracking-[-0.035em] text-ink sm:text-[52px] lg:text-[84px] lg:leading-[0.88] lg:tracking-[-0.045em]">
-          Ready to
-          <br />
-          talk turkey?
-        </h1>
-        <p className="mt-3 font-body text-sm leading-snug text-ink-soft lg:mt-5 lg:text-base">
-          One conversation a day. The Flock&apos;s already gathering.
-        </p>
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
+      {/* Header pills */}
+      <div className="flex flex-wrap gap-2">
+        <span className="rounded-full border border-line bg-surface px-3 py-1.5 font-body text-sm font-semibold text-ink">
+          {data.username}
+        </span>
+        <span className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 font-mono text-[13px] font-semibold text-ink num-tabular">
+          <Icon name="feather" size={14} />
+          {data.featherBalance.toLocaleString()} feathers
+        </span>
+        <span className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 font-mono text-[13px] font-semibold text-ink num-tabular">
+          <Icon name="streak" size={14} />
+          {data.currentStreak}-day streak
+        </span>
       </div>
 
-      {/* Hero: turkey + XP */}
-      <Card className="overflow-hidden lg:order-1 lg:col-span-7 lg:flex lg:items-center lg:p-8">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-ochre-soft/60" />
-        <div className="relative flex w-full items-center gap-4 lg:gap-8">
-          <div className="lg:hidden">
-            <AvatarWithItems stage={userData.level} size={120} equipped={userData.equippedCosmetics} animate />
-          </div>
-          <div className="hidden lg:block">
-            <AvatarWithItems stage={userData.level} size={180} equipped={userData.equippedCosmetics} animate />
-          </div>
-          <div className="flex-1">
-            <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted">
-              Level {userData.level} · {userData.levelInfo.name}
-            </div>
-            <div className="mt-1 font-display text-[22px] font-bold leading-[1.05] tracking-[-0.02em] lg:text-[32px]">
-              Strutting
-              <br />
-              nicely.
-            </div>
-            <div className="mt-3.5">
-              <XPBar
-                current={userData.levelInfo.xpProgress}
-                max={userData.levelInfo.xpForNext}
-                level={userData.level}
-                levelName={userData.levelInfo.name}
-                showLabel={false}
-              />
-              <div className="mt-1.5 flex justify-between">
-                <span className="font-mono text-[10px] text-ink-muted num-tabular">
-                  {userData.levelInfo.xpProgress} / {userData.levelInfo.xpForNext} XP
-                </span>
-                <span className="font-mono text-[10px] font-semibold text-primary num-tabular">
-                  {userData.levelInfo.xpForNext - userData.levelInfo.xpProgress > 0
-                    ? `+${userData.levelInfo.xpForNext - userData.levelInfo.xpProgress} to ${LEVELS[userData.level]?.name ?? "next"}`
-                    : "Max level"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Stats row */}
-      <div className="grid grid-cols-3 gap-2.5 lg:order-3 lg:col-span-12 lg:gap-4">
-        <StatsCard
-          label="Civility"
-          value={userData.civilityScore > 0 ? Math.round(userData.civilityScore * 10) : "—"}
-          unit="/100"
-          tone="forest"
-        />
-        <StatsCard
-          label="Streak"
-          value={userData.currentStreak}
-          unit="days"
-          tone="primary"
-        />
-        <StatsCard
-          label="Debates"
-          value={userData.recentDebates.length}
-          unit="total"
-          tone="ochre"
-        />
-      </div>
-
-      {/* Daily Gobble */}
-      <DailyChallenge
-        topic={dailyTopic}
-        completed={userData.dailyCompleted}
-        className="lg:order-2 lg:col-span-5"
+      <NestScene
+        speciesId={companion.speciesId}
+        level={data.level}
+        hatched={companion.hatched}
+        equipped={data.equippedCosmetics}
+        line={line}
       />
 
-      {/* Recent */}
-      {userData.recentDebates.length > 0 && (
-        <section className="lg:order-4 lg:col-span-12">
+      {/* Identity */}
+      <div className="flex flex-col gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="font-display text-[28px] font-bold leading-none tracking-[-0.03em] text-ink">
+            {species.commonName} turkey
+          </h1>
+          <Badge tone="ochre" variant="soft" size="sm">{STAGE_LABELS[companion.stage] ?? "Egg"}</Badge>
+          <Badge tone="primary" variant="soft" size="sm">Level {data.level}</Badge>
+        </div>
+        <XPBar current={info.xpProgress} max={info.xpForNext} level={data.level} levelName={info.name} />
+      </div>
+
+      <NestMeters warmth={warmth} civilityScore={data.civilityScore} />
+
+      {current && <NestActions mod={current.config} stage={current.stage} variantKey={current.variantKey} />}
+
+      {/* Playground */}
+      <Link
+        href="/chat"
+        className="flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 transition-colors hover:border-ink-muted"
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-forest-soft">
+          <Icon name="debate" size={20} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="eyebrow text-ink-muted">Playground</div>
+          <div className="mt-1 font-body text-sm font-semibold text-ink">Pick a topic and talk it out</div>
+        </div>
+        <Icon name="chevron-right" size={16} strokeWidth={2} className="text-ink-muted" />
+      </Link>
+
+      <DailyChallenge topic={dailyTopic} completed={data.dailyCompleted} />
+
+      {recent.length > 0 && (
+        <section>
           <div className="mb-2.5 flex items-baseline justify-between">
-            <h2 className="font-display text-xl font-bold tracking-[-0.02em] lg:text-2xl">Recent</h2>
-            <Link href="/profile" className="font-body text-xs font-semibold text-primary">
-              See all
-            </Link>
+            <h2 className="font-display text-xl font-bold tracking-[-0.02em]">Recent conversations</h2>
+            <Link href="/profile" className="font-body text-xs font-semibold text-primary">See all</Link>
           </div>
-          <div className="flex flex-col gap-2 lg:grid lg:grid-cols-3 lg:gap-4">
-            {userData.recentDebates.slice(0, 3).map((debate) => (
+          <div className="flex flex-col gap-2">
+            {recent.map((c) => (
               <Link
-                key={debate.id}
-                href={`/chat/${debate.id}`}
+                key={c.id}
+                href={`/chat/${c.id}`}
                 className="flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 transition-colors hover:border-ink-muted"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft">
-                  <FlatTurkeyGlyph size={22} />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft">
+                  <FlatTurkeyGlyph size={22} palette={species.palette} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-body text-sm font-semibold text-ink">
-                    {debate.topic}
-                  </div>
+                  <div className="truncate font-body text-sm font-semibold text-ink">{c.topic}</div>
                   <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-muted">
-                    {debate.difficulty}
+                    {c.difficulty}
                   </div>
                 </div>
-                {debate.score != null ? (
-                  <div className="font-display text-xl font-bold tracking-[-0.02em] text-forest-600 num-tabular">
-                    {debate.score.toFixed(1)}
+                {c.score != null ? (
+                  <div className="font-display text-xl font-bold tracking-[-0.02em] text-forest-fg num-tabular">
+                    {c.score.toFixed(1)}
                   </div>
                 ) : (
                   <Badge tone="neutral" size="sm">In progress</Badge>
@@ -234,7 +204,7 @@ export default function DashboardPage() {
           open
           fromLevel={levelUp.from}
           toLevel={levelUp.to}
-          rewards={{ feathers: 500, outfits: 5, newBadge: "Gobbler" }}
+          rewards={{ feathers: data.recentDebates[0]?.feathersEarned ?? 0 }}
           onClose={() => setLevelUp(null)}
           onSeeWhatsNew={() => {
             setLevelUp(null);

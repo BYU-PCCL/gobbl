@@ -1,4 +1,5 @@
 import type { ModuleConfig } from "./types";
+import { QUIZZES, QUIZ_PASS } from "@/lib/quizzes";
 
 /**
  * The five skill modules. Each is a short flow of steps (see types.ts): a quick
@@ -56,6 +57,7 @@ const PARTICIPATION_MODULE: ModuleConfig = {
             },
           ],
         },
+        { id: "quiz", kind: "quiz", questions: QUIZZES["participation"], passScore: QUIZ_PASS },
         {
           id: "practice",
           kind: "practice",
@@ -128,6 +130,7 @@ const LISTENING_MODULE: ModuleConfig = {
             },
           ],
         },
+        { id: "quiz", kind: "quiz", questions: QUIZZES["active-listening"], passScore: QUIZ_PASS },
         {
           id: "practice",
           kind: "practice",
@@ -196,6 +199,7 @@ const SELF_EXPRESSION_MODULE: ModuleConfig = {
             },
           ],
         },
+        { id: "quiz", kind: "quiz", questions: QUIZZES["self-expression"], passScore: QUIZ_PASS },
         {
           id: "practice",
           kind: "practice",
@@ -264,6 +268,7 @@ const REASON_GIVING_MODULE: ModuleConfig = {
             },
           ],
         },
+        { id: "quiz", kind: "quiz", questions: QUIZZES["reason-giving"], passScore: QUIZ_PASS },
         {
           id: "practice",
           kind: "practice",
@@ -347,6 +352,7 @@ const COGNITIVE_DISSONANCE_MODULE: ModuleConfig = {
             },
           ],
         },
+        { id: "quiz", kind: "quiz", questions: QUIZZES["cognitive-dissonance"], passScore: QUIZ_PASS },
         {
           id: "cd_practice",
           kind: "practice",

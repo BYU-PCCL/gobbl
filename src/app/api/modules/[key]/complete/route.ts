@@ -5,9 +5,9 @@ import { prisma } from "@/lib/db";
 import { getModule } from "@/lib/modules/registry";
 
 /**
- * Flat bonus for finishing a module, separate from the practice debate's own
+ * Flat bonus for finishing a module, separate from the practice conversation's own
  * XP/feathers — those are already awarded by /api/chat's finishDebate when
- * the practice conversation itself ends, so this must not re-score the debate.
+ * the practice conversation itself ends, so this must not re-score the conversation.
  */
 const MODULE_COMPLETION_FEATHERS = 30;
 

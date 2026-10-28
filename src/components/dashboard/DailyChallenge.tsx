@@ -18,9 +18,9 @@ interface DailyChallengeProps {
 /**
  * Daily Gobble card — Harvest direction.
  * Inverted (ink-on-bg → bg-on-ink) hero card with a background turkey silhouette
- * and ochre CTA. Difficulty chips show what Robert's running today.
+ * and ochre CTA. Difficulty chips show the tiers on offer.
  *
- * Edit the chips/CTA to your own difficulty preset once the user picks one.
+ * Links to the Playground with the daily topic.
  */
 export function DailyChallenge({ topic, completed = false, className = "" }: DailyChallengeProps) {
   return (
@@ -63,7 +63,7 @@ export function DailyChallenge({ topic, completed = false, className = "" }: Dai
               href={`/chat/setup?daily=true&topic=${topic.id}`}
               className="mt-4 inline-flex items-center gap-2 rounded-full bg-ochre px-5 py-3 font-body text-sm font-bold text-ink transition-transform active:scale-[0.98]"
             >
-              Start practice
+              Start a conversation
             </Link>
             <div className="mt-3 font-mono text-[10px] text-bg/55">+50 feathers · +120 XP</div>
           </>
