@@ -51,9 +51,9 @@ export default function NestPage() {
   useEffect(() => {
     if (!data || typeof window === "undefined") return;
     try {
-      const prev = Number(sessionStorage.getItem("gobbl:lastLevel") || data.level);
+      const prev = Number(sessionStorage.getItem(`gobbl:lastLevel:${data.username}`) || data.level);
       if (data.level > prev) setLevelUp({ from: prev, to: data.level });
-      sessionStorage.setItem("gobbl:lastLevel", String(data.level));
+      sessionStorage.setItem(`gobbl:lastLevel:${data.username}`, String(data.level));
     } catch {
       /* storage unavailable */
     }

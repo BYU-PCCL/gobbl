@@ -235,7 +235,7 @@ export function ConversationScene({
               tail="right"
               live
               label={`${personaInitials} says`}
-              maxHeightClass="max-h-[10.5rem]"
+              maxHeightClass="max-h-[min(22rem,38vh)]"
               className="flex-1"
             >
               {loading || !lastPartner ? <TypingDots /> : <p className="whitespace-pre-wrap">{lastPartner}</p>}

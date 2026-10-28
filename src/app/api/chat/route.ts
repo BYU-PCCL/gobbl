@@ -179,6 +179,10 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
     newStreak = 1;
   } else if (today.getTime() - lastActive.getTime() >= 86400000) {
     newStreak = user.currentStreak + 1;
+  } else if (user.currentStreak === 0) {
+    // lastActiveDate is also bumped by non-conversation activity (module quiz), so
+    // "active today" does not mean a conversation already counted toward the streak.
+    newStreak = 1;
   }
 
   const newXp = user.xp + xpResult.total;

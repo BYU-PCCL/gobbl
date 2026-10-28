@@ -23,7 +23,7 @@ const PROMISES = [
   },
   {
     title: "Get scored on civility, not winning",
-    body: "Every message is scored for tone, evidence, empathy, constructive framing and listening.",
+    body: "After each conversation you see how you did on tone, evidence, empathy, constructive framing and listening, with notes turn by turn.",
   },
   {
     title: "Grow your turkey",

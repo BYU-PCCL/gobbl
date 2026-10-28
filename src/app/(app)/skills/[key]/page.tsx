@@ -411,7 +411,7 @@ function ModuleRunner() {
   const overlays = (
     <>
       <InlineToast message={toast} onHide={hideToast} />
-      {hatch && <HatchOverlay speciesId={you.speciesId} moveName={hatch.moveName} onDone={finishHatch} />}
+      {hatch && <HatchOverlay speciesId={you.speciesId} moveName={hatch.moveName} onDone={finishHatch} doneLabel="Keep going" />}
       <LevelUpModal
         open={levelUp !== null && !hatch}
         fromLevel={levelUp?.from ?? 1}

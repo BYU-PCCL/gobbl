@@ -10,6 +10,7 @@ build/
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+.playwright-mcp/
 
 # Claude Code local settings (machine paths, local permission grants)
 .claude/settings.local.json
