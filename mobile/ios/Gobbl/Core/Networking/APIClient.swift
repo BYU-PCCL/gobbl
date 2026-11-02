@@ -21,6 +21,8 @@ final class APIClient: @unchecked Sendable {
     let session: URLSession
     let clientVersion: String
     private let vault: SessionVault
+    /// Sent on every request. Debug builds use it for the Vercel preview protection bypass.
+    private let defaultHeaders: [String: String]
     private let onUnauthorized: @Sendable () -> Void
 
     /// - Parameters:
@@ -29,11 +31,13 @@ final class APIClient: @unchecked Sendable {
          session: URLSession = APIClient.makeSession(),
          clientVersion: String,
          vault: SessionVault,
+         defaultHeaders: [String: String] = [:],
          onUnauthorized: @escaping @Sendable () -> Void) {
         self.baseURL = baseURL
         self.session = session
         self.clientVersion = clientVersion
         self.vault = vault
+        self.defaultHeaders = defaultHeaders
         self.onUnauthorized = onUnauthorized
     }
 
@@ -76,6 +80,7 @@ final class APIClient: @unchecked Sendable {
         request.timeoutInterval = endpoint.timeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("ios/\(clientVersion)", forHTTPHeaderField: "X-Gobbl-Client")
+        for (field, value) in defaultHeaders { request.setValue(value, forHTTPHeaderField: field) }
 
         if endpoint.requiresAuth {
             guard let token = vault.accessToken else { throw APIError.unauthorized }

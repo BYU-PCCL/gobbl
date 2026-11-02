@@ -19,3 +19,6 @@ mobile/ios/build/
 mobile/ios/DerivedData/
 **/xcuserdata/
 *.xcuserstate
+
+# Local iOS secrets (Vercel preview bypass)
+mobile/ios/Config/Secrets.xcconfig

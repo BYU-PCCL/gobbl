@@ -4,7 +4,14 @@
 // Point Debug at a Vercel preview deployment by default: it carries the real env vars and
 // is reachable from a physical iPhone, unlike localhost. Override per developer with
 // the GOBBL_API_BASE environment variable in the scheme's Run action.
-API_BASE_URL = https:/$()/CHANGE-ME-preview.vercel.app   // TODO: your preview URL
+// Stable branch URL for `gobbl-swift-port` (always the newest deploy of that branch).
+API_BASE_URL = https:/$()/gobbl-git-gobbl-swift-port-aphasiavercel.vercel.app
+
+// Vercel preview deployments are behind Vercel Authentication. Debug builds send this
+// "Protection Bypass for Automation" secret as `x-vercel-protection-bypass`. Put the real value in
+// Config/Secrets.xcconfig (git-ignored; copy Secrets.xcconfig.example). Release never sends it.
+VERCEL_BYPASS_SECRET =
+#include? "Secrets.xcconfig"
 
 // Debug-only Info.plist keys (see Gobbl/Info.plist): the ATS exception that allows
 // http://localhost:3000 on the Simulator when iterating against `npm run dev`.

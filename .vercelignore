@@ -1,3 +1,5 @@
 # The iOS app is built with Xcode, not by Vercel.
-mobile/
-docs/
+# Leading slash anchors each pattern to the repo root. Without it, `mobile/` also matched
+# src/app/api/mobile/ and silently dropped the mobile auth routes from every deploy.
+/mobile/
+/docs/

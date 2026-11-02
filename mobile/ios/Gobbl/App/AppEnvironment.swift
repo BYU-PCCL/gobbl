@@ -15,7 +15,7 @@ final class AppEnvironment {
     let consent: AIConsentStore
 
     private init(baseURL: URL, sessionStore: SessionStore, urlSession: URLSession? = nil,
-                 configCacheURL: URL?, defaults: UserDefaults) {
+                 configCacheURL: URL?, defaults: UserDefaults, defaultHeaders: [String: String] = [:]) {
         self.baseURL = baseURL
         let vault = SessionVault()
         let relay = UnauthorizedRelay()
@@ -23,6 +23,7 @@ final class AppEnvironment {
                                session: urlSession ?? APIClient.makeSession(),
                                clientVersion: AppEnvironment.clientVersion,
                                vault: vault,
+                               defaultHeaders: defaultHeaders,
                                onUnauthorized: { relay.fire() })
         let auth = AuthStore(client: client, store: sessionStore, vault: vault)
         relay.handler = { auth.handleUnauthorized() }
@@ -41,7 +42,8 @@ final class AppEnvironment {
         AppEnvironment(baseURL: resolveBaseURL(),
                        sessionStore: KeychainStore(service: keychainService),
                        configCacheURL: ConfigStore.defaultCacheURL(),
-                       defaults: .standard)
+                       defaults: .standard,
+                       defaultHeaders: debugHeaders())
     }
 
     /// Previews and tests: nothing persists and no network is reachable.
@@ -60,6 +62,17 @@ final class AppEnvironment {
 
     static var clientVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+    }
+
+    /// Debug only: the Vercel preview protection bypass from `Config/Secrets.xcconfig`, when set.
+    static func debugHeaders() -> [String: String] {
+        #if DEBUG
+        if let secret = Bundle.main.object(forInfoDictionaryKey: "VercelProtectionBypass") as? String,
+           !secret.trimmingCharacters(in: .whitespaces).isEmpty {
+            return ["x-vercel-protection-bypass": secret.trimmingCharacters(in: .whitespaces)]
+        }
+        #endif
+        return [:]
     }
 
     static func resolveBaseURL() -> URL {
