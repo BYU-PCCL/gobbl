@@ -36,6 +36,7 @@ export default function SchoolPage() {
   const [reaction, setReaction] = useState<TurkeyReaction>("none");
   const [done, setDone] = useState<{ feathers: number } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [retryable, setRetryable] = useState(true);
   const started = useRef(false);
   const logRef = useRef<HTMLDivElement>(null);
   const mounted = useRef(true);
@@ -65,6 +66,7 @@ export default function SchoolPage() {
 
   async function submit(allAnswers: string[]) {
     setSubmitError(null);
+    setRetryable(true);
     setBusy(true);
     try {
       const res = await fetch(`/api/turkeys/${turkeyId}/school`, {
@@ -73,7 +75,11 @@ export default function SchoolPage() {
         body: JSON.stringify({ answers: allAnswers }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+      if (!res.ok) {
+        // A 4xx will not succeed on retry; only network errors and 5xx are retryable.
+        if (mounted.current) setRetryable(res.status >= 500);
+        throw new Error(data.error || "Something went wrong.");
+      }
       if (!mounted.current) return;
       setReaction("cheer");
       setDone({ feathers: data.feathersEarned ?? 0 });
@@ -181,9 +187,15 @@ export default function SchoolPage() {
         {submitError && (
           <div className="space-y-2 text-center">
             <p className="font-body text-sm text-plume-500">{submitError}</p>
-            <Button size="sm" onClick={() => void submit(answers)}>
-              Try again
-            </Button>
+            {retryable ? (
+              <Button size="sm" onClick={() => void submit(answers)}>
+                Try again
+              </Button>
+            ) : (
+              <Link href="/home" className="inline-block font-semibold text-primary underline-offset-2 hover:underline">
+                Back home
+              </Link>
+            )}
           </div>
         )}
       </div>

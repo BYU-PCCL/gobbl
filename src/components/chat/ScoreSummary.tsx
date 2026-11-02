@@ -3,13 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { DIMENSION_LABELS, DIMENSION_DESCRIPTIONS } from "@/lib/civility";
-import { BADGES } from "@/lib/gamification";
 import type { EquippedCosmetics } from "@/lib/shop";
 import { FinishResult } from "./ChatInterface";
 import { Button } from "../ui/Button";
 import { Icon } from "../ui/Icon";
 import { AvatarWithItems } from "../gamification/AvatarWithItems";
-import { BadgeMark } from "../gamification/BadgeMark";
 import { TurkeyCharacter } from "../turkey/TurkeyCharacter";
 import type { TurkeyView } from "@/lib/flock/view";
 
@@ -165,27 +163,6 @@ export function ScoreSummary({ result, turkey, tooShort }: ScoreSummaryProps) {
           </div>
         </section>
       </div>
-
-      {result.newBadges.length > 0 && (
-        <section className="mt-4 rounded-2xl border-2 border-ochre bg-ochre-soft/40 p-5 lg:mt-6">
-          <h3 className="mb-4 text-center font-display text-lg font-bold tracking-[-0.02em]">
-            {result.newBadges.length === 1 ? "New badge" : "New badges"}
-          </h3>
-          <div className="flex flex-wrap justify-center gap-6">
-            {result.newBadges.map((key) => {
-              const badge = BADGES.find((b) => b.key === key);
-              if (!badge) return null;
-              return (
-                <div key={key} className="flex w-28 flex-col items-center gap-2 text-center animate-hatch">
-                  <BadgeMark badgeKey={key} size={56} />
-                  <span className="font-body text-sm font-bold text-ink">{badge.name}</span>
-                  <span className="font-body text-xs text-ink-soft">{badge.description}</span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
         <Link href="/home">

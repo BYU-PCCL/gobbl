@@ -20,7 +20,6 @@ export interface FinishResult {
   feathers: { base: number; difficultyBonus: number; dailyBonus: number; total: number };
   previousLevel: number;
   newLevel: number;
-  newBadges: string[];
   streak: number;
   equippedCosmetics?: EquippedCosmetics;
 }
