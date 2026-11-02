@@ -32,7 +32,6 @@ export async function GET() {
 
   return NextResponse.json({
     featherBalance: user.featherBalance,
-    level: user.level,
     equipped,
     items,
   });

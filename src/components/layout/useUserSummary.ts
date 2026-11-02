@@ -7,13 +7,11 @@ import { ACCOUNT_MISSING_CALLBACK_URL } from "@/lib/signOutReasons";
 
 export interface UserSummary {
   username: string;
-  level: number;
-  levelName: string;
   featherBalance: number;
 }
 
 /**
- * The signed-in user's name, level and feather balance for the app chrome.
+ * The signed-in user's name and feather balance for the app chrome.
  * Refetches on navigation so the balance reflects purchases and finished debates.
  *
  * Also the one place that notices a dead session. With the JWT strategy a signed
@@ -42,8 +40,6 @@ export function useUserSummary(): UserSummary | null {
         if (cancelled || !data) return;
         setUser({
           username: data.username,
-          level: data.level,
-          levelName: data.levelInfo?.name ?? "",
           featherBalance: data.featherBalance,
         });
       })

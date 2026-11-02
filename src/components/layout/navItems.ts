@@ -9,14 +9,14 @@ export interface NavItem {
 
 /** Primary destinations, shared by the mobile bottom nav and the desktop sidebar. */
 export const PRIMARY_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Home", icon: "home", matches: (p) => p === "/" || p.startsWith("/dashboard") },
-  { href: "/chat", label: "Debate", icon: "debate", matches: (p) => p.startsWith("/chat") },
-  { href: "/skills", label: "Skills", icon: "skills", matches: (p) => p.startsWith("/skills") },
+  {
+    href: "/home",
+    label: "Home",
+    icon: "home",
+    matches: (p) =>
+      p === "/" ||
+      ["/home", "/hatch", "/school", "/chat", "/skills"].some((r) => p === r || p.startsWith(`${r}/`)),
+  },
   { href: "/shop", label: "Shop", icon: "shop", matches: (p) => p.startsWith("/shop") },
   { href: "/profile", label: "You", icon: "profile", matches: (p) => p.startsWith("/profile") },
-];
-
-/** Desktop has room for the leaderboard; on mobile it's reached from the profile page. */
-export const SECONDARY_NAV: NavItem[] = [
-  { href: "/leaderboard", label: "The Flock", icon: "flock", matches: (p) => p.startsWith("/leaderboard") },
 ];

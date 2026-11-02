@@ -7,7 +7,6 @@ import type { EquippedCosmetics } from "@/lib/shop";
 import { FinishResult } from "./ChatInterface";
 import { Button } from "../ui/Button";
 import { Icon } from "../ui/Icon";
-import { AvatarWithItems } from "../gamification/AvatarWithItems";
 import { TurkeyCharacter } from "../turkey/TurkeyCharacter";
 import type { TurkeyView } from "@/lib/flock/view";
 
@@ -98,7 +97,7 @@ export function ScoreSummary({ result, turkey, tooShort }: ScoreSummaryProps) {
     <div className="mx-auto max-w-4xl animate-fade-in px-5 py-8 sm:px-8 lg:py-12">
       {/* Headline result */}
       <div className="flex flex-col items-center text-center lg:flex-row lg:items-center lg:gap-10 lg:text-left">
-        {turkey ? (
+        {turkey && (
           <TurkeyCharacter
             stage={turkey.stage}
             mood={turkey.mood}
@@ -107,8 +106,6 @@ export function ScoreSummary({ result, turkey, tooShort }: ScoreSummaryProps) {
             size={150}
             label={turkeyName}
           />
-        ) : (
-          <AvatarWithItems stage={result.newLevel} size={150} equipped={result.equippedCosmetics ?? {}} />
         )}
         <div className="mt-4 lg:mt-0">
           <h2 className="font-display text-[28px] font-bold leading-[1.05] tracking-[-0.03em] lg:text-[40px]">

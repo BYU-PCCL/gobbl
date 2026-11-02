@@ -18,8 +18,6 @@ export interface FinishResult {
   dimensions: Record<string, number> | null;
   xp: { base: number; difficultyBonus: number; dailyBonus: number; streakMultiplier: number; total: number };
   feathers: { base: number; difficultyBonus: number; dailyBonus: number; total: number };
-  previousLevel: number;
-  newLevel: number;
   streak: number;
   equippedCosmetics?: EquippedCosmetics;
 }

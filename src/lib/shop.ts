@@ -8,7 +8,6 @@ export interface ShopItem {
   accent: string;
   accentBg: string;
   isNew?: boolean;
-  unlockAt?: number;
 }
 
 export const SHOP_SLOTS: ShopSlot[] = ["background", "cape", "hat", "face", "neck", "chest"];
@@ -38,11 +37,11 @@ export const SHOP_CATALOG: ShopItem[] = [
   { id: "medal",      name: "Gold Medal",      slot: "chest",      cost: 460,  accent: "#E4A547", accentBg: "#FBE9C4" },
   // Cape
   { id: "cape",       name: "Hero Cape",       slot: "cape",       cost: 520,  accent: "#C0461C", accentBg: "#F4D9CC" },
-  { id: "wings",      name: "Spirit Wings",    slot: "cape",       cost: 900,  accent: "#1F4937", accentBg: "#D5DFD4", unlockAt: 6 },
+  { id: "wings",      name: "Spirit Wings",    slot: "cape",       cost: 900,  accent: "#1F4937", accentBg: "#D5DFD4" },
   // Background
   { id: "forest",     name: "Forest Glade",    slot: "background", cost: 600,  accent: "#1F4937", accentBg: "#D5DFD4" },
   { id: "sunset",     name: "Sunset Glow",     slot: "background", cost: 700,  accent: "#C0461C", accentBg: "#FCE2C0" },
-  { id: "cosmic",     name: "Cosmic Drift",    slot: "background", cost: 1200, accent: "#3A2D5C", accentBg: "#2A2440", unlockAt: 6 },
+  { id: "cosmic",     name: "Cosmic Drift",    slot: "background", cost: 1200, accent: "#3A2D5C", accentBg: "#2A2440" },
   { id: "dots",       name: "Polka Dots",      slot: "background", cost: 240,  accent: "#C0461C", accentBg: "#F4ECDD" },
   { id: "confetti",   name: "Confetti Party",  slot: "background", cost: 380,  accent: "#1F4937", accentBg: "#1F4937", isNew: true },
 ];

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
-import { PRIMARY_NAV, SECONDARY_NAV, type NavItem } from "./navItems";
+import { PRIMARY_NAV, type NavItem } from "./navItems";
 import type { UserSummary } from "./useUserSummary";
 
 /**
@@ -17,17 +17,13 @@ export function SideNav({ user }: { user: UserSummary | null }) {
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-line bg-surface-2/40 px-4 py-6 lg:flex">
-      <Link href="/dashboard" className="mb-8 flex items-center gap-2 rounded-xl px-3">
+      <Link href="/home" className="mb-8 flex items-center gap-2 rounded-xl px-3">
         <FlatTurkeyGlyph size={30} />
         <span className="font-display text-[26px] font-bold tracking-[-0.04em] text-ink">Gobbl</span>
       </Link>
 
       <nav aria-label="Primary" className="flex flex-col gap-1">
         {PRIMARY_NAV.map((item) => (
-          <SideNavLink key={item.href} item={item} active={item.matches(pathname)} />
-        ))}
-        <div className="my-3 border-t border-line" />
-        {SECONDARY_NAV.map((item) => (
           <SideNavLink key={item.href} item={item} active={item.matches(pathname)} />
         ))}
       </nav>
@@ -52,11 +48,6 @@ export function SideNav({ user }: { user: UserSummary | null }) {
           </div>
           <div className="min-w-0 leading-tight">
             <div className="truncate font-body text-sm font-semibold text-ink">{user?.username ?? " "}</div>
-            {user?.levelName && (
-              <div className="truncate font-body text-xs text-ink-muted">
-                Level {user.level}, {user.levelName}
-              </div>
-            )}
           </div>
         </Link>
       </div>

@@ -23,11 +23,6 @@ export function TopAppBar({ user }: { user: UserSummary | null }) {
           </div>
           <div className="leading-tight">
             <div className="font-body text-sm font-semibold text-ink">Hey, {name || "friend"}</div>
-            {user?.levelName && (
-              <div className="font-body text-xs text-ink-muted">
-                Level {user.level}, {user.levelName}
-              </div>
-            )}
           </div>
         </Link>
 
