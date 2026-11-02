@@ -159,7 +159,7 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
   const qualifies = qualifiesParkVisit(userMessageCount);
   const computedFeathers = calculateFeathers(userMessageCount, debate.difficulty, debate.isDaily);
   // A park visit that is too short earns nothing.
-  const featherResult = qualifies ? computedFeathers : { ...computedFeathers, total: 0 };
+  const featherResult = qualifies ? computedFeathers : { base: 0, difficultyBonus: 0, dailyBonus: 0, total: 0 };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

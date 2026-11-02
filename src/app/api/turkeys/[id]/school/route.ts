@@ -43,6 +43,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     );
 
     const result = await prisma.$transaction(async (tx) => {
+      // Update the turkey first: it row-locks the turkey so concurrent lessons serialize and
+      // the second one sees the first one's activity when counting below.
+      const updatedTurkey = await tx.turkey.update({
+        where: { id: turkey.id },
+        data: { activityCount: { increment: 1 }, lastTaughtAt: now },
+      });
       const paidToday = await tx.turkeyActivity.count({
         where: {
           turkeyId: turkey.id,
@@ -62,10 +68,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           counted: true,
           completedAt: now,
         },
-      });
-      const updatedTurkey = await tx.turkey.update({
-        where: { id: turkey.id },
-        data: { activityCount: { increment: 1 }, lastTaughtAt: now },
       });
       const user = await tx.user.update({
         where: { id: userId },
