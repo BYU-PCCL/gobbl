@@ -10,6 +10,9 @@ final class AppEnvironment {
     let auth: AuthStore
     let config: ConfigStore
     let levelTracker: LevelTracker
+    let router: AppRouter
+    let profile: ProfileStore
+    let consent: AIConsentStore
 
     private init(baseURL: URL, sessionStore: SessionStore, urlSession: URLSession? = nil,
                  configCacheURL: URL?, defaults: UserDefaults) {
@@ -28,6 +31,9 @@ final class AppEnvironment {
         self.auth = auth
         self.config = ConfigStore(client: client, cacheURL: configCacheURL)
         self.levelTracker = LevelTracker(defaults: defaults)
+        self.router = AppRouter()
+        self.profile = ProfileStore(auth: auth)
+        self.consent = AIConsentStore(defaults: defaults)
     }
 
     /// The real app: Keychain session, Info.plist base URL (overridable with `GOBBL_API_BASE` in Debug).
@@ -94,6 +100,9 @@ extension View {
     func gobblEnvironment(_ env: AppEnvironment) -> some View {
         self.environment(env.auth)
             .environment(env.config)
+            .environment(env.router)
+            .environment(env.profile)
+            .environment(env.consent)
             .environment(\.appEnvironment, env)
     }
 }

@@ -3,8 +3,8 @@ import SwiftUI
 /// Names from the web's `Icon.tsx`, mapped to SF Symbols.
 enum GIconName {
     case home, debate, skills, shop, profile, flock
-    case chevronRight, chevronLeft, close, check, plus, send
-    case feather, xp, streak, civility, lock, info, warning, refresh, signOut, trash, eye, eyeSlash
+    case chevronRight, chevronLeft, chevronDown, arrowRight, close, check, plus, send
+    case feather, xp, streak, civility, lock, info, warning, refresh, signOut, trash, eye, eyeSlash, question, badge
 
     var systemName: String {
         switch self {
@@ -16,6 +16,8 @@ enum GIconName {
         case .flock: return "bird.fill"
         case .chevronRight: return "chevron.right"
         case .chevronLeft: return "chevron.left"
+        case .chevronDown: return "chevron.down"
+        case .arrowRight: return "arrow.right"
         case .close: return "xmark"
         case .check: return "checkmark"
         case .plus: return "plus"
@@ -32,6 +34,8 @@ enum GIconName {
         case .trash: return "trash"
         case .eye: return "eye"
         case .eyeSlash: return "eye.slash"
+        case .question: return "questionmark.circle"
+        case .badge: return "rosette"
         }
     }
 }

@@ -41,6 +41,7 @@ final class LevelTrackerTests: XCTestCase {
         XCTAssertNil(tracker.observe(level: 3, for: "u"))
     }
 
+    @MainActor
     func testAuthFormValidationMirrorsServerRules() {
         XCTAssertNil(AuthFormViewModel.validate(mode: .register, username: "abc", password: "123456"))
         XCTAssertNotNil(AuthFormViewModel.validate(mode: .register, username: "ab", password: "123456"))

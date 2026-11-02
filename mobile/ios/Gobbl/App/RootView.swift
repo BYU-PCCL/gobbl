@@ -2,10 +2,12 @@ import SwiftUI
 
 /// Switches on auth state: splash while validating a stored token, Landing when signed out,
 /// a retry screen when the server is unreachable, and the tabs when signed in.
-/// Onboarding (Phase 2) will present as a non-dismissable cover over the tabs when `needsOnboarding`.
+/// Onboarding presents as a non-dismissable cover over the tabs (`MainTabView`) while `needsOnboarding`.
 struct RootView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(ConfigStore.self) private var config
+    @Environment(AppRouter.self) private var router
+    @Environment(ProfileStore.self) private var profile
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -26,6 +28,13 @@ struct RootView: View {
         .task {
             await auth.bootstrap()
             await config.refreshIfNeeded()
+        }
+        .onChange(of: auth.currentUser?.id) { old, new in
+            // Signed out or switched account: drop pushed screens and the previous user's numbers.
+            if old != new {
+                router.reset()
+                profile.clear()
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             // `today.date` rolls at UTC midnight; refetch config when the app comes back.

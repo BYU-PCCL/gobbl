@@ -8,8 +8,8 @@ Newest entries first. Dates are absolute.
 | Phase | Status | Evidence |
 |---|---|---|
 | 0 Backend (A1–A6) | **Done** (on Windows, before 2026-10-26) | `src/app/api/mobile/auth/*`, `src/app/api/config`, `docs/api.md`, fixtures captured 2026-10-26 |
-| 1 Scaffold (B1–B3 + Landing) | **Written, not built** | `mobile/ios/` as listed below; see "How Phase 1 was verified" |
-| 2 Core loop | Not started | — |
+| 1 Scaffold (B1–B3 + Landing) | **Builds** (Xcode 27.2, 2026-11-02) | `xcodebuild build` clean on first try |
+| 2 Core loop | **Written, builds; not yet run in the Simulator** | see the 2026-11-02 entry below |
 | 3 Remaining screens | Not started | — |
 | 4 Ship | Not started | — |
 
@@ -17,6 +17,38 @@ Newest entries first. Dates are absolute.
 build and test commands in `mobile/ios/README.md`. Expect some iOS-only compile issues that the
 macOS typecheck could not catch (see below). Fix those, confirm the Phase 1 acceptance list from the
 plan (Part C), then start Phase 2 with the prompt at the bottom of `mobile/ios/README.md`.
+
+## 2026-11-02 — Phase 2 written and building (Claude Code)
+
+Xcode 27.2 installed. Phase 1 built cleanly with no changes. Phase 2 added:
+
+- `App/AppRouter.swift`: tab selection plus Home/Debate navigation paths; routes `.setup(daily:)`, `.debate(id:)`.
+  `RootView` resets it (and `ProfileStore`) when the signed-in user changes.
+- `Core/Storage/ProfileStore.swift` (shared `/api/user`, keeps stale data on refresh failure),
+  `Core/Storage/AIConsentStore.swift` (per-user, versioned UserDefaults flag).
+- `Features/Onboarding/`: survey as a non-dismissable `fullScreenCover` over the tabs; 409 → refetch profile, 404 → sign out.
+- `Features/Dashboard/`: dashboard, XP bar, stat tiles, Daily Gobble card (time left computed to UTC midnight),
+  level-up cover via `LevelTracker`. The web's hardcoded level-up rewards (+500 feathers etc.) were NOT ported;
+  the iOS screen shows outfits unlocked between the two levels and the level description from config.
+- `Features/Debate/`: `DebateSetupViewModel`/`DebateSetupView` (topic sheet, difficulty from config showing the
+  real multiplier rather than the web's fixed +60/+120/+200 XP labels, partner preview per tier, profanity toggle for
+  Full Gobble only, pairing screen, `DAILY_DONE` opens that debate); `ChatViewModel` (state machine) and `DebateView`
+  (live chat, read-only transcript + Analyze, results); `ResultsView` (evolution reveal, ledgers, badges);
+  `AIConsentSheet` (guideline 5.1.2(i)), asked before starting a debate and before the first message of a debate
+  begun on the web. The disabled Audio/Video "coming soon" mode picker was left out (App Review dislikes placeholders).
+- Chat differences from web, on purpose: a failed send removes the message and puts the text back in the draft
+  (web fakes a partner reply); the length limit counts UTF-16 units like the server; live civility updates per turn.
+- Tests: `ChatViewModelTests` (+ `DebateSetupViewModelTests`), `SurveyViewModelTests`. Fixed a Phase 1 test missing
+  `@MainActor`. `build-for-testing` succeeds. Survey tests ran green on a Simulator once; the full suite has NOT run
+  yet because the Simulator runtime stopped registering (see below).
+
+**Simulator problem (open):** the iOS 27.2 SDK (build 24B8118) has no exact-match runtime. Installed runtime 24B8117
+worked; after `xcodebuild -downloadPlatform iOS` added 24B91016s, `simctl list runtimes` came back empty. Tried: restarting
+CoreSimulatorService, `simctl runtime match set iphoneos27.2 24B8117` (override still set), deleting 24B91016s (asset
+not reclaimed). Next: Xcode → Settings → Components, or Self Service+ if the managed Mac blocks it.
+
+**Next:** get a Simulator running, run `xcodebuild test`, then walk the Phase 2 acceptance list against the preview
+backend (needs the `CHANGE-ME` preview URL in `Config/Debug.xcconfig`).
 
 ## 2026-10-28 — Phase 1 scaffold written on the Mac (Claude Code, Fable 5.1)
 
