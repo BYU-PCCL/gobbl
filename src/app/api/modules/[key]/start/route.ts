@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getModule } from "@/lib/modules/registry";
+import { startActivity } from "@/lib/flock/activities";
 
 export async function POST(req: Request, { params }: { params: { key: string } }) {
   const session = await getServerSession(authOptions);
@@ -16,6 +17,9 @@ export async function POST(req: Request, { params }: { params: { key: string } }
     return NextResponse.json({ error: "Module not found" }, { status: 404 });
   }
 
+  const body = await req.json().catch(() => ({}));
+  const { variant, turkeyId } = (body ?? {}) as { variant?: unknown; turkeyId?: unknown };
+
   // Already mid-module? Resume that run instead of stacking a second one (double-click,
   // second tab). `step` is null for a run that finished its last step but was never
   // finalized — the client completes it.
@@ -26,6 +30,11 @@ export async function POST(req: Request, { params }: { params: { key: string } }
   if (inProgress) {
     const resumedVariant =
       moduleConfig.variants.find((v) => v.key === inProgress.variant) ?? moduleConfig.variants[0];
+    try {
+      await startActivity({ userId, turkeyId, kind: "feed", refId: inProgress.id });
+    } catch (e) {
+      console.error("startActivity failed", e);
+    }
     return NextResponse.json({
       sessionId: inProgress.id,
       variant: resumedVariant.key,
@@ -34,7 +43,6 @@ export async function POST(req: Request, { params }: { params: { key: string } }
     });
   }
 
-  const { variant } = await req.json().catch(() => ({ variant: undefined }));
   const variantKey = variant === "advanced" ? "advanced" : "standard";
   const chosenVariant =
     moduleConfig.variants.find((v) => v.key === variantKey) ?? moduleConfig.variants[0];
@@ -49,6 +57,12 @@ export async function POST(req: Request, { params }: { params: { key: string } }
       stage: firstStep.id,
     },
   });
+
+  try {
+    await startActivity({ userId, turkeyId, kind: "feed", refId: skillSession.id });
+  } catch (e) {
+    console.error("startActivity failed", e);
+  }
 
   return NextResponse.json({
     sessionId: skillSession.id,

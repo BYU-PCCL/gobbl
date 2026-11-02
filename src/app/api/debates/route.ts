@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createDebate } from "@/lib/debates";
 import { getPersonaById } from "@/lib/personas/pool";
+import { startActivity } from "@/lib/flock/activities";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -20,13 +21,14 @@ export async function POST(req: Request) {
     personaId?: string;
     isDaily?: boolean;
     allowProfanity?: boolean;
+    turkeyId?: unknown;
   };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  const { topic, category, difficulty, personaId, isDaily, allowProfanity } = body;
+  const { topic, category, difficulty, personaId, isDaily, allowProfanity, turkeyId } = body;
   if (!topic) {
     return NextResponse.json({ error: "A topic is required" }, { status: 400 });
   }
@@ -41,6 +43,11 @@ export async function POST(req: Request) {
       isDaily,
       allowProfanity,
     });
+    try {
+      await startActivity({ userId, turkeyId, kind: "park", refId: result.id });
+    } catch (e) {
+      console.error("startActivity failed", e);
+    }
     return NextResponse.json(result);
   } catch {
     // Without this, a failure here (e.g. the Grok call for the opening message) bubbles

@@ -8,6 +8,8 @@ import { calculateXP, calculateFeathers, getLevelInfo, checkNewBadges } from "@/
 import { parseEquippedCosmetics } from "@/lib/shop";
 import { fallbackHolisticFromUserMessages, parseStoredDimensions } from "@/lib/civility";
 import { getPersonaById, pickPersona, isTier } from "@/lib/personas/pool";
+import { completeActivity } from "@/lib/flock/activities";
+import { qualifiesParkVisit } from "@/lib/flock/growth";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -154,7 +156,10 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
     user.currentStreak
   );
 
-  const featherResult = calculateFeathers(userMessageCount, debate.difficulty, debate.isDaily);
+  const qualifies = qualifiesParkVisit(userMessageCount);
+  const computedFeathers = calculateFeathers(userMessageCount, debate.difficulty, debate.isDaily);
+  // A park visit that is too short earns nothing.
+  const featherResult = qualifies ? computedFeathers : { ...computedFeathers, total: 0 };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -233,6 +238,17 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
       })
     ),
   ]);
+
+  try {
+    await completeActivity({
+      refId: debateId,
+      score: overallScore,
+      feathers: featherResult.total,
+      counts: qualifies,
+    });
+  } catch (e) {
+    console.error("completeActivity failed", e);
+  }
 
   const dimensionsOut = {
     participation: holisticResult.dimensions.participation,

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getModule } from "@/lib/modules/registry";
+import { completeActivity } from "@/lib/flock/activities";
 
 /**
  * Flat bonus for finishing a module, separate from the practice debate's own
@@ -78,6 +79,17 @@ export async function POST(req: Request, { params }: { params: { key: string } }
       return NextResponse.json({ error: "Session already completed" }, { status: 409 });
     }
     throw e;
+  }
+
+  try {
+    await completeActivity({
+      refId: skillSession.id,
+      score: postCivility ?? preCivility,
+      feathers: MODULE_COMPLETION_FEATHERS,
+      counts: true,
+    });
+  } catch (e) {
+    console.error("completeActivity failed", e);
   }
 
   return NextResponse.json({
