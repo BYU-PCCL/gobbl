@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,7 @@ import { useVisualViewportHeight } from "@/components/chat/useVisualViewportHeig
 import { getModule } from "@/lib/modules/registry";
 import type { ModuleStep } from "@/lib/modules/types";
 import { isAnswerValid } from "@/lib/survey/questions";
+import { useFlock } from "@/components/turkey/useFlock";
 
 interface ModuleProgressSummary {
   key: string;
@@ -50,7 +51,9 @@ const GENERIC_ERROR = "Something went wrong. Please try again.";
 export default function ModuleRunnerPage() {
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <ModuleRunner />
+      <Suspense fallback={null}>
+        <ModuleRunner />
+      </Suspense>
     </div>
   );
 }
@@ -61,6 +64,10 @@ function ModuleRunner() {
   const params = useParams();
   const moduleKey = params.key as string;
   const moduleConfig = getModule(moduleKey);
+  const turkeyId = useSearchParams().get("turkeyId");
+  const { turkeys, current } = useFlock();
+  const turkey = turkeys.find((t) => t.id === turkeyId && t.hatched) ?? (turkeyId ? current : null);
+  const turkeyName = turkey?.name ?? "your turkey";
 
   const [phase, setPhase] = useState<RunnerPhase>({ kind: "loading" });
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -138,7 +145,7 @@ function ModuleRunner() {
    * and `start` resumes the open run, so the user lands back on the step they left.
    */
   function leave() {
-    router.push("/skills");
+    router.push(turkeyId ? "/home" : "/skills");
   }
 
   /** Returns true if the failure was handled (caller should stop). */
@@ -172,7 +179,7 @@ function ModuleRunner() {
 
   function start(variant: "standard" | "advanced") {
     return run(async () => {
-      const r = await post("start", { variant });
+      const r = await post("start", { variant, ...(turkeyId ? { turkeyId } : {}) });
       if (handleFailure(r)) return;
       setAnswers({});
       // step is null when resuming a run whose last step was done but never finalized.
@@ -327,8 +334,8 @@ function ModuleRunner() {
             return civility != null ? `. Civility ${Math.round(civility)} out of 10` : null;
           })()}
         </p>
-        <Link href="/skills">
-          <Button>Back to skills</Button>
+        <Link href={turkeyId ? "/home" : "/skills"}>
+          <Button>{turkeyId ? `Back to ${turkeyName}` : "Back to skills"}</Button>
         </Link>
       </div>
     );

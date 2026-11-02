@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { fetchJson } from "@/lib/fetchJson";
 
@@ -12,6 +12,8 @@ import { MessageBubble } from "@/components/chat/MessageBubble";
 import { FlatTurkey, FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
 import { Button } from "@/components/ui/Button";
 import { IDEOLOGY_OPTIONS } from "@/lib/prompts/beliefs";
+import { useFlock } from "@/components/turkey/useFlock";
+import { PARK_MIN_USER_MESSAGES } from "@/lib/flock/config";
 
 interface TurnFeedback {
   turn: number;
@@ -37,6 +39,10 @@ export default function DebatePage() {
   const router = useRouter();
   const params = useParams();
   const debateId = params.id as string;
+  const turkeyIdParam = useSearchParams().get("turkeyId");
+  const { turkeys } = useFlock();
+  const turkey = turkeyIdParam ? (turkeys.find((t) => t.id === turkeyIdParam && t.hatched) ?? null) : null;
+  const [userMessages, setUserMessages] = useState(0);
   const [debate, setDebate] = useState<DebateData | null>(null);
   const [result, setResult] = useState<FinishResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,7 +93,11 @@ export default function DebatePage() {
     // chat can own its own scrolling; the long results page needs its own scroll container.
     return (
       <div className="h-full overflow-y-auto">
-        <ScoreSummary result={result} />
+        <ScoreSummary
+          result={result}
+          turkey={turkey}
+          tooShort={result.feathers.total === 0 && userMessages < PARK_MIN_USER_MESSAGES}
+        />
       </div>
     );
   }
@@ -190,8 +200,8 @@ export default function DebatePage() {
         {header}
         <div className="border-b border-line bg-surface-2 px-4 py-2 text-center font-body text-xs text-ink-soft">
           View-only transcript — this discussion is finished.{" "}
-          <Link href="/dashboard" className="font-semibold text-primary underline-offset-2 hover:underline">
-            Back home
+          <Link href="/home" className="font-semibold text-primary underline-offset-2 hover:underline">
+            {turkey ? `Back to ${turkey.name ?? "your turkey"}` : "Back home"}
           </Link>
         </div>
         <div className="flex-1 overflow-y-auto p-4 sm:px-8">
@@ -242,7 +252,7 @@ export default function DebatePage() {
           debateId={debate.id}
           initialMessages={initialMessages}
           maxTurns={8}
-          onFinish={(r) => setResult(r)}
+          onFinish={(r, n) => { setUserMessages(n); setResult(r); }}
         />
       </div>
     </div>

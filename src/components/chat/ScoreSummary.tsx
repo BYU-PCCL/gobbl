@@ -1,85 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { DIMENSION_LABELS, DIMENSION_DESCRIPTIONS } from "@/lib/civility";
-import { BADGES, LEVELS } from "@/lib/gamification";
+import { BADGES } from "@/lib/gamification";
 import type { EquippedCosmetics } from "@/lib/shop";
 import { FinishResult } from "./ChatInterface";
 import { Button } from "../ui/Button";
 import { Icon } from "../ui/Icon";
 import { AvatarWithItems } from "../gamification/AvatarWithItems";
 import { BadgeMark } from "../gamification/BadgeMark";
+import { TurkeyCharacter } from "../turkey/TurkeyCharacter";
+import type { TurkeyView } from "@/lib/flock/view";
 
 interface ScoreSummaryProps {
   result: FinishResult;
-}
-
-function LevelUpOverlay({
-  previousLevel,
-  newLevel,
-  equippedCosmetics,
-  onDismiss,
-}: {
-  previousLevel: number;
-  newLevel: number;
-  equippedCosmetics?: EquippedCosmetics;
-  onDismiss: () => void;
-}) {
-  const [revealed, setRevealed] = useState(false);
-  const oldStage = LEVELS.find((l) => l.level === previousLevel);
-  const newStage = LEVELS.find((l) => l.level === newLevel);
-
-  useEffect(() => {
-    const t = setTimeout(() => setRevealed(true), 900);
-    return () => clearTimeout(t);
-  }, []);
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Your turkey evolved"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 p-4 backdrop-blur-sm animate-fade-in"
-    >
-      <div className="relative w-full max-w-sm overflow-hidden rounded-3xl bg-surface p-8 text-center shadow-lift">
-        <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-ochre-soft/70" />
-        <div className="relative">
-          <p className="font-body text-sm font-semibold text-primary">Your turkey evolved</p>
-
-          <div className="mt-4 flex min-h-[200px] items-center justify-center">
-            {revealed ? (
-              <div className="animate-level-pulse">
-                <AvatarWithItems stage={newLevel} size={180} equipped={equippedCosmetics ?? {}} />
-              </div>
-            ) : (
-              <div className="opacity-60">
-                <AvatarWithItems stage={previousLevel} size={150} animate={false} />
-              </div>
-            )}
-          </div>
-
-          <h2 className="mt-3 font-display text-[32px] font-bold leading-none tracking-[-0.03em]">
-            {revealed ? newStage?.name : oldStage?.name}
-          </h2>
-          <p className="mt-2 min-h-[1.25rem] font-body text-sm text-ink-soft">
-            {revealed ? newStage?.description : ""}
-          </p>
-
-          {revealed && (
-            <div className="mt-6 animate-slide-up">
-              <p className="mb-4 font-body text-sm text-ink-soft">
-                From {oldStage?.name} to {newStage?.name}.
-              </p>
-              <Button onClick={onDismiss} className="w-full">
-                See your results
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  /** The turkey this conversation was for, when known. */
+  turkey?: TurkeyView | null;
+  /** Show the "talk a little longer" notice (the visit did not count). */
+  tooShort?: boolean;
 }
 
 /** Hover (mouse) or tap/click (touch, keyboard) the label to read what the dimension means. */
@@ -147,11 +86,9 @@ function LedgerRow({ label, value, tone = "text-ink" }: { label: string; value: 
   );
 }
 
-export function ScoreSummary({ result }: ScoreSummaryProps) {
+export function ScoreSummary({ result, turkey, tooShort }: ScoreSummaryProps) {
+  const turkeyName = turkey?.name ?? "your turkey";
   const isGreat = result.overallScore >= 7;
-  const didLevelUp = result.previousLevel !== undefined && result.newLevel > result.previousLevel;
-  const [showLevelUp, setShowLevelUp] = useState(didLevelUp);
-
   const scoreTone =
     result.overallScore >= 8
       ? "text-forest-600"
@@ -159,24 +96,22 @@ export function ScoreSummary({ result }: ScoreSummaryProps) {
         ? "text-golden-600"
         : "text-plume-500";
 
-  if (showLevelUp) {
-    return (
-      <LevelUpOverlay
-        previousLevel={result.previousLevel}
-        newLevel={result.newLevel}
-        equippedCosmetics={result.equippedCosmetics}
-        onDismiss={() => setShowLevelUp(false)}
-      />
-    );
-  }
-
-  const newLevelName = LEVELS.find((l) => l.level === result.newLevel)?.name;
-
   return (
     <div className="mx-auto max-w-4xl animate-fade-in px-5 py-8 sm:px-8 lg:py-12">
       {/* Headline result */}
       <div className="flex flex-col items-center text-center lg:flex-row lg:items-center lg:gap-10 lg:text-left">
-        <AvatarWithItems stage={result.newLevel} size={150} equipped={result.equippedCosmetics ?? {}} />
+        {turkey ? (
+          <TurkeyCharacter
+            stage={turkey.stage}
+            mood={turkey.mood}
+            skill={turkey.skill}
+            equipped={result.equippedCosmetics}
+            size={150}
+            label={turkeyName}
+          />
+        ) : (
+          <AvatarWithItems stage={result.newLevel} size={150} equipped={result.equippedCosmetics ?? {}} />
+        )}
         <div className="mt-4 lg:mt-0">
           <h2 className="font-display text-[28px] font-bold leading-[1.05] tracking-[-0.03em] lg:text-[40px]">
             {isGreat ? "That was a good conversation." : "Good effort. Keep practicing."}
@@ -187,11 +122,10 @@ export function ScoreSummary({ result }: ScoreSummaryProps) {
             </span>
             <span className="font-body text-sm text-ink-muted">civility, out of 10</span>
           </div>
-          {didLevelUp && newLevelName && (
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-ochre-soft px-3.5 py-1.5 font-body text-sm font-bold text-golden-700">
-              <Icon name="sparkle" size={16} />
-              Evolved to {newLevelName}
-            </div>
+          {tooShort && (
+            <p className="mt-3 font-body text-sm font-semibold text-golden-700">
+              Talk a little longer next time so it counts for {turkeyName}.
+            </p>
           )}
         </div>
       </div>
@@ -207,30 +141,6 @@ export function ScoreSummary({ result }: ScoreSummaryProps) {
             </div>
           </section>
         )}
-
-        <section className="rounded-2xl border border-line bg-surface p-5">
-          <h3 className="flex items-center gap-2 font-display text-lg font-bold tracking-[-0.02em]">
-            <Icon name="xp" size={18} className="text-primary" />
-            XP earned
-          </h3>
-          <p className="mb-2 mt-1 font-body text-xs text-ink-muted">
-            From civility, difficulty, the daily topic and your streak. XP grows your turkey.
-          </p>
-          <LedgerRow label="Base" value={`+${result.xp.base}`} />
-          {result.xp.difficultyBonus > 0 && (
-            <LedgerRow label="Difficulty bonus" value={`+${result.xp.difficultyBonus}`} tone="text-plume-500" />
-          )}
-          {result.xp.dailyBonus > 0 && (
-            <LedgerRow label="Daily Gobble" value={`+${result.xp.dailyBonus}`} tone="text-golden-600" />
-          )}
-          {result.xp.streakMultiplier > 1 && (
-            <LedgerRow label="Streak multiplier" value={`×${result.xp.streakMultiplier.toFixed(1)}`} tone="text-primary" />
-          )}
-          <div className="mt-1.5 flex items-baseline justify-between border-t border-line pt-2.5">
-            <span className="font-body text-sm font-bold">Total</span>
-            <span className="font-mono text-base font-bold text-primary num-tabular">+{result.xp.total} XP</span>
-          </div>
-        </section>
 
         <section className="rounded-2xl border border-line bg-surface p-5">
           <h3 className="flex items-center gap-2 font-display text-lg font-bold tracking-[-0.02em]">
@@ -278,11 +188,11 @@ export function ScoreSummary({ result }: ScoreSummaryProps) {
       )}
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
-        <Link href="/chat">
-          <Button className="w-full sm:w-auto">Start another debate</Button>
+        <Link href="/home">
+          <Button className="w-full sm:w-auto">{turkey ? `Back to ${turkeyName}` : "Back home"}</Button>
         </Link>
-        <Link href="/dashboard">
-          <Button variant="secondary" className="w-full sm:w-auto">Back to home</Button>
+        <Link href={turkey ? `/chat?turkeyId=${turkey.id}` : "/chat"}>
+          <Button variant="secondary" className="w-full sm:w-auto">Start another debate</Button>
         </Link>
       </div>
     </div>

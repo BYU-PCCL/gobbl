@@ -10,6 +10,7 @@ import { Chip } from "@/components/ui/Chip";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { TOPICS, getDailyTopic, formatTopicForDebate, type Topic } from "@/lib/topics";
 import { DIFFICULTIES } from "@/lib/gamification";
+import { useFlock } from "@/components/turkey/useFlock";
 import { describeFlip } from "@/lib/prompts/flipBelief";
 import { parseBeliefKey, type BeliefKey } from "@/lib/prompts/beliefs";
 
@@ -48,6 +49,10 @@ function SetupContent() {
   const searchParams = useSearchParams();
   const isDaily = searchParams.get("daily") === "true";
   const topicId = searchParams.get("topic");
+  const turkeyIdParam = searchParams.get("turkeyId");
+  const { turkeys, current } = useFlock();
+  const turkey = turkeys.find((t) => t.id === turkeyIdParam && t.hatched) ?? current;
+  const turkeyName = turkey?.name ?? "your turkey";
 
   const initialDifficulty = searchParams.get("difficulty") ?? "Spirited Strut";
   const [selectedDifficulty, setSelectedDifficulty] = useState(initialDifficulty);
@@ -119,6 +124,7 @@ function SetupContent() {
           difficulty: selectedDifficulty,
           personaId: partner?.id,
           isDaily,
+          ...(turkeyIdParam ? { turkeyId: turkeyIdParam } : {}),
           // The toggle's state survives switching tiers, so only send it for Full Gobble.
           allowProfanity: isFullGobble && allowProfanity,
         }),
@@ -141,18 +147,18 @@ function SetupContent() {
     }
 
     const data = await res.json();
-    router.push(`/chat/${data.id}`);
+    router.push(`/chat/${data.id}${turkeyIdParam ? `?turkeyId=${encodeURIComponent(turkeyIdParam)}` : ""}`);
   };
 
   return (
     <div className="flex flex-col gap-5 pb-8 lg:gap-8">
       <p className="font-body text-sm font-semibold text-primary">
-        {isDaily ? "Daily Gobble" : "New debate"}
+        {isDaily ? "Daily Gobble" : "Park"}
       </p>
 
       <div>
         <h1 className="font-display text-[38px] font-bold leading-none tracking-[-0.035em] lg:text-[56px]">
-          Set up your debate.
+          Who will {turkeyName} talk to today?
         </h1>
         <p className="mt-2 font-body text-sm text-ink-soft lg:mt-3 lg:text-base">
           Pick a topic and how hard you want {partner?.initials ?? "your partner"} to push back.
@@ -297,9 +303,6 @@ function SetupContent() {
                     {d.label}
                   </div>
                   <div className="mt-0.5 font-body text-xs text-ink-soft">{d.description}</div>
-                </div>
-                <div className={`whitespace-nowrap font-mono text-[11px] font-semibold ${TONE_FG[meta.tone]}`}>
-                  +{meta.xp} XP
                 </div>
                 {selected && (
                   <div

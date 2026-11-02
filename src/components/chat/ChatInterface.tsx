@@ -29,7 +29,8 @@ interface ChatInterfaceProps {
   debateId: string;
   initialMessages: ChatMsg[];
   maxTurns: number;
-  onFinish: (result: FinishResult) => void;
+  /** userMessages = how many messages the user sent in this debate. */
+  onFinish: (result: FinishResult, userMessages: number) => void;
 }
 
 const TEXTAREA_MAX_HEIGHT_PX = 200;
@@ -87,6 +88,9 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
     el.style.overflowY = el.scrollHeight > TEXTAREA_MAX_HEIGHT_PX ? "auto" : "hidden";
   }, [input]);
 
+  const countUserMessages = (extra: number) =>
+    messages.filter((m) => m.role === "user" && m.content.trim() !== "").length + extra;
+
   const sendMessage = async (finish = false) => {
     if (!input.trim() && !finish) return;
     const userMsg = input.trim();
@@ -101,7 +105,7 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
         body: JSON.stringify({ debateId, message: userMsg, finish }),
       });
       const data = await res.json();
-      if (data.finished) { onFinish(data); return; }
+      if (data.finished) { onFinish(data, countUserMessages(userMsg ? 1 : 0)); return; }
       setMessages((prev) => {
         const updated = [...prev];
         if (updated.length && updated[updated.length - 1].role === "user") {
@@ -137,7 +141,7 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
       const data = await res.json().catch(() => ({}));
       if (data.finished) {
         // Stay in the "wrapping up" state: the parent swaps this view for the results.
-        onFinish(data);
+        onFinish(data, countUserMessages(0));
         return;
       }
       setFinishError(data.error || "We couldn't wrap that up. Give it another try.");

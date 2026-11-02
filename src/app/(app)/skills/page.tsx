@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
@@ -60,8 +60,18 @@ function levelLabel(module: ModuleListItem): string {
 }
 
 export default function SkillsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SkillsContent />
+    </Suspense>
+  );
+}
+
+function SkillsContent() {
   const { status } = useSession();
   const router = useRouter();
+  const turkeyId = useSearchParams().get("turkeyId");
+  const withTurkey = turkeyId ? `?turkeyId=${encodeURIComponent(turkeyId)}` : "";
   const [modules, setModules] = useState<ModuleListItem[] | null>(null);
   const [loadError, setLoadError] = useState(false);
 
@@ -130,7 +140,7 @@ export default function SkillsPage() {
       {/* Active module, if any */}
       {active && (
         <Link
-          href={`/skills/${active.key}`}
+          href={`/skills/${active.key}${withTurkey}`}
           className="relative block overflow-hidden rounded-3xl bg-ink p-5 text-bg lg:p-8"
         >
           <div className="pointer-events-none absolute -bottom-7 -right-7 opacity-15">
@@ -167,7 +177,7 @@ export default function SkillsPage() {
           return (
             <Link
               key={m.key}
-              href={`/skills/${m.key}`}
+              href={`/skills/${m.key}${withTurkey}`}
               className="rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-ink-muted lg:p-5"
             >
               <div className="flex items-center gap-3.5">
