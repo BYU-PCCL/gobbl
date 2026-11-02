@@ -43,7 +43,7 @@ function CrackOverlay({ taps, size }: { taps: number; size: number }) {
 export default function HatchPage() {
   const router = useRouter();
   const { status } = useSession();
-  const { turkeys, select, reload, loading } = useFlock();
+  const { turkeys, select, reload, loading, error } = useFlock();
 
   const [picking, setPicking] = useState<TurkeySkillKey | null>(null);
   const [pickError, setPickError] = useState("");
@@ -57,7 +57,7 @@ export default function HatchPage() {
   const hasTurkeys = turkeys.length > 0;
 
   useEffect(() => {
-    if (status === "unauthenticated") router.push("/");
+    if (status === "unauthenticated") router.replace("/");
   }, [status, router]);
 
   useEffect(() => {
@@ -111,10 +111,21 @@ export default function HatchPage() {
     }
   }
 
+  if (status === "unauthenticated") return null;
+
   if (loading || status === "loading" || (hasTurkeys && !unhatched)) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center font-body text-ink-soft">
         Warming the nest...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center gap-4 px-4 py-16 text-center">
+        <p className="font-body text-ink-soft">We could not load your flock: {error}</p>
+        <Button onClick={() => void reload()}>Try again</Button>
       </div>
     );
   }

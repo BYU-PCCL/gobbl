@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchJson } from "@/lib/fetchJson";
 import type { TurkeyView } from "@/lib/flock/view";
 
@@ -20,16 +20,28 @@ export function useFlock() {
   const [featherBalance, setFeatherBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const reload = useCallback(async () => {
     try {
       const data = await fetchJson<{ turkeys: TurkeyView[]; featherBalance: number }>("/api/turkeys");
+      if (!mounted.current) return;
       setTurkeys(data.turkeys);
       setFeatherBalance(data.featherBalance);
-    } catch {
-      // Keep whatever we had; callers see an unchanged flock.
+      setError(null);
+    } catch (e) {
+      if (!mounted.current) return;
+      setError(e instanceof Error ? e.message : "Could not load your flock");
     } finally {
-      setLoading(false);
+      if (mounted.current) setLoading(false);
     }
   }, []);
 
@@ -52,5 +64,5 @@ export function useFlock() {
     return hatched.find((t) => t.id === selectedId) ?? hatched[0] ?? null;
   }, [turkeys, selectedId]);
 
-  return { turkeys, featherBalance, current, select, reload, loading };
+  return { turkeys, featherBalance, current, select, reload, loading, error };
 }
