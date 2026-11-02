@@ -40,7 +40,7 @@ export default function DebatePage() {
   const params = useParams();
   const debateId = params.id as string;
   const turkeyIdParam = useSearchParams().get("turkeyId");
-  const { turkeys } = useFlock();
+  const { turkeys, reload } = useFlock();
   const turkey = turkeyIdParam ? (turkeys.find((t) => t.id === turkeyIdParam && t.hatched) ?? null) : null;
   const [userMessages, setUserMessages] = useState(0);
   const [debate, setDebate] = useState<DebateData | null>(null);
@@ -252,7 +252,7 @@ export default function DebatePage() {
           debateId={debate.id}
           initialMessages={initialMessages}
           maxTurns={8}
-          onFinish={(r, n) => { setUserMessages(n); setResult(r); }}
+          onFinish={(r, n) => { setUserMessages(n); setResult(r); void reload(); }}
         />
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
@@ -54,7 +55,7 @@ export default function ShopPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
-  const { turkeys, current } = useFlock();
+  const { turkeys, current, loading: flockLoading, error: flockError } = useFlock();
   const [eggBusy, setEggBusy] = useState<TurkeySkillKey | null>(null);
   const [eggError, setEggError] = useState<string | null>(null);
 
@@ -222,6 +223,14 @@ export default function ShopPage() {
       )}
 
       {/* Eggs */}
+      {!flockLoading && !flockError && turkeys.length === 0 && (
+        <section aria-label="Eggs">
+          <Link href="/hatch" className="font-body text-sm font-semibold text-primary underline">
+            Hatch your free egg first
+          </Link>
+        </section>
+      )}
+      {!flockLoading && !flockError && turkeys.length > 0 && (
       <section aria-label="Eggs">
         <h2 className="font-display text-xl font-bold tracking-[-0.02em]">Eggs</h2>
         <p className="mt-1 font-body text-xs text-ink-soft">Each egg hatches a new turkey tied to a skill.</p>
@@ -246,7 +255,7 @@ export default function ShopPage() {
                       <Icon name="feather" size={11} />
                       {EGG_COST.toLocaleString()}
                     </span>
-                    <Button size="sm" onClick={() => buyEgg(sk.key)} disabled={eggBusy !== null}>
+                    <Button size="sm" onClick={() => buyEgg(sk.key)} disabled={eggBusy !== null || data.featherBalance < EGG_COST}>
                       Buy
                     </Button>
                   </div>
@@ -256,6 +265,7 @@ export default function ShopPage() {
           </div>
         )}
       </section>
+      )}
 
       {/* Filter tabs */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 lg:flex-wrap lg:overflow-visible">

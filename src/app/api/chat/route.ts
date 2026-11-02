@@ -174,7 +174,6 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
   }
 
   const newXp = user.xp + xpResult.total;
-  const newFeatherBalance = user.featherBalance + featherResult.total;
   const newLevel = getLevelInfo(newXp).level;
 
   const completedDebates = user.debates.filter((d) => d.completed);
@@ -209,9 +208,11 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
   const existingBadgeKeys = user.badges.map((b) => b.badgeKey);
   const newBadges = checkNewBadges(stats, existingBadgeKeys);
 
-  await prisma.$transaction([
-    prisma.debate.update({
-      where: { id: debateId },
+  // Claim the debate atomically so two concurrent finishes can't both pay out, and
+  // increment the balance so a concurrent egg debit / school credit isn't overwritten.
+  const claimedByUs = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.debate.updateMany({
+      where: { id: debateId, completed: false },
       data: {
         completed: true,
         overallScore: overallScore,
@@ -219,25 +220,28 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
         feathersEarned: featherResult.total,
         completedAt: new Date(),
       },
-    }),
-    prisma.user.update({
+    });
+    if (claimed.count === 0) return false;
+    await tx.user.update({
       where: { id: userId },
       data: {
         xp: newXp,
-        featherBalance: newFeatherBalance,
+        featherBalance: { increment: featherResult.total },
         level: newLevel,
         civilityScore: newCivility,
         currentStreak: newStreak,
         longestStreak: Math.max(user.longestStreak, newStreak),
         lastActiveDate: new Date(),
       },
-    }),
-    ...newBadges.map((badgeKey) =>
-      prisma.userBadge.create({
-        data: { userId, badgeKey },
-      })
-    ),
-  ]);
+    });
+    for (const badgeKey of newBadges) {
+      await tx.userBadge.create({ data: { userId, badgeKey } });
+    }
+    return true;
+  });
+  if (!claimedByUs) {
+    return NextResponse.json({ error: "This debate is already finished" }, { status: 409 });
+  }
 
   try {
     await completeActivity({

@@ -166,7 +166,7 @@ export function ScoreSummary({ result, turkey, tooShort }: ScoreSummaryProps) {
           <Button className="w-full sm:w-auto">{turkey ? `Back to ${turkeyName}` : "Back home"}</Button>
         </Link>
         <Link href={turkey ? `/chat?turkeyId=${turkey.id}` : "/chat"}>
-          <Button variant="secondary" className="w-full sm:w-auto">Start another debate</Button>
+          <Button variant="secondary" className="w-full sm:w-auto">Visit the park again</Button>
         </Link>
       </div>
     </div>

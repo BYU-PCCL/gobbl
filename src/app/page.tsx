@@ -23,7 +23,7 @@ const PROMISES = [
   },
   {
     title: "Take care of it",
-    body: "Feed it with short lessons, keep it company in the park, and practice at school. Turkeys never die, they just get droopy.",
+    body: "Feed it with short lessons, keep it company in the park, and practice at school. When you're away they get a little droopy — and they're always happy to see you.",
   },
   {
     title: "Grow your skills",

@@ -92,7 +92,23 @@ function ModuleRunner() {
           setPhase({ kind: "not-found" });
           return;
         }
-        const progress = summary.progress;
+        let progress = summary.progress;
+        // `start` is the only place the turkey is linked to the run, and it resumes an open
+        // run, so resume through it when a turkey is feeding on this module.
+        if (progress?.inProgress && turkeyId) {
+          const resumed = await fetch(`/api/modules/${moduleKey}/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ turkeyId }),
+          });
+          if (!resumed.ok) throw new Error("resume failed");
+          const data: { sessionId: string; step: ModuleStep | null } = await resumed.json();
+          if (data.step) {
+            setPhase({ kind: "step", sessionId: data.sessionId, step: data.step });
+            return;
+          }
+          progress = { ...progress, sessionId: data.sessionId, stage: "complete" };
+        }
         // Every step was done but the final "complete" call never landed (e.g. the network
         // dropped) — finish it now instead of dumping the user back on the intro screen.
         if (progress?.inProgress && progress.stage === "complete") {
@@ -108,7 +124,7 @@ function ModuleRunner() {
         setPhase(resumeStep(moduleConfig, summary) ?? { kind: "intro", summary });
       })().catch(() => setPhase({ kind: "load-error" }));
     }
-  }, [status, moduleKey, moduleConfig, router]);
+  }, [status, moduleKey, moduleConfig, router, turkeyId]);
 
   if (!moduleConfig) {
     return <NotFoundView />;

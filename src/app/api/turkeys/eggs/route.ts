@@ -12,6 +12,7 @@ const REJECTIONS = {
   invalid: { status: 400, error: "Invalid skill" },
   owned: { status: 409, error: "Already owned" },
   insufficient: { status: 402, error: "Not enough feathers" },
+  firstFree: { status: 409, error: "Pick your free first egg first" },
 } as const;
 
 export async function POST(req: Request) {
@@ -41,6 +42,9 @@ export async function POST(req: Request) {
       if (!user) return { notFound: true as const };
 
       const owned = await tx.turkey.findMany({ where: { userId }, select: { skill: true } });
+      if (owned.length === 0) {
+        return { verdict: "firstFree" as const, featherBalance: user.featherBalance };
+      }
       const verdict = canBuyEgg(
         user.featherBalance,
         owned.map((t) => t.skill),

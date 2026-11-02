@@ -2,9 +2,9 @@ import { NEED_LOW } from "@/lib/flock/config";
 import type { NeedKey } from "@/lib/flock/needs";
 
 const ROWS: { key: NeedKey; label: string; action: string }[] = [
-  { key: "hunger", label: "Hunger", action: "Feed" },
-  { key: "loneliness", label: "Lonely", action: "Park" },
-  { key: "sadness", label: "Sad", action: "School" },
+  { key: "hunger", label: "Fed", action: "Feed" },
+  { key: "loneliness", label: "Company", action: "Park" },
+  { key: "sadness", label: "Cheer", action: "School" },
 ];
 
 /** Three fullness bars; a full bar is a happy need. */
@@ -13,7 +13,7 @@ export function NeedBars({ needs }: { needs: Record<NeedKey, number> }) {
     <div className="space-y-3">
       {ROWS.map(({ key, label, action }) => {
         const value = Math.round(needs[key]);
-        const low = value < NEED_LOW;
+        const low = needs[key] < NEED_LOW;
         return (
           <div key={key}>
             <div className="mb-1 flex items-baseline justify-between font-body text-xs">

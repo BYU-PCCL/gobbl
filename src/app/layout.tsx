@@ -43,7 +43,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Gobbl — Talk Turkey. Build Bridges.",
   description:
-    "Gamified civil discourse training powered by AI. Grow your turkey with XP, spend feathers in the Bazaar, and reduce polarization through practice.",
+    "Hatch a turkey, take care of it, and grow your conversation skills along the way.",
   applicationName: "Gobbl",
   // Together with app/manifest.ts this makes the site installable from Chrome on Android
   // and keeps "Add to Home Screen" on iPhone opening as a standalone app.
