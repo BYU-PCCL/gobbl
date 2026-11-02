@@ -50,13 +50,24 @@ export async function POST(req: Request) {
         return { verdict, featherBalance: user.featherBalance };
       }
 
-      const updated = await tx.user.update({
-        where: { id: userId },
+      // Guarded decrement: the DB is the authority against concurrent double-spend.
+      const debit = await tx.user.updateMany({
+        where: { id: userId, featherBalance: { gte: EGG_COST } },
         data: { featherBalance: { decrement: EGG_COST } },
+      });
+      if (debit.count === 0) {
+        const fresh = await tx.user.findUnique({
+          where: { id: userId },
+          select: { featherBalance: true },
+        });
+        return { verdict: "insufficient" as const, featherBalance: fresh?.featherBalance ?? 0 };
+      }
+      const turkey = await tx.turkey.create({ data: { userId, skill } });
+      const updated = await tx.user.findUnique({
+        where: { id: userId },
         select: { featherBalance: true },
       });
-      const turkey = await tx.turkey.create({ data: { userId, skill } });
-      return { turkey, featherBalance: updated.featherBalance };
+      return { turkey, featherBalance: updated!.featherBalance };
     });
 
     if ("notFound" in result) {
