@@ -1,5 +1,7 @@
 # Gobbl → native iOS app (SwiftUI) — implementation plan
 
+> **Progress against this plan is tracked in `docs/ios-port-status.md`.** Read that first to see which phases are done.
+
 ## Context
 
 Branch `gobbl-swift-port` (currently identical to `main`) exists to ship Gobbl on the Apple App Store with full feature parity. Decisions made with the user on 2026-10-26:

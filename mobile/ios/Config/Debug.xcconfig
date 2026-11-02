@@ -6,5 +6,7 @@
 // the GOBBL_API_BASE environment variable in the scheme's Run action.
 API_BASE_URL = https:/$()/CHANGE-ME-preview.vercel.app   // TODO: your preview URL
 
-// Allow http://localhost:3000 (Simulator only) when iterating against `npm run dev`.
-INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES
+// Debug-only Info.plist keys (see Gobbl/Info.plist): the ATS exception that allows
+// http://localhost:3000 on the Simulator when iterating against `npm run dev`.
+INFOPLIST_PREPROCESSOR_DEFINITIONS = GOBBL_DEBUG=1
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG

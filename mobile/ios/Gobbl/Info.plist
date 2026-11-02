@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_BASE_URL</key>
+	<string>$(API_BASE_URL)</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>BricolageGrotesque-Variable.ttf</string>
+		<string>DMSans-Variable.ttf</string>
+		<string>JetBrainsMono-Variable.ttf</string>
+	</array>
+#if GOBBL_DEBUG
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+#endif
+</dict>
+</plist>
