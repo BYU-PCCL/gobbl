@@ -30,6 +30,8 @@ interface ChatInterfaceProps {
   initialMessages: ChatMsg[];
   maxTurns: number;
   onFinish: (result: FinishResult) => void;
+  /** Called whenever the message list changes (e.g. so a module addon can see the conversation). */
+  onMessagesChange?: (messages: ChatMsg[]) => void;
 }
 
 const TEXTAREA_MAX_HEIGHT_PX = 200;
@@ -47,7 +49,7 @@ const MAX_CHARS = 500;
  *  - "Wrapping up" overlay while the conversation is being scored
  *  - Rounded-pill text input with an ink "send" button
  */
-export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }: ChatInterfaceProps) {
+export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish, onMessagesChange }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMsg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -76,6 +78,10 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish }:
     vv.addEventListener("resize", onResize);
     return () => vv.removeEventListener("resize", onResize);
   }, [scrollToBottom]);
+
+  useEffect(() => {
+    onMessagesChange?.(messages);
+  }, [messages, onMessagesChange]);
 
   // Auto-grow textarea
   useEffect(() => {

@@ -11,8 +11,24 @@ export type ModuleSkillKey =
 export type ModuleStep =
   | { id: string; kind: "diagnostic"; questions: SurveyQuestion[] }
   | { id: string; kind: "content"; blocks: { heading: string; body: string }[] }
-  | { id: string; kind: "practice"; topic: string; difficulty: string; maxTurns?: number }
-  | { id: string; kind: "reflection"; prompt: string; maxLength: number };
+  | {
+      id: string;
+      kind: "practice";
+      topic: string;
+      difficulty: string;
+      maxTurns?: number;
+      /** Key in PRACTICE_ADDONS (components/skills/practice-addons.tsx), shown next to the chat. */
+      addon?: string;
+      /** Passed through to the addon component. */
+      addonProps?: Record<string, unknown>;
+    }
+  | { id: string; kind: "reflection"; prompt: string; maxLength: number }
+  /**
+   * Renders a React component from CUSTOM_STEPS (components/skills/custom-steps.tsx).
+   * `component` is that map's key, not the component itself: steps are sent to the
+   * browser as JSON, so they have to stay plain data. `props` is passed through to it.
+   */
+  | { id: string; kind: "custom"; component: string; props?: Record<string, unknown> };
 
 export interface ModuleVariant {
   /** "standard" = try again with new content; "advanced" = level up. */
