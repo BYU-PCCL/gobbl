@@ -96,21 +96,25 @@ The dashboard and XP go away, so this is where people see that *they* are improv
 
 ## Project 2: Park (loneliness)
 
-**Purpose:** your turkey socializes. You meet other turkeys at the park, they tell you about their day, and you practice your turkey's skill by asking them questions and listening.
+**Purpose:** your turkey socializes. You walk into a park, pick a turkey to talk to, and have an easy political conversation as your turkey.
 
-**Known so far:**
-- Replaces today's persona conversations (the "Robert" debates, persona pools in `src/lib/personas/pool.ts`, civility scoring in `src/lib/civility.ts`). The arena setup screen used as Park's front door in project 1 goes away.
-- The other turkeys are LLM characters (Grok via `src/lib/ai.ts`), shown as turkeys in the park instead of debate opponents.
-- You speak *as your turkey* (mockup `plan.md`).
-- A visit is complete when you've asked the other turkey questions (mockup: "You will have to ask there questions to complete the task"). Completing a visit refills loneliness, earns feathers, and counts toward growth.
-- Civility/skill scoring continues so the per-turkey skill trend keeps working.
-- Reference: mockup `renderPark` / `openNpc` / `sendPark` (a park with several NPC turkeys, each with a short chat and a progress-dots goal).
+**Decided (product owner, 2026-11-06):**
+- The Park tab opens a park scene like the mockup's: a few turkeys standing around, each with a name. Tap one to talk.
+- **No checkmarks.** You can talk to the same turkey as many times as you like.
+- **Conversations are easy political ones for now.** The type of conversation may change later (e.g. "tell me about your day").
+- **The park turkey brings up a topic on its own.** There is no topic, difficulty or partner picker.
+- **A visit ends with "Wrap up"**, like today's conversations, and counts (loneliness refill, feathers, growth) once you've sent at least 3 messages. There is no "must be a question" rule.
+- After wrapping up you see the usual civility results and a way back to your turkey.
 
-**Open (decide in Park's own design pass):**
-- How many questions or turns make a visit complete, and how question quality is judged (count vs. LLM judgment).
-- Whether conversations stay political/civil-discourse topics or become everyday "tell me about your day" talk, and how that ties to the turkey's skill.
-- How many park turkeys there are, whether they persist and remember you, and how they map onto existing personas.
-- Whether difficulty survives (Friendly Cluck → Full Gobble), e.g. as grumpier turkeys.
+**Designer's calls (approved in chat):**
+- The park turkeys are the five easy ("Friendly Cluck") personas in `src/lib/personas/pool.ts`, given names and looks in `src/lib/flock/parkTurkeys.ts` (Amos, Ruthie, Tobias, Juniper, Clem). Their `look` borrows a skill tint only so placeholders are distinguishable.
+- Each visit picks a random topic from `src/lib/topics.ts`; the persona's beliefs shape what it says.
+- Park turkeys may share the user's views (all five are always there); the old "always the opposing side" pairing does not apply in the park.
+- The conversation screen shows your turkey and theirs facing each other above the chat.
+
+**Implementation:** `POST /api/park/visit { personaId, turkeyId }` starts the conversation (`createDebate` with `parkPersonaId`) and links it to the turkey; the park scene is `src/app/(app)/chat/page.tsx`.
+
+**Still open:** whether park turkeys remember you between visits; harder (grumpier) turkeys later; the non-political conversation type.
 
 ## Project 3: Feed (hunger)
 

@@ -16,6 +16,11 @@ interface CreateDebateParams {
   trainingMode?: string;
   /** Setup-screen opt-in; dropped unless the tier is Full Gobble. */
   allowProfanity?: boolean;
+  /**
+   * A turkey picked at the park. Honored as-is when it is an easy (Friendly Cluck)
+   * persona — park turkeys may share the user's views, unlike the opposing-side default.
+   */
+  parkPersonaId?: string;
 }
 
 /**
@@ -32,6 +37,7 @@ export async function createDebate({
   isTraining,
   trainingMode,
   allowProfanity,
+  parkPersonaId,
 }: CreateDebateParams) {
   const tier = difficulty && isTier(difficulty) ? difficulty : "Friendly Cluck";
   const profanity = tier === "Full Gobble" && allowProfanity === true;
@@ -44,9 +50,12 @@ export async function createDebate({
 
   // Honor the partner previewed on the setup screen only if it's still a valid match —
   // right tier and across the aisle from the user.
+  const parkPick = getPersonaById(parkPersonaId);
   const requested = getPersonaById(personaId);
   const persona =
-    requested && opposingPersonas(tier, userBelief).includes(requested)
+    parkPick && parkPick.tier === "Friendly Cluck" && tier === "Friendly Cluck"
+      ? parkPick
+      : requested && opposingPersonas(tier, userBelief).includes(requested)
       ? requested
       : pickOpposingPersona(tier, userBelief);
 

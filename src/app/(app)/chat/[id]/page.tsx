@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/Button";
 import { IDEOLOGY_OPTIONS } from "@/lib/prompts/beliefs";
 import { useFlock } from "@/components/turkey/useFlock";
 import { PARK_MIN_USER_MESSAGES } from "@/lib/flock/config";
+import { getParkTurkey } from "@/lib/flock/parkTurkeys";
+import { TurkeyCharacter } from "@/components/turkey/TurkeyCharacter";
 
 interface TurnFeedback {
   turn: number;
@@ -27,6 +29,7 @@ interface DebateData {
   difficulty: string;
   category: string;
   beliefKey: string;
+  personaId: string | null;
   personaInitials: string | null;
   completed: boolean;
   overallScore: number | null;
@@ -113,6 +116,10 @@ export default function DebatePage() {
 
   const ideologyLabel =
     IDEOLOGY_OPTIONS.find((o) => o.key === debate.beliefKey)?.label ?? debate.beliefKey;
+  const parkTurkey = getParkTurkey(debate.personaId);
+  const partnerName = parkTurkey?.name ?? debate.personaInitials ?? "Robert";
+  const backToPark = () =>
+    router.push(turkey ? `/chat?turkeyId=${encodeURIComponent(turkey.id)}` : "/chat");
 
   // Live "civility meter" — derive a rough running average from per-message scores.
   // Real-time updates can come from `data.civility` returned by /api/chat if you
@@ -130,7 +137,7 @@ export default function DebatePage() {
       <div className="flex items-center gap-2.5">
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={parkTurkey ? backToPark : () => router.back()}
           className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-surface-2"
           aria-label="Back"
         >
@@ -138,19 +145,23 @@ export default function DebatePage() {
             <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-soft">
-          <FlatTurkeyGlyph size={22} />
-        </div>
+        {!parkTurkey && (
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-soft">
+            <FlatTurkeyGlyph size={22} />
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="font-body text-sm font-bold">{debate.personaInitials ?? "Robert"}</span>
+            <span className="font-body text-sm font-bold">
+              {parkTurkey ? `${turkey?.name ?? "You"} & ${partnerName}` : partnerName}
+            </span>
             <span className="h-1 w-1 rounded-full bg-ink-muted" />
             <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-muted">
               {ideologyLabel}
             </span>
           </div>
           <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-primary">
-            ● {debate.difficulty}
+            ● {parkTurkey ? "At the park" : debate.difficulty}
           </div>
         </div>
         {/* Phones get the civility score here instead of the meter row below, to leave room for the chat. */}
@@ -161,6 +172,24 @@ export default function DebatePage() {
           </div>
         )}
       </div>
+
+      {/* Your turkey and theirs, facing each other */}
+      {parkTurkey && (
+        <div className="mt-1 flex items-end justify-center gap-6 sm:gap-12" aria-hidden>
+          {turkey && (
+            <div className="flex flex-col items-center">
+              <TurkeyCharacter stage={turkey.stage} mood={turkey.mood} skill={turkey.skill} size={68} />
+              <span className="-mt-1 font-body text-[11px] font-semibold text-ink-soft">{turkey.name}</span>
+            </div>
+          )}
+          <div className="flex flex-col items-center">
+            <div style={{ transform: "scaleX(-1)" }}>
+              <TurkeyCharacter stage={5} mood="happy" skill={parkTurkey.look} size={68} />
+            </div>
+            <span className="-mt-1 font-body text-[11px] font-semibold text-ink-soft">{partnerName}</span>
+          </div>
+        </div>
+      )}
 
       {/* Topic pill */}
       <div className="mt-2.5 flex items-center gap-2 rounded-xl bg-bg px-2.5 py-2">
