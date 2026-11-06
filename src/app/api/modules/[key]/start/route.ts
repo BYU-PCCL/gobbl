@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getModule } from "@/lib/modules/registry";
+import { STEPS_SIGNATURE_KEY, getRunState, stepsSignature } from "@/lib/modules/run-state";
 
 export async function POST(req: Request, { params }: { params: { key: string } }) {
   const session = await getServerSession(authOptions);
@@ -23,13 +24,14 @@ export async function POST(req: Request, { params }: { params: { key: string } }
     where: { userId, skillKey: moduleConfig.key, completedAt: null },
     orderBy: { createdAt: "desc" },
   });
-  if (inProgress) {
-    const resumedVariant =
-      moduleConfig.variants.find((v) => v.key === inProgress.variant) ?? moduleConfig.variants[0];
+  const runState = inProgress ? getRunState(moduleConfig, inProgress) : null;
+  // The module's steps changed since this run started, so it can't be resumed. Its row is left
+  // as it is, and a fresh run (which becomes the latest one) is started below.
+  if (inProgress && runState && runState.kind !== "stale") {
     return NextResponse.json({
       sessionId: inProgress.id,
-      variant: resumedVariant.key,
-      step: resumedVariant.steps.find((s) => s.id === inProgress.stage) ?? null,
+      variant: runState.variant.key,
+      step: runState.kind === "step" ? runState.step : null,
       resumed: true,
     });
   }
@@ -47,6 +49,8 @@ export async function POST(req: Request, { params }: { params: { key: string } }
       skillKey: moduleConfig.key,
       variant: chosenVariant.key,
       stage: firstStep.id,
+      // Lets getRunState notice later if the module's steps have changed under this run.
+      stepResponses: { [STEPS_SIGNATURE_KEY]: stepsSignature(chosenVariant) },
     },
   });
 

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { MODULES } from "@/lib/modules/registry";
+import { getRunState } from "@/lib/modules/run-state";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -18,7 +19,10 @@ export async function GET() {
 
   const modules = MODULES.map((module) => {
     const moduleSessions = sessions.filter((s) => s.skillKey === module.key);
-    const latest = moduleSessions[0] ?? null;
+    // Skip unfinished runs from before the module's steps changed: they can't be resumed, so
+    // they shouldn't show as in progress (see run-state.ts).
+    const latest =
+      moduleSessions.find((s) => s.completedAt || getRunState(module, s).kind !== "stale") ?? null;
     const timesCompleted = moduleSessions.filter((s) => s.completedAt).length;
 
     return {

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getModule } from "@/lib/modules/registry";
+import { getRunState } from "@/lib/modules/run-state";
 import { createDebate } from "@/lib/debates";
 import { isAnswerValid } from "@/lib/survey/questions";
 import { validateCdDiagnostic } from "@/lib/modules/cognitive-dissonance/survey";
@@ -34,6 +35,11 @@ export async function POST(req: Request, { params }: { params: { key: string } }
   });
   if (!skillSession) return bad("Session not found", 404);
   if (skillSession.completedAt) return bad("Session already completed", 409);
+  // The module's steps changed while this run was open in the browser. The 409 makes the
+  // runner reload, and Start then begins a fresh run from the first step.
+  if (getRunState(moduleConfig, skillSession).kind === "stale") {
+    return bad("This module has been updated. Please start it again.", 409);
+  }
 
   const variant =
     moduleConfig.variants.find((v) => v.key === skillSession.variant) ?? moduleConfig.variants[0];

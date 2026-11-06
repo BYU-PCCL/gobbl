@@ -19,6 +19,9 @@ You can put steps in any order but there can only be two practice steps and two 
 3. Go to src/lib/modules/ai-config.ts to set up the prompt, model, etc for the AI conversation. follow the template in there. if you don't set this, it gets a "normal" partner
 4. you can also add an *advanced* variant, which will be an option if they have already completed the module before
 
+### Changing a module people have already started
+If you add, remove, rename, reorder or change the kind of a step, anyone who was partway through the module starts again from the first step next time they open it (their old answers stay in the database). Changing only the wording of a step doesn't restart anyone. You don't need to do anything for this to work - the app saves each run's step list when it starts and compares it (src/lib/modules/run-state.ts). Don't name a step `_steps`, that key in stepResponses is used for this.
+
 ### Adding a custom step
 
 If a module needs something the 4 normal kinds can't do (a slider, a drag-and-drop, a mini game...), write it as a React component and use a "custom" step. You only touch 2 files, and you don't need to change the server or the database.

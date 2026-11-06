@@ -47,6 +47,9 @@ type RunnerPhase =
   | { kind: "complete"; result: CompleteResult };
 
 const GENERIC_ERROR = "Something went wrong. Please try again.";
+/** When a 409 last made this tab reload itself, so a second one soon after shows an error instead. */
+const CONFLICT_RELOAD_KEY = "gobbl:module-conflict-reload";
+const CONFLICT_RELOAD_WINDOW_MS = 60_000;
 
 /** Modules are reading-and-writing flows, so they keep a comfortable column width on desktop. */
 export default function ModuleRunnerPage() {
@@ -161,7 +164,15 @@ function ModuleRunner() {
       router.push("/");
     } else if (r.status === 409) {
       // Our view of the run is out of date (second tab, double submit) — reload from the server.
-      window.location.reload();
+      // If we already reloaded for this a moment ago, reloading isn't fixing it: show the error
+      // rather than loop the user through reloads with no explanation.
+      const lastReload = Number(sessionStorage.getItem(CONFLICT_RELOAD_KEY) ?? 0);
+      if (Date.now() - lastReload < CONFLICT_RELOAD_WINDOW_MS) {
+        setError(r.data?.error || GENERIC_ERROR);
+      } else {
+        sessionStorage.setItem(CONFLICT_RELOAD_KEY, String(Date.now()));
+        window.location.reload();
+      }
     } else {
       setError(r.data?.error || GENERIC_ERROR);
     }
