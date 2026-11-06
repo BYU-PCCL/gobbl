@@ -1,4 +1,6 @@
 import type { ComponentType } from "react";
+import { CdIssueSurvey, isCdIssueSurveyComplete } from "./cognitive-dissonance/CdIssueSurvey";
+import { CdStudyChat, isCdStudyChatComplete } from "./cognitive-dissonance/CdStudyChat";
 
 /** What every custom step component receives from the module runner. */
 export interface CustomStepProps {
@@ -20,4 +22,8 @@ export interface CustomStepDef {
  * Custom step components, keyed by the name a step uses in registry.ts:
  *   { id: "my-step", kind: "custom", component: "my-component" }
  */
-export const CUSTOM_STEPS: Record<string, CustomStepDef> = {};
+export const CUSTOM_STEPS: Record<string, CustomStepDef> = {
+  // Cognitive Dissonance module (mirrors the SAIL Qualtrics study; see lib/modules/cognitive-dissonance).
+  "cd-issue-survey": { Component: CdIssueSurvey, isComplete: isCdIssueSurveyComplete },
+  "cd-study-chat": { Component: CdStudyChat, isComplete: isCdStudyChatComplete },
+};

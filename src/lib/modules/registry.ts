@@ -282,78 +282,32 @@ const REASON_GIVING_MODULE: ModuleConfig = {
   ],
 };
 
+/**
+ * Mirrors the "dynamic treatment" arm of the SAIL Cognitive Dissonance Qualtrics study.
+ * The survey, prompts and chats live in lib/modules/cognitive-dissonance and
+ * components/skills/cognitive-dissonance; the chats run through /api/cognitive-dissonance/chat
+ * (OpenAI, not the debate pipeline), so they have no persona, scoring or XP.
+ */
 const COGNITIVE_DISSONANCE_MODULE: ModuleConfig = {
   key: "cognitive-dissonance",
   skill: "cognitiveDissonance",
   title: "Cognitive Dissonance",
-  description: "Practice accepting contradictory inner views and confronting nuance.",
-  estimatedMinutes: 10,
+  description: "Learn to treat the discomfort of disagreement as a signal, then put it to the test in a conversation about an issue you care about.",
+  estimatedMinutes: 30,
   variants: [
     {
       key: "standard",
       steps: [
+        // Issue question (QID19) + that issue's eight preference questions.
+        { id: "diagnostic", kind: "custom", component: "cd-issue-survey" },
+        // The dynamic treatment: an AI-led reframe of cognitive dissonance (QID76).
+        { id: "cd_dynamic", kind: "custom", component: "cd-study-chat", props: { stepId: "cd_dynamic", chat: "dynamic" } },
+        // The AI conversation (QID66 / prompt_ai_convo.txt), with the discomfort button.
         {
-          id: "diagnostic",
-          kind: "diagnostic",
-          questions: [
-            {
-              key: "strongest_issue",
-              type: "single-choice",
-              prompt: "About which of the following issues do you feel the most strongly?",
-              options: [
-                { value: "taxes", label: "Increasing/decreasing taxation" },
-                { value: "abortion", label: "Abortion" },
-                { value: "dei", label: "DEI initiatives" },
-                { value: "climate", label: "Climate policy" },
-                { value: "immigration", label: "Immigration enforcement" },
-              ],
-            },
-            {
-              key: "issue_stance",
-              type: "single-choice",
-              prompt: "How do you feel about the issue you just picked?",
-              options: [
-                { value: "strong_yes", label: "Strongly in favor" },
-                { value: "weak_yes", label: "Somewhat in favor" },
-                { value: "weak_no", label: "Somewhat against" },
-                { value: "strong_no", label: "Strongly against" },
-              ],
-            },
-          ],
-        },
-        {
-          id: "cd_reframing",
-          kind: "content",
-          blocks: [
-            {
-              heading: "Cognitive Dissonance",
-              body: "Cognitive dissonance, a concept introduced by psychologist Leon Festinger, describes the tension we feel when we encounter ideas, beliefs, or behaviors that don't quite fit together. While this feeling can be uncomfortable at first, it's actually a sign that your mind is doing something valuable: noticing new information and working to make sense of it. When a political conversation leaves you feeling unsettled, that sensation often means you've been exposed to a perspective you hadn't fully considered before. Rather than something to avoid, dissonance can be a signal of learning and growth, an opportunity to sharpen your own views, better understand people who see things differently, and arrive at beliefs that are more thoughtful and well-reasoned. In this way, the discomfort of disagreement isn't a reason to stop talking about politics; it's part of what makes those conversations worthwhile.",
-            },
-          ],
-        },
-        {
-          id: "reflection",
-          kind: "reflection",
-          prompt: "Think of a time you heard a political opinion that was different from your own. In a sentence or two, describe something you learned or understood better because of it.",
-          maxLength: 500,
-        },
-        {
-          id: "cd_button",
-          kind: "content",
-          blocks: [
-            {
-              heading: "Notice the discomfort",
-              body: "During the next conversation, pay attention to your own reactions. Any time you notice even a small moment of tension, unease, irritation, or a sense that something doesn't sit right, make a mental note of it: what your partner said, and what you felt. You'll be asked about those moments afterwards. The point isn't to avoid the feeling; it's to catch it while it's happening.",
-            },
-          ],
-        },
-        {
-          id: "cd_practice",
-          kind: "practice",
-          topic: "Should the government do more to reduce income inequality?",
-          difficulty: "Friendly Cluck",
-          maxTurns: 8,
-          addon: "discomfort-button",
+          id: "cd_conversation",
+          kind: "custom",
+          component: "cd-study-chat",
+          props: { stepId: "cd_conversation", chat: "conversation", discomfortButton: true },
         },
         {
           id: "cd_reflection",
