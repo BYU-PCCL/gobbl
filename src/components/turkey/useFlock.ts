@@ -5,6 +5,7 @@ import { fetchJson } from "@/lib/fetchJson";
 import type { TurkeyView } from "@/lib/flock/view";
 
 const STORAGE_KEY = "gobbl.currentTurkey";
+const SELECT_EVENT = "gobbl:select-turkey";
 
 function readStored(): string | null {
   try {
@@ -14,7 +15,7 @@ function readStored(): string | null {
   }
 }
 
-/** The only client-side fetcher of /api/turkeys. */
+/** The only client-side fetcher of /api/turkeys. Selection is shared across every mounted instance. */
 export function useFlock() {
   const [turkeys, setTurkeys] = useState<TurkeyView[]>([]);
   const [featherBalance, setFeatherBalance] = useState(0);
@@ -50,6 +51,14 @@ export function useFlock() {
     void reload();
   }, [reload]);
 
+  // Several components use this hook at once (Home and the hotbar), so a
+  // selection made in one is broadcast to the others.
+  useEffect(() => {
+    const onSelect = (e: Event) => setSelectedId((e as CustomEvent<string>).detail);
+    window.addEventListener(SELECT_EVENT, onSelect);
+    return () => window.removeEventListener(SELECT_EVENT, onSelect);
+  }, []);
+
   const select = useCallback((id: string) => {
     setSelectedId(id);
     try {
@@ -57,6 +66,7 @@ export function useFlock() {
     } catch {
       // storage unavailable; selection lasts for this page only
     }
+    window.dispatchEvent(new CustomEvent(SELECT_EVENT, { detail: id }));
   }, []);
 
   const current = useMemo(() => {

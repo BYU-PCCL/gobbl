@@ -28,7 +28,10 @@ export type IconName =
   | "rank"
   | "streak"
   | "target"
-  | "sparkle";
+  | "sparkle"
+  | "school"
+  | "park"
+  | "feed";
 
 const PATHS: Record<Exclude<IconName, "feather">, ReactNode> = {
   home: <path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-7h-6v7H5a1 1 0 01-1-1v-9z" />,
@@ -82,6 +85,27 @@ const PATHS: Record<Exclude<IconName, "feather">, ReactNode> = {
     </>
   ),
   sparkle: <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18" />,
+  // Mortarboard
+  school: (
+    <>
+      <path d="M2 9l10-5 10 5-10 5-10-5z" />
+      <path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5M22 9v6" />
+    </>
+  ),
+  // Tree on a bit of ground
+  park: (
+    <>
+      <path d="M12 3a5 5 0 00-4.6 7A4 4 0 009 17.5h6a4 4 0 001.6-7.5A5 5 0 0012 3z" />
+      <path d="M12 12v9M4 21h16" />
+    </>
+  ),
+  // Bowl with grain
+  feed: (
+    <>
+      <path d="M3 12h18a9 9 0 01-18 0z" />
+      <path d="M8 8.5l.5-1.5M12 8V6M16 8.5l-.5-1.5" />
+    </>
+  ),
 };
 
 interface IconProps {

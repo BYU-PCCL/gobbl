@@ -4,14 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
-import { PRIMARY_NAV, type NavItem } from "./navItems";
+import type { ResolvedNavItem } from "./navItems";
+import { AttentionDot } from "./BottomNav";
 import type { UserSummary } from "./useUserSummary";
 
 /**
  * Desktop sidebar (lg and up). Deliberately quiet: wordmark, destinations,
  * and the user's feathers and profile pinned to the bottom.
  */
-export function SideNav({ user }: { user: UserSummary | null }) {
+export function SideNav({ user, items }: { user: UserSummary | null; items: ResolvedNavItem[] }) {
   const pathname = usePathname();
   const initial = (user?.username?.[0] ?? "G").toUpperCase();
 
@@ -23,8 +24,8 @@ export function SideNav({ user }: { user: UserSummary | null }) {
       </Link>
 
       <nav aria-label="Primary" className="flex flex-col gap-1">
-        {PRIMARY_NAV.map((item) => (
-          <SideNavLink key={item.href} item={item} active={item.matches(pathname)} />
+        {items.map((item) => (
+          <SideNavLink key={item.label} item={item} active={item.matches(pathname)} />
         ))}
       </nav>
 
@@ -40,7 +41,7 @@ export function SideNav({ user }: { user: UserSummary | null }) {
           <span className="font-body text-sm text-ink-muted">feathers</span>
         </Link>
         <Link
-          href="/profile"
+          href="/home#you"
           className="flex items-center gap-3 rounded-2xl border border-line bg-surface px-3 py-2.5 transition-colors hover:border-ink-muted"
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary font-display text-sm font-bold text-white">
@@ -55,7 +56,7 @@ export function SideNav({ user }: { user: UserSummary | null }) {
   );
 }
 
-function SideNavLink({ item, active }: { item: NavItem; active: boolean }) {
+function SideNavLink({ item, active }: { item: ResolvedNavItem; active: boolean }) {
   return (
     <Link
       href={item.href}
@@ -64,8 +65,12 @@ function SideNavLink({ item, active }: { item: NavItem; active: boolean }) {
         active ? "bg-primary-soft text-primary" : "text-ink-soft hover:bg-surface hover:text-ink"
       }`}
     >
-      <Icon name={item.icon} />
+      <span className="relative flex">
+        <Icon name={item.icon} />
+        {item.needsAttention && <AttentionDot className="-right-1 -top-1" />}
+      </span>
       {item.label}
+      {item.needsAttention && <span className="sr-only"> (needed)</span>}
     </Link>
   );
 }

@@ -56,3 +56,11 @@ export function activityHref(
       return `/school/${t.id}`;
   }
 }
+
+/** Hotbar link for an activity: the selected turkey's activity, or the hatch screen before there is one. */
+export function activityNavHref(
+  activity: HomeActivity,
+  current: { id: string; moduleKey: string | null } | null,
+): string {
+  return current ? activityHref(activity, current) : "/hatch";
+}

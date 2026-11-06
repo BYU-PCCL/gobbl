@@ -10,18 +10,13 @@ import { FlockSwitcher } from "@/components/turkey/FlockSwitcher";
 import { NeedBars } from "@/components/turkey/NeedBars";
 import { SkillTrend } from "@/components/turkey/SkillTrend";
 import { useFlock } from "@/components/turkey/useFlock";
+import { YouSection } from "@/components/profile/YouSection";
 import { fetchJson } from "@/lib/fetchJson";
-import { activityHref, emphasizedActivity, moodLine, type HomeActivity } from "@/lib/flock/home";
+import { moodLine } from "@/lib/flock/home";
 import type { TurkeyView } from "@/lib/flock/view";
 import type { EquippedCosmetics } from "@/lib/shop";
 
 type TrendData = { points: number[]; delta: number | null };
-
-const ACTIVITIES: { key: HomeActivity; label: string }[] = [
-  { key: "school", label: "School" },
-  { key: "park", label: "Park" },
-  { key: "feed", label: "Feed" },
-];
 
 export default function HomePage() {
   const router = useRouter();
@@ -92,7 +87,6 @@ export default function HomePage() {
     );
   }
 
-  const emphasis = emphasizedActivity(current.needs);
   const name = current.name ?? "Your turkey";
 
   return (
@@ -124,19 +118,6 @@ export default function HomePage() {
         </p>
       </Card>
 
-      <div className="grid grid-cols-3 gap-2">
-        {ACTIVITIES.map(({ key, label }) => (
-          <Button
-            key={key}
-            variant={emphasis === key ? "primary" : "secondary"}
-            className="w-full"
-            onClick={() => router.push(activityHref(key, current))}
-          >
-            {label}
-          </Button>
-        ))}
-      </div>
-
       <Card className="p-4">
         <h2 className="mb-2 font-display text-base font-bold text-ink">{current.skillLabel} trend</h2>
         {trend ? (
@@ -145,6 +126,8 @@ export default function HomePage() {
           <p className="font-body text-sm text-ink-soft">Loading...</p>
         )}
       </Card>
+
+      <YouSection />
     </div>
   );
 }

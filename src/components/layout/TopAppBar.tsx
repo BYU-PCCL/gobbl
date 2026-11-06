@@ -17,7 +17,7 @@ export function TopAppBar({ user }: { user: UserSummary | null }) {
   return (
     <header className="sticky top-0 z-40 bg-bg lg:hidden">
       <div className="mx-auto flex max-w-2xl items-center justify-between px-5 py-3 sm:px-8">
-        <Link href="/profile" className="group flex items-center gap-2.5 rounded-full">
+        <Link href="/home#you" className="group flex items-center gap-2.5 rounded-full">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary font-display text-base font-bold text-white shadow-soft transition-transform group-active:scale-95">
             {initial}
           </div>

@@ -6,6 +6,7 @@ import { TopAppBar } from "./TopAppBar";
 import { BottomNav } from "./BottomNav";
 import { SideNav } from "./SideNav";
 import { useUserSummary } from "./useUserSummary";
+import { useHotbar } from "./useHotbar";
 import { useVisualViewportHeight } from "@/components/chat/useVisualViewportHeight";
 
 /**
@@ -20,12 +21,13 @@ import { useVisualViewportHeight } from "@/components/chat/useVisualViewportHeig
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const user = useUserSummary();
+  const navItems = useHotbar();
   const isDebateView = /^\/chat\/[^/]+$/.test(pathname) && pathname !== "/chat/setup";
   useVisualViewportHeight(isDebateView);
 
   return (
     <div className="flex h-[var(--vvh,100dvh)] w-full bg-bg">
-      <SideNav user={user} />
+      <SideNav user={user} items={navItems} />
       <div className="flex min-w-0 flex-1 flex-col">
         {!isDebateView && <TopAppBar user={user} />}
         <main
@@ -39,7 +41,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
         </main>
-        {!isDebateView && <BottomNav />}
+        {!isDebateView && <BottomNav items={navItems} />}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { emphasizedActivity, moodLine, trendLabel, activityHref } from "./home";
+import { emphasizedActivity, moodLine, trendLabel, activityHref, activityNavHref } from "./home";
 
 describe("emphasizedActivity", () => {
   it("is null when nothing is low", () => {
@@ -35,5 +35,19 @@ describe("activityHref", () => {
     expect(activityHref("feed", { id: "a", moduleKey: "reason-giving" })).toBe("/skills/reason-giving?turkeyId=a");
     expect(activityHref("feed", { id: "a", moduleKey: null })).toBe("/skills?turkeyId=a");
     expect(activityHref("school", { id: "a", moduleKey: null })).toBe("/school/a");
+  });
+});
+
+describe("activityNavHref", () => {
+  const t = { id: "t1", moduleKey: "active-listening" };
+  it("links to the current turkey's activity", () => {
+    expect(activityNavHref("school", t)).toBe("/school/t1");
+    expect(activityNavHref("park", t)).toBe("/chat?turkeyId=t1");
+    expect(activityNavHref("feed", t)).toBe("/skills/active-listening?turkeyId=t1");
+  });
+  it("sends you to hatch when there is no turkey yet", () => {
+    expect(activityNavHref("school", null)).toBe("/hatch");
+    expect(activityNavHref("park", null)).toBe("/hatch");
+    expect(activityNavHref("feed", null)).toBe("/hatch");
   });
 });
