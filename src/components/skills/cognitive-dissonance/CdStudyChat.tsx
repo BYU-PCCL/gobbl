@@ -29,6 +29,11 @@ export function isCdStudyChatComplete(value: unknown): boolean {
 
 const API = "/api/cognitive-dissonance/chat";
 const MIN_CHARS = 2;
+/**
+ * The study blocks pasting into the chat. Off for now so prompts are easier to test; turn it
+ * back on to match the treatment. Pastes are recorded (pasteAttempted) either way.
+ */
+const BLOCK_PASTE = false;
 const MAX_CHARS = 2000;
 const TEXTAREA_MAX_HEIGHT_PX = 200;
 const NO_PRESSES: DiscomfortButtonValue = { count: 0, presses: [] };
@@ -321,9 +326,9 @@ function StudyChat({ props, onChange }: CustomStepProps) {
                     submit();
                   }
                 }}
-                // As in the study, pasting is blocked and the attempt is recorded.
+                // Pasting is always recorded; it is only blocked when BLOCK_PASTE is on.
                 onPaste={(e) => {
-                  e.preventDefault();
+                  if (BLOCK_PASTE) e.preventDefault();
                   pasteAttempted.current = true;
                 }}
                 onFocus={() => window.setTimeout(() => scrollToBottom("auto"), 350)}

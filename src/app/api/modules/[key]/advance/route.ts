@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { getModule } from "@/lib/modules/registry";
 import { createDebate } from "@/lib/debates";
 import { isAnswerValid } from "@/lib/survey/questions";
+import { validateCdDiagnostic } from "@/lib/modules/cognitive-dissonance/survey";
 import type { Prisma } from "@prisma/client";
 
 const MAX_COMPONENT_ANSWER_CHARS = 10_000;
@@ -79,7 +80,21 @@ export async function POST(req: Request, { params }: { params: { key: string } }
       return bad("Answer too large", 400);
     }
     const existingResponses = (skillSession.stepResponses as Record<string, unknown>) ?? {};
-    updateData.stepResponses = { ...existingResponses, [step.id]: answer ?? true } as Prisma.InputJsonObject;
+    // Cognitive Dissonance study chats: the chat route saves the transcript under "<id>_chat";
+    // only let the step finish once the AI has ended that conversation.
+    if (step.component === "cd-study-chat") {
+      const chat = existingResponses[`${step.id}_chat`] as { ended?: unknown } | undefined;
+      if (chat?.ended !== true) return bad("Finish the conversation before continuing", 409);
+    }
+    // Cognitive Dissonance survey: every question for the chosen issue must have a valid answer.
+    // The cleaned copy is saved, since the AI conversation's prompt is built from it.
+    let saved = answer ?? true;
+    if (step.component === "cd-issue-survey") {
+      const cleaned = validateCdDiagnostic(answer);
+      if (!cleaned) return bad("Please answer every question", 400);
+      saved = cleaned;
+    }
+    updateData.stepResponses = { ...existingResponses, [step.id]: saved } as Prisma.InputJsonObject;
   } else if (step.kind === "practice") {
     // First practice step in a variant uses the "pre" slot, the second uses "post".
     const practiceIndex = variant.steps.filter((s) => s.kind === "practice").findIndex((s) => s.id === step.id);
