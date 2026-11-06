@@ -45,7 +45,13 @@ type Status = "loading" | "ready" | "waiting" | "failed-start" | "failed-reply";
  * takes over the screen on phones (like the practice chat); once it ends it shrinks to a card
  * so the runner's Continue button shows.
  */
-export function CdStudyChat({ props, value, onChange }: CustomStepProps) {
+export function CdStudyChat(p: CustomStepProps) {
+  // Two chat steps in a row render at the same spot in the runner, so without a key React would
+  // reuse the first chat's state (messages, ended) for the second one.
+  return <StudyChat key={String(p.props.stepId)} {...p} />;
+}
+
+function StudyChat({ props, onChange }: CustomStepProps) {
   const router = useRouter();
   const stepId = typeof props.stepId === "string" ? props.stepId : "";
   const showButton = props.discomfortButton === true;
