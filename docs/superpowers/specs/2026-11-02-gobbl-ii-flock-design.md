@@ -136,18 +136,21 @@ The dashboard and XP go away, so this is where people see that *they* are improv
 
 **Purpose:** you teach your turkey its skill. Explaining it is how you learn it.
 
-**Known so far:**
-- A new mode. Nothing like it exists in the app today.
-- The turkey is an LLM that asks you questions about its skill, playing a curious learner (mockup `plan.md`).
-- A lesson is **3 back-and-forths** (mockup `plan.md`). Completing it refills sadness, earns feathers, and counts toward growth.
-- Replaces project 1's scripted stand-in lessons.
-- Reference: mockup `startSchool` / `askSchool` / `sendSchool` (the turkey asks, the user answers, the turkey reacts, with progress dots and suggested-reply chips).
+**Decided (product owner, 2026-11-06):**
+- The turkey is an LLM playing a **curious student**; you are the **teacher**. It asks **simple questions** about its skill.
+- When your answer is vague or a bit off, the turkey **asks a follow-up question to understand better** rather than correcting you.
+- A lesson stays at **3 back-and-forths** for now (`SCHOOL_ROUNDS` in `src/lib/flock/config.ts`; may change). After the third answer the turkey says what it learned, and the lesson counts (Cheer refill, feathers with the daily cap, growth).
 
-**Open:**
-- Whether the turkey's understanding builds across lessons (it remembers what you taught it) or each lesson stands alone.
-- Whether the turkey judges your explanation and pushes back when it's wrong or vague, and whether that produces a score for the skill trend.
-- Whether suggested-reply chips stay (they make it easy but less like practice).
-- Turkey personality per skill and per growth stage (a baby turkey asks simpler questions?).
+**Designer's calls (approved in chat):**
+- No suggested-answer chips; you explain in your own words (10-character minimum stays).
+- Each lesson stands alone; the turkey doesn't remember earlier lessons.
+- Lessons produce no score; the skill trend stays based on Park and Feed.
+- Same model as the rest of the app (Grok); short, simple sentences.
+- If the AI can't be reached, the turkey "is feeling sleepy" with a Try again button; there is no scripted fallback.
+
+**Implementation:** prompt + history validation in `src/lib/flock/school.ts`; `POST /api/turkeys/[id]/school/turn { history }` returns the turkey's next line (`done: true` with its closing words); `POST /api/turkeys/[id]/school { answers }` still records the lesson. The project-1 script (`schoolScripts.ts`) is removed.
+
+**Still open:** turkey personality by growth stage; remembering past lessons; scoring lessons for the trend.
 
 ## Constraints
 

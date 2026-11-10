@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { SCHOOL_DAILY_FEATHER_CAP, SCHOOL_FEATHERS } from "@/lib/flock/config";
+import {
+  SCHOOL_DAILY_FEATHER_CAP,
+  SCHOOL_FEATHERS,
+  SCHOOL_MIN_ANSWER_LENGTH as MIN_ANSWER_LENGTH,
+  SCHOOL_ROUNDS as ANSWER_COUNT,
+} from "@/lib/flock/config";
 import { toTurkeyView } from "@/lib/flock/view";
 
-const MIN_ANSWER_LENGTH = 10;
-const ANSWER_COUNT = 3;
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);

@@ -9,3 +9,9 @@ export const PARK_MIN_USER_MESSAGES = 3;
 /** Activity counts needed for stages 2-8 (stage 1 is the egg). */
 export const STAGE_THRESHOLDS = [0, 3, 8, 15, 25, 40, 60];
 export const TREND_WINDOW = 10;
+/** Back-and-forths in one School lesson (the turkey asks, you answer). */
+export const SCHOOL_ROUNDS = 3;
+/** Shortest School answer that counts. */
+export const SCHOOL_MIN_ANSWER_LENGTH = 10;
+/** Longest single School message accepted from the client. */
+export const SCHOOL_MAX_MESSAGE_LENGTH = 1000;
