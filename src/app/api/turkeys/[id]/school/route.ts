@@ -5,10 +5,16 @@ import { prisma } from "@/lib/db";
 import {
   SCHOOL_DAILY_FEATHER_CAP,
   SCHOOL_FEATHERS,
+  SCHOOL_XP,
   SCHOOL_MIN_ANSWER_LENGTH as MIN_ANSWER_LENGTH,
   SCHOOL_ROUNDS as ANSWER_COUNT,
 } from "@/lib/flock/config";
 import { toTurkeyView } from "@/lib/flock/view";
+import { unlockedFor } from "@/lib/flock/progress";
+import { activityDone } from "@/lib/flock/progressQueries";
+import { stageForActivityCount } from "@/lib/flock/growth";
+import { touchStreak, grantXp, awardBadges } from "@/lib/rewards";
+import type { ActivityRewards } from "@/lib/conversation";
 
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -25,6 +31,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
     if (!turkey) {
       return NextResponse.json({ error: "Turkey not found" }, { status: 404 });
+    }
+    if (!unlockedFor(true, await activityDone(turkey.id)).school) {
+      return NextResponse.json({ error: "Feed your turkey first" }, { status: 409 });
     }
 
     const body = await req.json().catch(() => null);
@@ -77,11 +86,47 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         data: feathersEarned > 0 ? { featherBalance: { increment: feathersEarned } } : {},
         select: { featherBalance: true },
       });
-      return { updatedTurkey, feathersEarned, featherBalance: user.featherBalance };
+
+      // Every lesson counts for the streak; a paid one also earns account XP.
+      const streak = await touchStreak(tx, userId, now);
+      let previousLevel: number;
+      let newLevel: number;
+      if (feathersEarned > 0) {
+        const levels = await grantXp(tx, userId, SCHOOL_XP);
+        previousLevel = levels.previousLevel;
+        newLevel = levels.newLevel;
+      } else {
+        const row = await tx.user.findUnique({ where: { id: userId }, select: { level: true } });
+        previousLevel = newLevel = row?.level ?? 1;
+      }
+      const badges = await awardBadges(tx, userId);
+      return {
+        updatedTurkey,
+        feathersEarned,
+        featherBalance: user.featherBalance,
+        xp: feathersEarned > 0 ? SCHOOL_XP : 0,
+        previousLevel,
+        newLevel,
+        streak: streak.currentStreak,
+        newBadges: badges.map((b) => b.key),
+      };
     });
 
+    // School only opens once the turkey has been fed, so both are done by now.
+    const turkeyView = toTurkeyView(result.updatedTurkey, now, { feed: true, school: true });
+    const rewards: ActivityRewards = {
+      feathers: result.feathersEarned,
+      xp: result.xp,
+      previousLevel: result.previousLevel,
+      newLevel: result.newLevel,
+      streak: result.streak,
+      newBadges: result.newBadges,
+      turkey: turkeyView,
+      previousStage: stageForActivityCount(turkey.activityCount, true),
+    };
     return NextResponse.json({
-      turkey: toTurkeyView(result.updatedTurkey, now),
+      turkey: turkeyView,
+      rewards,
       feathersEarned: result.feathersEarned,
       featherBalance: result.featherBalance,
     });

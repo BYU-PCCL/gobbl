@@ -1,23 +1,22 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
-import { Icon } from "@/components/ui/Icon";
-import { TurkeyCharacter } from "@/components/turkey/TurkeyCharacter";
+import { Card } from "@/components/ui/Card";
+import { MyTurkey } from "@/components/turkey/MyTurkey";
+import { PartnerTurkey } from "@/components/turkey/PartnerTurkey";
 import { useFlock } from "@/components/turkey/useFlock";
 import { TopicPicker } from "@/components/conversation/TopicPicker";
 import { StancePicker } from "@/components/conversation/StancePicker";
 import { fetchJson } from "@/lib/fetchJson";
-import { PARK_TURKEYS, type ParkTurkey } from "@/lib/flock/parkTurkeys";
+import { parkLineup } from "@/lib/flock/parkTurkeys";
+import type { Persona, Tier } from "@/lib/personas/pool";
 import { DIFFICULTIES } from "@/lib/gamification";
 import { TOPICS, getTopic } from "@/lib/topics";
 import type { Stance } from "@/lib/conversation";
-
-/** Grown-up turkeys stand around the park. */
-const PARK_TURKEY_STAGE = 5;
 
 export default function ParkPageRoute() {
   return (
@@ -34,13 +33,12 @@ function ParkPage() {
   const { turkeys, current, egg, loading, error, reload } = useFlock();
 
   // Who the user walked up to. null: still looking around the park.
-  const [partner, setPartner] = useState<ParkTurkey | null>(null);
+  const [partner, setPartner] = useState<Persona | null>(null);
   const [step, setStep] = useState<"topic" | "stance">("topic");
   const [topicId, setTopicId] = useState<string | null>(null);
   const [stance, setStance] = useState<Stance | null>(null);
-  const [difficulty, setDifficulty] = useState<string>("Friendly Cluck");
+  const [difficulty, setDifficulty] = useState<Tier>("Friendly Cluck");
   const [allowProfanity, setAllowProfanity] = useState(false);
-  const [optionsOpen, setOptionsOpen] = useState(false);
   const [lastTopicId, setLastTopicId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
@@ -58,6 +56,9 @@ function ParkPage() {
     if (loading || error || mine) return;
     router.replace(egg ? "/home" : "/hatch");
   }, [loading, error, mine, egg, router]);
+
+  // Who stands where is shuffled once per difficulty, not on every render.
+  const lineup = useMemo(() => parkLineup(difficulty), [difficulty]);
 
   // The topic talked about last time is offered first. Optional: the picker works without it.
   useEffect(() => {
@@ -85,10 +86,25 @@ function ParkPage() {
   if (loading || !mine) return <ParkMessage text="Heading to the park..." />;
 
   const myName = mine.name ?? "Your turkey";
+
+  if (!mine.unlocked.park) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-12">
+        <Card className="flex w-full flex-col items-center gap-3 p-6 text-center">
+          <MyTurkey turkey={mine} size={120} />
+          <h1 className="font-display text-2xl font-bold tracking-[-0.03em] text-ink">The Park opens after School</h1>
+          <p className="font-body text-sm text-ink-soft">
+            {myName} has nothing to talk about yet. Feed, then School, then the Park.
+          </p>
+          <Button onClick={() => router.push("/home")}>Back to {myName}</Button>
+        </Card>
+      </div>
+    );
+  }
   const topic = getTopic(topicId) ?? null;
   const isFullGobble = difficulty === "Full Gobble";
 
-  function walkUpTo(t: ParkTurkey) {
+  function walkUpTo(t: Persona) {
     setPartner(t);
     setStep("topic");
     setStance(null);
@@ -105,7 +121,7 @@ function ParkPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          personaId: partner.personaId,
+          personaId: partner.id,
           turkeyId: mine.id,
           topicId: topic.id,
           userStance: stance,
@@ -121,7 +137,7 @@ function ParkPage() {
     }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setStartError(data.error || `${partner.name} couldn't chat right now.`);
+      setStartError(data.error || `${partner.initials} couldn't chat right now.`);
       setStarting(false);
       return;
     }
@@ -137,23 +153,37 @@ function ParkPage() {
           <p className="font-body text-sm text-ink-soft">Who will {myName} talk to today?</p>
         </div>
 
+        <div>
+          <p className="eyebrow mb-2">How hard should they push back?</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Difficulty">
+            {DIFFICULTIES.map((d) => (
+              <Chip key={d.key} selected={difficulty === d.key} onClick={() => setDifficulty(d.key)}>
+                {d.label}
+              </Chip>
+            ))}
+          </div>
+          <p className="mt-2 font-body text-xs text-ink-soft">
+            {DIFFICULTIES.find((d) => d.key === difficulty)?.description}
+          </p>
+        </div>
+
         <div
           className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl border border-line sm:aspect-[5/4]"
           style={{ background: "linear-gradient(180deg, #EDF4EE 0%, #D5DFD4 55%, #A8C0A6 100%)" }}
         >
           <ParkScenery />
-          {PARK_TURKEYS.map((t) => (
+          {lineup.map(({ persona: p, x, y }) => (
             <button
-              key={t.personaId}
+              key={p.id}
               type="button"
-              onClick={() => walkUpTo(t)}
-              aria-label={`Talk to ${t.name}`}
+              onClick={() => walkUpTo(p)}
+              aria-label={`Talk to ${p.initials}`}
               className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-2xl p-1 transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-              style={{ left: `${t.x}%`, top: `${t.y}%` }}
+              style={{ left: `${x}%`, top: `${y}%` }}
             >
-              <TurkeyCharacter stage={PARK_TURKEY_STAGE} mood="happy" skill={t.look} size={92} label={t.name} />
+              <PartnerTurkey personaId={p.id} initials={p.initials} size={92} />
               <span className="-mt-1 rounded-full bg-surface px-2.5 py-0.5 font-body text-xs font-semibold text-ink shadow-soft">
-                {t.name}
+                {p.initials}
               </span>
             </button>
           ))}
@@ -167,59 +197,25 @@ function ParkPage() {
   }
 
   // ── Walked up to a turkey: pick the topic, then a side ──
-  const optionsBlock = (
-    <div className="rounded-2xl border border-line bg-surface">
-      <button
-        type="button"
-        onClick={() => setOptionsOpen((o) => !o)}
-        aria-expanded={optionsOpen}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-      >
-        <span className="font-body text-sm font-semibold text-ink">Options</span>
-        <span className="flex items-center gap-2 font-body text-xs text-ink-soft">
-          {difficulty}
-          <Icon name="chevron-down" size={16} className={optionsOpen ? "rotate-180" : ""} />
-        </span>
-      </button>
-      {optionsOpen && (
-        <div className="space-y-4 border-t border-line px-4 py-4">
-          <div>
-            <p className="eyebrow mb-2">How hard should {partner.name} push back?</p>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Difficulty">
-              {DIFFICULTIES.map((d) => (
-                <Chip key={d.key} selected={difficulty === d.key} onClick={() => setDifficulty(d.key)}>
-                  {d.label}
-                </Chip>
-              ))}
-            </div>
-            <p className="mt-2 font-body text-xs text-ink-soft">
-              {DIFFICULTIES.find((d) => d.key === difficulty)?.description}
-            </p>
-          </div>
-
-          {isFullGobble && (
-            <button
-              type="button"
-              role="switch"
-              aria-checked={allowProfanity}
-              onClick={() => setAllowProfanity((on) => !on)}
-              className="flex w-full items-center gap-3 rounded-xl border border-line bg-bg px-3.5 py-3 text-left"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="font-body text-sm font-semibold text-ink">Allow profanity</div>
-                <div className="mt-0.5 font-body text-[11px] text-ink-soft">
-                  {partner.name} may curse when things get heated. No slurs, ever.
-                </div>
-              </div>
-              <span aria-hidden="true" className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${allowProfanity ? "bg-plume-500" : "bg-line"}`}>
-                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${allowProfanity ? "translate-x-[18px]" : "translate-x-0.5"}`} />
-              </span>
-            </button>
-          )}
+  const profanityToggle = isFullGobble ? (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={allowProfanity}
+      onClick={() => setAllowProfanity((on) => !on)}
+      className="flex w-full items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3 text-left"
+    >
+      <div className="min-w-0 flex-1">
+        <div className="font-body text-sm font-semibold text-ink">Allow profanity</div>
+        <div className="mt-0.5 font-body text-[11px] text-ink-soft">
+          {partner.initials} may curse when things get heated. No slurs, ever.
         </div>
-      )}
-    </div>
-  );
+      </div>
+      <span aria-hidden="true" className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${allowProfanity ? "bg-plume-500" : "bg-line"}`}>
+        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${allowProfanity ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+      </span>
+    </button>
+  ) : null;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5 pb-8">
@@ -231,12 +227,12 @@ function ParkPage() {
       </div>
 
       <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface px-3 py-2.5">
-        <TurkeyCharacter stage={PARK_TURKEY_STAGE} mood="happy" skill={partner.look} size={56} label={partner.name} />
+        <PartnerTurkey personaId={partner.id} initials={partner.initials} size={56} />
         <div className="min-w-0 flex-1">
           <p className="font-body text-sm font-semibold text-ink">
-            {myName} walked over to {partner.name}
+            {myName} walked over to {partner.initials}
           </p>
-          <p className="font-body text-xs text-ink-soft">{partner.name} takes the other side of whatever you choose.</p>
+          <p className="font-body text-xs text-ink-soft">{partner.initials} takes the other side of whatever you choose.</p>
         </div>
         <Button size="sm" variant="ghost" onClick={() => setPartner(null)} disabled={starting}>
           Back to the park
@@ -266,7 +262,6 @@ function ParkPage() {
               setStance(null);
             }}
           />
-          {optionsBlock}
         </>
       )}
 
@@ -279,13 +274,13 @@ function ParkPage() {
 
           <StancePicker question={topic.description} value={stance} onChange={setStance} />
 
-          {optionsBlock}
+          {profanityToggle}
 
           {startError && <p role="alert" className="text-center font-body text-sm text-plume-500">{startError}</p>}
 
           <div className="flex flex-col gap-2 sm:flex-row-reverse">
             <Button size="lg" className="w-full shadow-lift sm:flex-1" onClick={start} disabled={!stance || starting} loading={starting}>
-              Talk with {partner.name}
+              Talk with {partner.initials}
             </Button>
             <Button size="lg" variant="ghost" className="w-full sm:w-auto" onClick={() => setStep("topic")} disabled={starting}>
               Back to topics

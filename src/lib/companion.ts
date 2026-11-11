@@ -1,4 +1,4 @@
-import type { FlatTurkeyPalette } from "@/components/gamification/FlatTurkey";
+import type { TurkeyPalette } from "@/lib/turkeyPalette";
 
 /**
  * Species looks for flock turkeys (one species per skill, see `TURKEY_SKILLS[].species`) and the
@@ -19,8 +19,8 @@ export interface Species {
   eggDesc: string;
   /** Professor Pinfeather's line when the egg is tapped. */
   professorLine: string;
-  /** Palette for FlatTurkey/AvatarWithItems; `egg`/`speck` colour the stage-1 egg. */
-  palette: FlatTurkeyPalette;
+  /** Species colours; `egg`/`speck` colour the stage-1 egg. */
+  palette: TurkeyPalette;
   eggPattern: EggPattern;
 }
 
@@ -73,23 +73,6 @@ export function getSpecies(id: string | null | undefined): Species {
   return SPECIES.find((s) => s.id === id) ?? SPECIES[0];
 }
 
-/** The conversation partner's turkey: neutral greys so it never reads as "yours". */
-export const PARTNER_PALETTE: FlatTurkeyPalette = {
-  body: "#6B6B6B", bodyDark: "#3F3F3F", belly: "#9A9A9A", fan1: "#8C8C8C", fan2: "#5E5E5E", fan3: "#444444", fan4: "#777777",
-  crown: "#9A9A9A", feet: "#4A4A4A", wattle: "#8A5A5A",
-};
-
-/** Partner turkey stage by difficulty tier (same mapping the old setup screen used). */
-export function partnerStage(difficulty: string | null | undefined): 3 | 5 | 7 {
-  if (difficulty === "Full Gobble") return 7;
-  if (difficulty === "Spirited Strut") return 5;
-  return 3;
-}
-
-export const STAGE_LABELS: Record<number, string> = {
-  1: "Egg", 2: "Hatchling", 3: "Poult", 4: "Youngster", 5: "Tom", 6: "Gobbler", 7: "Grand Gobbler", 8: "Thunderbird",
-};
-
 /** The turkey (or egg) shown beside the user on lesson and conversation screens. See `companionFromTurkey`. */
 export interface CompanionInfo {
   /** The flock turkey this is; null when the user has no turkey yet. */
@@ -103,7 +86,7 @@ export interface CompanionInfo {
 
 /* ---------- copy ---------- */
 
-export type CompanionLineKind = "diagnostic" | "content" | "reflection" | "quiz" | "practice" | "last" | "playground";
+export type CompanionLineKind = "diagnostic" | "content" | "reflection" | "quiz" | "practice" | "last";
 
 /** What the companion says on a module step, before (egg) and after (turkey) hatching. */
 export const COMPANION_LINES: Record<CompanionLineKind, { egg: string; turkey: string }> = {
@@ -113,7 +96,6 @@ export const COMPANION_LINES: Record<CompanionLineKind, { egg: string; turkey: s
   quiz:       { egg: "Teach me. If I get it, I think I can come out.", turkey: "Quiz me. I want to get this right." },
   practice:   { egg: "Pick a topic and I'll listen from in here.", turkey: "Pick a topic. I'll stand next to you." },
   last:       { egg: "Almost done. I can feel it.", turkey: "One last stretch, and we're through." },
-  playground: { egg: "Pick a topic and I'll listen from in here.", turkey: "What should we talk about today?" },
 };
 
 export function companionLine(kind: CompanionLineKind, hatched: boolean): string {

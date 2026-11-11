@@ -30,7 +30,7 @@ export function moodLine(mood: TurkeyMood, name: string | null): string {
     case "lonely":
       return `${n} is lonely.`;
     case "sad":
-      return `${n} missed you.`;
+      return `${n} wants to learn something.`;
   }
 }
 
@@ -51,7 +51,7 @@ export function activityHref(
     case "feed":
       return t.moduleKey
         ? `/skills/${t.moduleKey}?turkeyId=${t.id}`
-        : `/skills?turkeyId=${t.id}`;
+        : "/home";
     case "school":
       return `/school/${t.id}`;
   }

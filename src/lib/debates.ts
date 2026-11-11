@@ -12,7 +12,6 @@ interface CreateDebateParams {
   difficulty?: string;
   /** A partner previewed on the setup screen; ignored unless it is in the chosen tier and opposes the user. */
   personaId?: string;
-  isDaily?: boolean;
   /** Set when this debate is a module's practice step rather than a normal Chat-page debate. */
   isTraining?: boolean;
   trainingMode?: string;
@@ -44,7 +43,6 @@ export async function createDebate({
   category,
   difficulty,
   personaId,
-  isDaily,
   isTraining,
   trainingMode,
   allowProfanity,
@@ -79,7 +77,6 @@ export async function createDebate({
       beliefKey: persona.beliefKey,
       difficulty: tier,
       personaId: persona.id,
-      isDaily: isDaily || false,
       isTraining: isTraining || false,
       trainingMode: trainingMode ?? null,
       // Debate.mode exists for the audio/video work the setup screen's mode picker is

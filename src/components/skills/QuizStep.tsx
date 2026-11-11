@@ -4,15 +4,12 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Companion } from "@/components/companion/Companion";
-import type { SpeciesId } from "@/lib/companion";
+import type { TurkeyView } from "@/lib/flock/view";
 import type { QuizQuestion } from "@/lib/quizzes";
-import type { EquippedCosmetics } from "@/lib/shop";
 
 export interface QuizStepProps {
   questions: QuizQuestion[];
-  speciesId: SpeciesId | null;
-  stage: number;
-  equipped?: EquippedCosmetics | null;
+  turkey: TurkeyView | null;
   /**
    * Submits one chosen option index per question. Resolves "failed" when the quiz was not passed
    * (this view then offers a retry); on a pass the runner takes over, so any other value is ignored.
@@ -23,7 +20,7 @@ export interface QuizStepProps {
 }
 
 /** "Teach": the turkey asks each question in its bubble; the user taps one of four options. */
-export function QuizStep({ questions, speciesId, stage, equipped, onSubmit, busy, onBack }: QuizStepProps) {
+export function QuizStep({ questions, turkey, onSubmit, busy, onBack }: QuizStepProps) {
   const [index, setIndex] = useState(0);
   const [picks, setPicks] = useState<number[]>([]);
   const [locked, setLocked] = useState(false);
@@ -53,13 +50,7 @@ export function QuizStep({ questions, speciesId, stage, equipped, onSubmit, busy
   if (failed) {
     return (
       <div className="flex flex-col items-center gap-4 text-center">
-        <Companion
-          variant="scene"
-          speciesId={speciesId}
-          stage={stage}
-          equipped={equipped}
-          line="Not quite. Read it again together?"
-        />
+        <Companion variant="scene" turkey={turkey} line="Not quite. Read it again together?" />
         <div className="flex w-full flex-col gap-2.5">
           <Button onClick={reset}>Try again</Button>
           <Button variant="outline" onClick={onBack}>
@@ -72,7 +63,7 @@ export function QuizStep({ questions, speciesId, stage, equipped, onSubmit, busy
 
   return (
     <div className="flex flex-col gap-4">
-      <Companion variant="scene" speciesId={speciesId} stage={stage} equipped={equipped} line={q.q} />
+      <Companion variant="scene" turkey={turkey} line={q.q} />
       <p className="text-center font-mono text-[10px] uppercase tracking-wider text-ink-muted">
         Question {index + 1} of {questions.length}
       </p>

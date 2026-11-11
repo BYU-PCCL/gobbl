@@ -3,6 +3,8 @@ export const NEED_LOW = 30;
 export const NEED_HAPPY = 70;
 export const EGG_COST = 500;
 export const SCHOOL_FEATHERS = 20;
+/** Account XP for a paid School lesson (same daily cap as the feathers). */
+export const SCHOOL_XP = 20;
 /** Paid school lessons per turkey per UTC day. */
 export const SCHOOL_DAILY_FEATHER_CAP = 3;
 /** Activity counts needed for stages 2-8 (stage 1 is the egg). */

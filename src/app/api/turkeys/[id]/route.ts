@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { TREND_WINDOW } from "@/lib/flock/config";
 import { skillTrend } from "@/lib/flock/trend";
 import { toTurkeyView } from "@/lib/flock/view";
+import { activityDone } from "@/lib/flock/progressQueries";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
@@ -37,7 +38,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     const scores = scored.map((a) => a.score as number).reverse();
     return NextResponse.json({
-      turkey: toTurkeyView(turkey, new Date()),
+      turkey: toTurkeyView(turkey, new Date(), await activityDone(id)),
       trend: skillTrend(scores),
       recent,
     });

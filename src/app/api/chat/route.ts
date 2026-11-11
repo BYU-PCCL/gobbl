@@ -5,11 +5,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getAIResponse, scoreCivility, scoreConversationHolistic, ChatMessage } from "@/lib/ai";
-import { calculateXP, calculateFeathers, getLevelInfo, checkNewBadges } from "@/lib/gamification";
-import { parseEquippedCosmetics } from "@/lib/shop";
+import { calculateXP, calculateFeathers } from "@/lib/gamification";
+import { touchStreak, grantXp, awardBadges } from "@/lib/rewards";
 import { fallbackHolisticFromUserMessages, parseStoredDimensions } from "@/lib/civility";
 import { maxTurnsForDebate } from "@/lib/debates";
-import { MIN_TURNS_TO_FINISH } from "@/lib/conversation";
+import { MIN_TURNS_TO_FINISH, type ActivityRewards } from "@/lib/conversation";
+import { linkedTurkeyStage, linkedTurkeyView } from "@/lib/activityRewards";
 import { getPersonaById, pickPersona, isTier } from "@/lib/personas/pool";
 import { completeActivity } from "@/lib/flock/activities";
 
@@ -150,7 +151,7 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { badges: true, debates: { where: { completed: true } } },
+    include: { debates: { where: { completed: true } } },
   });
 
   if (!user) {
@@ -159,65 +160,15 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
 
   const userMessageCount = userMessages.length;
 
-  const xpResult = calculateXP(
-    overallScore,
-    debate.difficulty,
-    debate.isDaily,
-    user.currentStreak
-  );
+  const xpResult = calculateXP(overallScore, debate.difficulty, user.currentStreak);
+  const featherResult = calculateFeathers(userMessageCount, debate.difficulty);
 
-  const featherResult = calculateFeathers(userMessageCount, debate.difficulty, debate.isDaily);
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const lastActive = user.lastActiveDate ? new Date(user.lastActiveDate) : null;
-  if (lastActive) lastActive.setHours(0, 0, 0, 0);
-
-  let newStreak = user.currentStreak;
-  if (!lastActive || today.getTime() - lastActive.getTime() > 86400000 * 2) {
-    newStreak = 1;
-  } else if (today.getTime() - lastActive.getTime() >= 86400000) {
-    newStreak = user.currentStreak + 1;
-  } else if (user.currentStreak === 0) {
-    // lastActiveDate is also bumped by non-conversation activity (module quiz), so
-    // "active today" does not mean a conversation already counted toward the streak.
-    newStreak = 1;
-  }
-
-  const newXp = user.xp + xpResult.total;
-  const newLevel = getLevelInfo(newXp).level;
-
-  const completedDebates = user.debates.filter((d) => d.completed);
-  const recentScores = completedDebates
+  const recentScores = user.debates
     .slice(0, 19)
     .map((d) => d.overallScore)
     .filter((s): s is number => s !== null);
   recentScores.push(overallScore);
   const newCivility = recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
-
-  const parsedPerMessage = userMessages
-    .map((m) => parseStoredDimensions(m.dimensions))
-    .filter((d): d is NonNullable<typeof d> => d !== null);
-
-  const maxMutualExchange =
-    parsedPerMessage.length > 0 ? Math.max(...parsedPerMessage.map((d) => d.mutualExchange)) : 0;
-  const maxSelfExpressionReason =
-    parsedPerMessage.length > 0 ? Math.max(...parsedPerMessage.map((d) => d.selfExpressionReason)) : 0;
-
-  const stats = {
-    totalDebates: completedDebates.length + 1,
-    civilDebates: completedDebates.filter((d) => (d.overallScore || 0) >= 7).length + (overallScore >= 7 ? 1 : 0),
-    devilsAdvocateCount: completedDebates.filter((d) => d.difficulty === "Devil's Advocate").length +
-      (debate.difficulty === "Devil's Advocate" ? 1 : 0),
-    dailyChallengeCount: completedDebates.filter((d) => d.isDaily).length + (debate.isDaily ? 1 : 0),
-    maxMutualExchange,
-    maxSelfExpressionReason,
-    currentStreak: newStreak,
-    level: newLevel,
-  };
-
-  const existingBadgeKeys = user.badges.map((b) => b.badgeKey);
-  const newBadges = checkNewBadges(stats, existingBadgeKeys);
 
   // Two racing "finish" calls (double tap, two tabs) must pay out once: the guarded updateMany
   // picks the winner. Balances use increments so a concurrent egg debit / school credit isn't overwritten.
@@ -233,23 +184,18 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
         completedAt: new Date(),
       },
     });
-    if (won.count === 0) return false;
+    if (won.count === 0) return null;
     await tx.user.update({
       where: { id: userId },
       data: {
-        xp: { increment: xpResult.total },
         featherBalance: { increment: featherResult.total },
-        level: newLevel,
         civilityScore: newCivility,
-        currentStreak: newStreak,
-        longestStreak: Math.max(user.longestStreak, newStreak),
-        lastActiveDate: new Date(),
       },
     });
-    for (const badgeKey of newBadges) {
-      await tx.userBadge.create({ data: { userId, badgeKey } });
-    }
-    return true;
+    const streak = await touchStreak(tx, userId, new Date());
+    const levels = await grantXp(tx, userId, xpResult.total);
+    const badges = await awardBadges(tx, userId);
+    return { streak, levels, badges };
   });
   if (!paid) {
     const fresh = await prisma.debate.findUnique({ where: { id: debateId } });
@@ -258,6 +204,7 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
   }
 
   // Links the finished conversation to the turkey that went to the park (growth + "lonely" need).
+  const previousStage = await linkedTurkeyStage(debateId).catch(() => null);
   try {
     await completeActivity({
       refId: debateId,
@@ -276,25 +223,42 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
     interrogation: holisticResult.dimensions.interrogation,
   };
 
+  const rewards: ActivityRewards = {
+    feathers: featherResult.total,
+    xp: xpResult.total,
+    previousLevel: paid.levels.previousLevel,
+    newLevel: paid.levels.newLevel,
+    newBadges: paid.badges.map((b) => b.key),
+    streak: paid.streak.currentStreak,
+    turkey: await linkedTurkeyView(debateId).catch(() => null),
+    previousStage,
+  };
+
   return NextResponse.json({
     finished: true,
+    rewards,
     overallScore,
     dimensions: dimensionsOut,
     xp: xpResult,
     feathers: featherResult,
-    previousLevel: user.level,
-    newLevel,
-    newBadges,
-    streak: newStreak,
+    previousLevel: paid.levels.previousLevel,
+    newLevel: paid.levels.newLevel,
+    newBadges: paid.badges.map((b) => b.key),
+    streak: paid.streak.currentStreak,
     civilityScore: newCivility,
-    equippedCosmetics: parseEquippedCosmetics(user.equippedCosmetics),
   });
 }
 
 /** Replays the stored summary of a finished conversation so a lost response never strands the client. */
 async function alreadyFinished(
   userId: string,
-  debate: { overallScore: number | null; dimensions: Prisma.JsonValue | null }
+  debate: {
+    id: string;
+    overallScore: number | null;
+    dimensions: Prisma.JsonValue | null;
+    xpEarned: number;
+    feathersEarned: number;
+  }
 ) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -305,18 +269,28 @@ async function alreadyFinished(
     mutualExchange: 0,
     interrogation: 0,
   };
+  const rewards: ActivityRewards = {
+    feathers: debate.feathersEarned,
+    xp: debate.xpEarned,
+    previousLevel: user.level,
+    newLevel: user.level,
+    streak: user.currentStreak,
+    newBadges: [],
+    turkey: await linkedTurkeyView(debate.id).catch(() => null),
+    previousStage: null,
+  };
   return NextResponse.json({
     finished: true,
     alreadyCompleted: true,
+    rewards,
     overallScore: debate.overallScore ?? 0,
     dimensions: dims,
-    xp: { base: 0, difficultyBonus: 0, dailyBonus: 0, streakMultiplier: 1, total: 0 },
-    feathers: { base: 0, difficultyBonus: 0, dailyBonus: 0, total: 0 },
+    xp: { base: 0, difficultyBonus: 0, streakMultiplier: 1, total: 0 },
+    feathers: { base: 0, difficultyBonus: 0, total: 0 },
     previousLevel: user.level,
     newLevel: user.level,
     newBadges: [],
     streak: user.currentStreak,
     civilityScore: user.civilityScore,
-    equippedCosmetics: parseEquippedCosmetics(user.equippedCosmetics),
   });
 }

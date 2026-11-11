@@ -1,19 +1,15 @@
 "use client";
 
-import { FlatTurkey } from "@/components/gamification/FlatTurkey";
-import { AvatarWithItems } from "@/components/gamification/AvatarWithItems";
-import { getSpecies, type SpeciesId } from "@/lib/companion";
-import type { EquippedCosmetics } from "@/lib/shop";
+import { MyTurkey } from "@/components/turkey/MyTurkey";
+import type { TurkeyView } from "@/lib/flock/view";
 
 /**
  * A flock turkey (or egg) plus a speech bubble. Appears on every Learn/Teach/Reflect step and
  * the topic picker. `row`: art left, bubble right. `scene`: bubble above, art centered.
  */
 export interface CompanionProps {
-  speciesId: SpeciesId | null;
-  /** The turkey's own growth stage; 1 is an egg. */
-  stage: number;
-  equipped?: EquippedCosmetics | null;
+  /** The turkey (or egg) to draw; null while it loads. */
+  turkey: TurkeyView | null;
   line: string;
   variant: "row" | "scene";
   size?: number;
@@ -33,8 +29,7 @@ export function StrawPad({ className = "" }: { className?: string }) {
   );
 }
 
-export function Companion({ speciesId, stage, equipped, line, variant, size, className }: CompanionProps) {
-  const species = getSpecies(speciesId);
+export function Companion({ turkey, line, variant, size, className }: CompanionProps) {
   const scene = variant === "scene";
   const px = size ?? (scene ? 140 : 88);
 
@@ -42,13 +37,7 @@ export function Companion({ speciesId, stage, equipped, line, variant, size, cla
     <div className="relative flex shrink-0 items-end justify-center" style={{ width: px, height: px }}>
       <StrawPad />
       <div className="relative z-10 drop-shadow-[0_6px_4px_rgba(92,74,58,0.2)]">
-        {stage === 1 ? (
-          <div className="animate-wiggle" style={{ transformOrigin: "50% 92%" }}>
-            <FlatTurkey stage={1} size={px} palette={species.palette} eggPattern={species.eggPattern} />
-          </div>
-        ) : (
-          <AvatarWithItems stage={stage} size={px} palette={species.palette} equipped={equipped ?? {}} showShadow={false} />
-        )}
+        <MyTurkey turkey={turkey} size={px} inScene showShadow={false} />
       </div>
     </div>
   );

@@ -9,48 +9,32 @@ import { fetchJson } from "@/lib/fetchJson";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { FlatTurkey } from "@/components/gamification/FlatTurkey";
-import { AvatarWithItems } from "@/components/gamification/AvatarWithItems";
+import { MyTurkey } from "@/components/turkey/MyTurkey";
+import { TurkeyCharacter } from "@/components/turkey/TurkeyCharacter";
 import { BadgeMark } from "@/components/gamification/BadgeMark";
 import { Icon } from "@/components/ui/Icon";
 import { BADGES } from "@/lib/gamification";
-import { getSpecies } from "@/lib/companion";
-import { getTurkeySkill } from "@/lib/flock/skills";
 import { useCompanion } from "@/components/companion/useCompanion";
-import type { EquippedCosmetics } from "@/lib/shop";
 
 interface UserData {
   username: string;
   xp: number;
   featherBalance: number;
   level: number;
-  equippedCosmetics: EquippedCosmetics;
-  levelInfo: { level: number; name: string; xpForNext: number; xpProgress: number; progressPercent: number };
+  levelInfo: { level: number; xpForNext: number; xpProgress: number; progressPercent: number };
   civilityScore: number;
   currentStreak: number;
   longestStreak: number;
   badges: string[];
   recentDebates: { id: string; topic: string; score: number | null; difficulty: string; completedAt: string }[];
   createdAt: string;
-}
-
-// Replace this map with real per-dimension scores once the API exposes them.
-// For now we fan out the rolling civilityScore with small intentional variance.
-function civilityBreakdown(score: number) {
-  const base = Math.round(score * 10);
-  return [
-    { k: "Respectful tone",  v: Math.min(100, base + 5) },
-    { k: "Evidence-based",   v: Math.max(0, base - 3) },
-    { k: "Empathy",          v: Math.min(100, base + 2) },
-    { k: "Constructive",     v: Math.max(0, base - 6) },
-    { k: "Active listening", v: Math.min(100, base + 1) },
-  ];
+  civilityByDimension?: { key: string; label: string; average: number }[];
 }
 
 export default function ProfilePage() {
   const { status } = useSession();
   const router = useRouter();
-  const { companion, flock } = useCompanion();
+  const { turkey, flock } = useCompanion();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -71,10 +55,13 @@ export default function ProfilePage() {
   if (loadError) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
-        <FlatTurkey stage={1} size="md" />
+        <TurkeyCharacter stage={1} size={96} decorative />
         <p className="font-body text-sm text-ink-soft">
           Couldn&apos;t load your profile: {loadError}
         </p>
+        <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
+          Try again
+        </Button>
         <Button variant="secondary" size="sm" onClick={() => signOut({ callbackUrl: "/" })}>
           Sign out
         </Button>
@@ -85,14 +72,12 @@ export default function ProfilePage() {
   if (loading || !userData) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <FlatTurkey stage={1} size="md" animate />
+        <TurkeyCharacter stage={1} size={96} decorative />
       </div>
     );
   }
 
-  const species = getSpecies(companion?.speciesId);
-  const myStage = companion?.stage ?? 1;
-  const civilityRows = userData.civilityScore > 0 ? civilityBreakdown(userData.civilityScore) : null;
+  const civilityRows = userData.civilityByDimension ?? [];
 
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
@@ -110,10 +95,10 @@ export default function ProfilePage() {
             Joined {new Date(userData.createdAt).toLocaleDateString()}. {userData.featherBalance.toLocaleString()} feathers.
           </p>
           <div className="mt-3 flex justify-center">
-            <AvatarWithItems stage={myStage} size={180} equipped={userData.equippedCosmetics} palette={species.palette} eggPattern={species.eggPattern} animate />
+            <MyTurkey turkey={turkey} size={180} />
           </div>
           <div className="mt-3 flex justify-center gap-1.5">
-            <MiniStat k="Civility" v={userData.civilityScore > 0 ? Math.round(userData.civilityScore * 10) : "—"} />
+            <MiniStat k="Civility" v={userData.civilityScore ? userData.civilityScore.toFixed(1) : "-"} />
             <MiniStat k="Streak" v={`${userData.currentStreak}d`} />
           </div>
         </div>
@@ -133,25 +118,16 @@ export default function ProfilePage() {
             <p className="px-2 py-4 font-body text-sm text-ink-soft">Your flock is empty for now.</p>
           ) : (
             flock.turkeys.map((t, i) => {
-              const tSpecies = getSpecies(getTurkeySkill(t.skill).species);
               return (
                 <Link
                   key={t.id}
-                  href="/home"
-                  onClick={() => {
-                    if (t.hatched) flock.select(t.id);
-                  }}
+                  href="/flock"
                   className={`flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-surface-2 ${
                     i > 0 ? "border-t border-line" : ""
                   }`}
                 >
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center">
-                    <FlatTurkey
-                      stage={t.stage}
-                      size={52}
-                      palette={tSpecies.palette}
-                      eggPattern={t.stage === 1 ? tSpecies.eggPattern : undefined}
-                    />
+                    <MyTurkey turkey={t} size={52} animate={false} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-body text-sm font-semibold">{t.name ?? "Unhatched egg"}</div>
@@ -168,31 +144,35 @@ export default function ProfilePage() {
       </section>
 
       {/* Civility breakdown */}
-      {civilityRows && (
-        <section>
-          <h2 className="mb-2.5 font-display text-xl font-bold tracking-[-0.02em]">
-            Civility, by dimension
-          </h2>
-          <Card>
-            {civilityRows.map((row, i) => (
-              <div key={row.k} className={`py-3 ${i > 0 ? "border-t border-line" : ""}`}>
+      <section>
+        <h2 className="mb-2.5 font-display text-xl font-bold tracking-[-0.02em]">
+          Civility, by dimension
+        </h2>
+        <Card>
+          {civilityRows.length === 0 ? (
+            <p className="py-3 font-body text-sm text-ink-soft">
+              Finish a conversation in the Park to see how you do on each part of civility.
+            </p>
+          ) : (
+            civilityRows.map((row, i) => (
+              <div key={row.key} className={`py-3 ${i > 0 ? "border-t border-line" : ""}`}>
                 <div className="mb-1.5 flex items-baseline justify-between">
-                  <span className="font-body text-[13px] font-semibold">{row.k}</span>
+                  <span className="font-body text-[13px] font-semibold">{row.label}</span>
                   <span className="font-mono text-[13px] font-semibold text-forest-600 num-tabular">
-                    {row.v}
+                    {row.average.toFixed(1)}
                   </span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-bg">
                   <div
                     className="h-full rounded-full bg-forest-500 transition-[width] duration-700"
-                    style={{ width: `${row.v}%` }}
+                    style={{ width: `${Math.round(row.average * 10)}%` }}
                   />
                 </div>
               </div>
-            ))}
-          </Card>
-        </section>
-      )}
+            ))
+          )}
+        </Card>
+      </section>
 
       {/* Badges */}
       <section>
@@ -217,7 +197,10 @@ export default function ProfilePage() {
                 <div className="text-center font-body text-[10px] font-semibold leading-tight lg:text-[11px]">
                   {b.name}
                 </div>
-              </div>
+                <div className="text-center font-body text-xs text-ink-soft">
+                  {b.description}
+                </div>
+</div>
             );
           })}
         </div>
@@ -235,7 +218,7 @@ export default function ProfilePage() {
           onClick={() => signOut({ callbackUrl: "/" })}
           className="flex w-full items-center justify-between px-4 py-3.5 hover:bg-surface-2"
         >
-          <span className="font-body text-sm font-semibold text-plume-500">Fly the Coop</span>
+          <span className="font-body text-sm font-semibold text-plume-500">Sign out</span>
           <ChevronRight />
         </button>
       </div>

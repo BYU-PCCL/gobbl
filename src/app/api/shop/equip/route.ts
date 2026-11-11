@@ -24,12 +24,17 @@ export async function PATCH(req: Request) {
 
   const userId = (session.user as { id: string }).id;
 
-  let body: { slot?: string; itemId?: string | null };
+  let body: { turkeyId?: string; slot?: string; itemId?: string | null };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+
+  if (!body.turkeyId || typeof body.turkeyId !== "string") {
+    return NextResponse.json({ error: "Missing turkeyId" }, { status: 400 });
+  }
+  const turkeyId = body.turkeyId;
 
   const slot = body.slot;
   if (!slot || typeof slot !== "string" || !isSlot(slot)) {
@@ -62,8 +67,13 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
+  const turkey = await prisma.turkey.findFirst({ where: { id: turkeyId, userId } });
+  if (!turkey) {
+    return NextResponse.json({ error: "Turkey not found" }, { status: 404 });
+  }
+
   const owned = new Set(user.inventory.map((i) => i.itemId));
-  let next: EquippedCosmetics = parseEquippedCosmetics(user.equippedCosmetics);
+  let next: EquippedCosmetics = parseEquippedCosmetics(turkey.equippedCosmetics);
 
   if (itemId === null) {
     delete next[slot];
@@ -78,8 +88,8 @@ export async function PATCH(req: Request) {
 
   next = serializeEquippedCosmetics(next);
 
-  await prisma.user.update({
-    where: { id: userId },
+  await prisma.turkey.update({
+    where: { id: turkey.id },
     data: { equippedCosmetics: next },
   });
 

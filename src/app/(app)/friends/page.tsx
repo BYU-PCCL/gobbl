@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FriendsList, type FriendEntry } from "@/components/friends/FriendsList";
-import { FlatTurkey } from "@/components/gamification/FlatTurkey";
+import { TurkeyCharacter } from "@/components/turkey/TurkeyCharacter";
 
 export default function FriendsPage() {
   const { status } = useSession();
@@ -35,7 +35,7 @@ export default function FriendsPage() {
   }, [status, router, attempt]);
 
   return (
-    <div className="flex w-full max-w-4xl flex-col gap-5 lg:gap-8">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 lg:gap-8">
       <div>
         <Link href="/profile" className="font-body text-sm font-semibold text-primary underline-offset-2 hover:underline">
           Back to profile
@@ -44,13 +44,13 @@ export default function FriendsPage() {
           Friends
         </h1>
         <p className="mt-2 font-body text-sm text-ink-soft lg:text-base">
-          Other turkeys in the flock and how they are getting on.
+          Other people practicing here, and how their turkeys are getting on.
         </p>
       </div>
 
       {loading || status === "loading" ? (
         <div className="flex items-center justify-center py-16">
-          <FlatTurkey stage={1} size="md" animate />
+          <TurkeyCharacter stage={1} size={96} decorative />
         </div>
       ) : loadError ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">

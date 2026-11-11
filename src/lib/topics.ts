@@ -169,17 +169,6 @@ export function formatTopicForDebate(t: Topic): string {
   return `${t.title} — ${t.description}`;
 }
 
-export function getDailyTopic(): Topic {
-  const dayOfYear = Math.floor(
-    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
-  );
-  return TOPICS[dayOfYear % TOPICS.length];
-}
-
 export function getRandomTopic(): Topic {
   return TOPICS[Math.floor(Math.random() * TOPICS.length)];
-}
-
-export function getTopicsByCategory(category: string): Topic[] {
-  return TOPICS.filter((t) => t.category === category);
 }

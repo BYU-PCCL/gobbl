@@ -8,7 +8,6 @@ import { ACCOUNT_MISSING_CALLBACK_URL } from "@/lib/signOutReasons";
 export interface UserSummary {
   username: string;
   level: number;
-  levelName: string;
   featherBalance: number;
 }
 
@@ -26,6 +25,14 @@ export function useUserSummary(): UserSummary | null {
   const { status } = useSession();
   const pathname = usePathname();
   const [user, setUser] = useState<UserSummary | null>(null);
+  const [tick, setTick] = useState(0);
+
+  // useFlock announces a hatch or a finished activity; both can change level and feathers.
+  useEffect(() => {
+    const bump = () => setTick((t) => t + 1);
+    window.addEventListener("gobbl:flock-changed", bump);
+    return () => window.removeEventListener("gobbl:flock-changed", bump);
+  }, []);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -43,13 +50,12 @@ export function useUserSummary(): UserSummary | null {
         setUser({
           username: data.username,
           level: data.level,
-          levelName: data.levelInfo?.name ?? "",
           featherBalance: data.featherBalance,
         });
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [status, pathname]);
+  }, [status, pathname, tick]);
 
   return user;
 }

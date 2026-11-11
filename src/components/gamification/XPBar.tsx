@@ -4,7 +4,6 @@ interface XPBarProps {
   current: number;
   max: number;
   level: number;
-  levelName: string;
   /** Show label row above the bar. Default true. */
   showLabel?: boolean;
 }
@@ -13,7 +12,7 @@ interface XPBarProps {
  * XP bar — Harvest direction. Solid primary fill, near-level-up (≥90%)
  * gradient primary → ochre. Tabular numerals in the label row.
  */
-export function XPBar({ current, max, level, levelName, showLabel = true }: XPBarProps) {
+export function XPBar({ current, max, level, showLabel = true }: XPBarProps) {
   const percent = max > 0 ? Math.min(100, (current / max) * 100) : 100;
   const nearLevel = percent >= 90;
 
@@ -22,7 +21,7 @@ export function XPBar({ current, max, level, levelName, showLabel = true }: XPBa
       {showLabel && (
         <div className="flex items-baseline justify-between">
           <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted">
-            Level {level} · {levelName}
+            Level {level}
           </span>
           <span className="font-mono text-[10px] text-ink-muted num-tabular">
             {max > 0 ? `${current} / ${max} XP` : "MAX"}

@@ -290,7 +290,7 @@ const REASON_GIVING_MODULE: ModuleConfig = {
 const COGNITIVE_DISSONANCE_MODULE: ModuleConfig = {
   key: "cognitive-dissonance",
   skill: "cognitiveDissonance",
-  title: "Cognitive Dissonance",
+  title: "Open Mind",
   description: "Practice accepting contradictory inner views and confronting nuance.",
   estimatedMinutes: 10,
   variants: [

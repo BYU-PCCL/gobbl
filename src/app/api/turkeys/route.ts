@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { isEggSkill } from "@/lib/flock/skills";
 import { hasPassedQuiz } from "@/lib/flock/hatch";
 import { toTurkeyView } from "@/lib/flock/view";
+import { activityDoneFor } from "@/lib/flock/progressQueries";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -23,8 +24,9 @@ export async function GET() {
     const firstEggWaiting = rows.length > 0 && rows.every((r) => r.hatchedAt === null);
     const firstEggReady = firstEggWaiting ? await hasPassedQuiz(userId) : false;
     const now = new Date();
+    const done = await activityDoneFor(rows.map((r) => r.id));
     return NextResponse.json({
-      turkeys: rows.map((r) => toTurkeyView(r, now)),
+      turkeys: rows.map((r) => toTurkeyView(r, now, done.get(r.id))),
       featherBalance: user?.featherBalance ?? 0,
       firstEggReady,
     });

@@ -27,6 +27,8 @@ export const config = {
     "/school/:path*",
     "/chat/:path*",
     "/skills/:path*",
+    "/flock",
+    "/flock/:path*",
     "/shop/:path*",
     "/profile/:path*",
     "/friends/:path*",

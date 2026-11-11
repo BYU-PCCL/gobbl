@@ -9,14 +9,13 @@ import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
-import { FlatTurkey } from "@/components/gamification/FlatTurkey";
-import { ItemProductShot } from "@/components/gamification/AvatarWithItems";
+import { ItemProductShot } from "@/components/gamification/ItemProductShot";
+import { MyTurkey } from "@/components/turkey/MyTurkey";
 import { TurkeyCharacter } from "@/components/turkey/TurkeyCharacter";
 import { useFlock } from "@/components/turkey/useFlock";
 import { EGG_COST } from "@/lib/flock/config";
-import { EGG_SKILLS, getTurkeySkill, type TurkeySkillKey } from "@/lib/flock/skills";
-import { getSpecies } from "@/lib/companion";
-import type { EquippedCosmetics, ShopSlot } from "@/lib/shop";
+import { EGG_SKILLS, type TurkeySkillKey } from "@/lib/flock/skills";
+import type { ShopSlot } from "@/lib/shop";
 import { SHOP_SLOTS } from "@/lib/shop";
 
 interface ShopItemRow {
@@ -35,7 +34,6 @@ interface ShopItemRow {
 interface ShopPayload {
   featherBalance: number;
   level: number;
-  equipped: EquippedCosmetics;
   items: ShopItemRow[];
 }
 
@@ -58,7 +56,7 @@ export default function ShopPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
-  const { turkeys, current, loading: flockLoading, error: flockError } = useFlock();
+  const { turkeys, current, egg, select, reload, loading: flockLoading, error: flockError } = useFlock();
   const [eggBusy, setEggBusy] = useState<TurkeySkillKey | null>(null);
   const [eggError, setEggError] = useState<string | null>(null);
 
@@ -68,13 +66,20 @@ export default function ShopPage() {
       .then(setData);
   }, []);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const initialLoad = useCallback(() => {
+    setLoading(true);
+    setLoadError(null);
+    load()
+      .catch(() => setLoadError("Could not load the shop."))
+      .finally(() => setLoading(false));
+  }, [load]);
+
   useEffect(() => {
     if (status === "unauthenticated") { router.push("/"); return; }
-    if (status === "authenticated") {
-      setLoading(true);
-      load().catch(() => setError("Could not load the bazaar.")).finally(() => setLoading(false));
-    }
-  }, [status, router, load]);
+    if (status === "authenticated") initialLoad();
+  }, [status, router, initialLoad]);
 
   async function buy(itemId: string) {
     setBusyId(itemId);
@@ -120,27 +125,41 @@ export default function ShopPage() {
   }
 
   async function equip(slot: ShopSlot, itemId: string | null) {
+    if (!current) return;
     setBusyId(`eq-${slot}`);
     setError(null);
     try {
       const r = await fetch("/api/shop/equip", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slot, itemId }),
+        body: JSON.stringify({ turkeyId: current.id, slot, itemId }),
       });
       const body = await r.json().catch(() => ({}));
       if (!r.ok) { setError(typeof body.error === "string" ? body.error : "Could not update outfit"); return; }
-      await load();
+      await reload();
     } finally { setBusyId(null); }
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
+        <p className="font-body text-sm text-plume-700">{loadError}</p>
+        <Button onClick={initialLoad}>Try again</Button>
+      </div>
+    );
   }
 
   if (loading || !data) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <FlatTurkey stage={1} size="md" animate />
+        <TurkeyCharacter stage={1} size={96} decorative />
       </div>
     );
   }
+
+  const equipped = current?.equipped ?? {};
+  const name = current?.name ?? null;
+  const hatchedTurkeys = turkeys.filter((t) => t.hatched);
 
   const ownedSkills = new Set(turkeys.map((t) => t.skill));
   const eggsForSale = EGG_SKILLS.filter((sk) => !ownedSkills.has(sk.key));
@@ -148,7 +167,7 @@ export default function ShopPage() {
   // Equipped items as a list for hero preview chips
   const equippedItems = SHOP_SLOTS
     .map((slot) => {
-      const id = data.equipped[slot];
+      const id = equipped[slot];
       return id ? data.items.find((i) => i.id === id) : null;
     })
     .filter(Boolean) as ShopItemRow[];
@@ -158,9 +177,9 @@ export default function ShopPage() {
       {/* Header */}
       <div className="flex items-start justify-between lg:col-span-12">
         <div>
-          <p className="font-body text-sm font-semibold text-primary">The Bazaar</p>
+          <p className="font-body text-sm font-semibold text-primary">Shop</p>
           <h1 className="mt-1 font-display text-[28px] font-bold tracking-[-0.03em] lg:text-[48px]">
-            Dress your turkey.
+            {name ? `Dress ${name}.` : "Dress your turkey."}
           </h1>
         </div>
         <div className="inline-flex items-center gap-1.5 rounded-full border border-ochre bg-ochre-soft px-3.5 py-2">
@@ -175,31 +194,40 @@ export default function ShopPage() {
       <div className="relative overflow-hidden rounded-3xl border border-line bg-surface p-5 lg:sticky lg:top-0 lg:col-span-4 lg:p-6">
         <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-ochre-soft/60" />
         <div className="pointer-events-none absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-primary-soft/55" />
+        {hatchedTurkeys.length >= 2 && (
+          <div className="relative mb-4 flex flex-wrap gap-2 lg:justify-center" role="group" aria-label="Choose a turkey to dress">
+            {hatchedTurkeys.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => select(t.id)}
+                aria-pressed={current?.id === t.id}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 font-body text-xs font-semibold transition-colors ${
+                  current?.id === t.id ? "border-forest-500 bg-primary-soft" : "border-line bg-bg hover:border-ink-muted"
+                }`}
+              >
+                <MyTurkey turkey={t} size={44} animate={false} decorative />
+                {t.name ?? t.skillLabel}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="relative flex items-center gap-4 lg:flex-col lg:items-stretch lg:text-center">
           <div className="shrink-0">
-            {current ? (
-              <TurkeyCharacter
-                stage={current.stage}
-                mood={current.mood}
-                skill={current.skill}
-                equipped={data.equipped}
-                size={160}
-                label={current.name ?? current.skillLabel}
-              />
-            ) : (
-              <FlatTurkey stage={1} size={120} />
-            )}
+            <MyTurkey turkey={current ?? egg} size={160} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="font-body text-xs font-semibold text-ink-muted">
-              Your look{current ? `, ${current.name ?? current.skillLabel}` : ""}
+              {name ? `${name}'s look` : "Your turkey's look"}
             </div>
             <div className="mt-1 font-display text-[20px] font-bold tracking-[-0.02em]">
               {equippedItems.length > 0 ? "Looking sharp." : "Bare-feathered."}
             </div>
             <div className="mt-2.5 flex flex-wrap gap-1.5 lg:justify-center">
               {equippedItems.length === 0 && (
-                <span className="font-body text-xs text-ink-soft">Equip an item to see it here.</span>
+                <span className="font-body text-xs text-ink-soft">
+                  {current ? "Equip an item to see it here." : "Hatch your egg to dress it"}
+                </span>
               )}
               {equippedItems.map((it) => (
                 <button
@@ -226,17 +254,10 @@ export default function ShopPage() {
       )}
 
       {/* Eggs */}
-      {!flockLoading && !flockError && turkeys.length === 0 && (
-        <section aria-label="Eggs">
-          <Link href="/hatch" className="font-body text-sm font-semibold text-primary underline">
-            Hatch your free egg first
-          </Link>
-        </section>
-      )}
-      {!flockLoading && !flockError && turkeys.length > 0 && (
+      {!flockLoading && !flockError && current !== null && (
       <section aria-label="Eggs">
         <h2 className="font-display text-xl font-bold tracking-[-0.02em]">Eggs</h2>
-        <p className="mt-1 font-body text-xs text-ink-soft">Each egg hatches a new turkey tied to a skill.</p>
+        <p className="mt-1 font-body text-xs text-ink-soft">Each egg hatches a new turkey for a different skill.</p>
         {eggError && (
           <div role="alert" className="mt-3 rounded-xl bg-plume-100 px-4 py-3 font-body text-sm text-plume-700">
             {eggError}
@@ -249,12 +270,7 @@ export default function ShopPage() {
             {eggsForSale.map((sk) => (
               <div key={sk.key} className="rounded-2xl border border-line bg-surface p-2.5">
                 <div className="flex items-center justify-center rounded-xl bg-bg py-2">
-                  <FlatTurkey
-                    stage={1}
-                    size={96}
-                    palette={getSpecies(getTurkeySkill(sk.key).species).palette}
-                    eggPattern={getSpecies(getTurkeySkill(sk.key).species).eggPattern}
-                  />
+                  <TurkeyCharacter stage={1} skill={sk.key} size={96} animate={false} decorative />
                 </div>
                 <div className="px-1 pb-1 pt-2.5">
                   <div className="truncate font-body text-[13px] font-bold">{sk.label}</div>
@@ -267,6 +283,11 @@ export default function ShopPage() {
                       Buy
                     </Button>
                   </div>
+                  {data.featherBalance < EGG_COST && (
+                    <p className="mt-1.5 font-body text-[11px] text-ink-muted">
+                      Need {(EGG_COST - data.featherBalance).toLocaleString()} more feathers
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
@@ -292,7 +313,8 @@ export default function ShopPage() {
             key={item.id}
             item={item}
             level={data.level}
-            equippedHere={data.equipped[item.slot] === item.id}
+            equippedHere={equipped[item.slot] === item.id}
+            canDress={current !== null}
             onBuy={() => buy(item.id)}
             onEquip={() => equip(item.slot, item.id)}
             onUnequip={() => equip(item.slot, null)}
@@ -306,11 +328,12 @@ export default function ShopPage() {
 }
 
 function ShopItemCard({
-  item, level, equippedHere, onBuy, onEquip, onUnequip, busy,
+  item, level, equippedHere, canDress, onBuy, onEquip, onUnequip, busy,
 }: {
   item: ShopItemRow;
   level: number;
   equippedHere: boolean;
+  canDress: boolean;
   onBuy: () => void;
   onEquip: () => void;
   onUnequip: () => void;
@@ -352,12 +375,15 @@ function ShopItemCard({
               Equipped
             </button>
           ) : item.owned ? (
-            <Button size="sm" variant="dark" onClick={onEquip} disabled={busy}>Equip</Button>
+            <Button size="sm" variant="dark" onClick={onEquip} disabled={busy || !canDress}>Equip</Button>
           ) : (
             <span className="inline-flex items-center gap-1 font-mono text-xs font-bold text-ink num-tabular">
               <Icon name="feather" size={11} />
               {item.cost.toLocaleString()}
             </span>
+          )}
+          {item.owned && !equippedHere && !canDress && (
+            <span className="font-body text-[11px] text-ink-muted">Hatch your egg to dress it</span>
           )}
           {locked && (
             <span className="font-body text-[11px] font-semibold text-ink-muted">Reach level {item.unlockAt}</span>

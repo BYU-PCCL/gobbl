@@ -1,8 +1,7 @@
 "use client";
 
-import { FlatTurkey } from "../gamification/FlatTurkey";
-import { getSpecies } from "@/lib/companion";
-import { isTurkeySkill, getTurkeySkill } from "@/lib/flock/skills";
+import { TurkeyCharacter } from "@/components/turkey/TurkeyCharacter";
+import type { TurkeySkillKey } from "@/lib/flock/skills";
 
 export interface FriendEntry {
   id: string;
@@ -18,15 +17,14 @@ interface FriendsListProps {
 }
 
 function FriendTurkey({ turkey }: { turkey: FriendEntry["turkey"] }) {
-  if (!turkey) return <FlatTurkey stage={1} size={44} />;
-  const speciesId = isTurkeySkill(turkey.skill) ? getTurkeySkill(turkey.skill).species : null;
-  const species = getSpecies(speciesId);
+  if (!turkey) return <TurkeyCharacter stage={1} size={44} animate={false} decorative />;
   return (
-    <FlatTurkey
+    <TurkeyCharacter
       stage={turkey.stage}
+      skill={turkey.skill as TurkeySkillKey}
       size={44}
-      palette={species.palette}
-      eggPattern={turkey.stage === 1 ? species.eggPattern : undefined}
+      animate={false}
+      decorative
     />
   );
 }
@@ -36,7 +34,7 @@ export function FriendsList({ data }: FriendsListProps) {
     return (
       <div className="rounded-2xl border border-dashed border-line py-12 text-center">
         <p className="font-body text-sm text-ink-soft">
-          No other turkeys have joined the flock yet. Check back soon.
+          Nobody else is here yet. Check back soon.
         </p>
       </div>
     );

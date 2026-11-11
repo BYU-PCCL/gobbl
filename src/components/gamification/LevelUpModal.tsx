@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import { FlatTurkey, TURKEY_STAGE_LABELS } from "@/components/gamification/FlatTurkey";
+import { MyTurkey } from "@/components/turkey/MyTurkey";
+import type { TurkeyView } from "@/lib/flock/view";
 
 interface LevelUpModalProps {
   open: boolean;
   fromLevel: number;
   toLevel: number;
+  /** The user's selected turkey. Levelling up does not change it. */
+  turkey: TurkeyView | null;
   rewards: {
     feathers: number;
-    outfits?: number;
-    newBadge?: string;
   };
   onClose: () => void;
   onSeeWhatsNew?: () => void;
@@ -20,8 +21,9 @@ interface LevelUpModalProps {
  * Level-up celebration overlay — Harvest direction.
  *
  * Full-screen takeover: ink background with radial ochre glow, confetti dots,
- * before/after turkey transition, and reward summary tiles. Two CTAs:
- * "Show me what's new" (ochre) and "Skip for now" (text).
+ * before/after turkey transition, and reward summary tiles. With onSeeWhatsNew,
+ * the primary CTA is "Go to the shop" and "Skip for now" is secondary;
+ * otherwise the primary CTA is "Keep going".
  *
  * Show this when the dashboard detects level-up (e.g. on first mount after
  * a debate that pushed user.level up).
@@ -30,17 +32,25 @@ export function LevelUpModal({
   open,
   fromLevel,
   toLevel,
+  turkey,
   rewards,
   onClose,
   onSeeWhatsNew,
 }: LevelUpModalProps) {
-  // Lock body scroll while open
+  // Lock body scroll while open, and close on Escape
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [open]);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -89,22 +99,19 @@ export function LevelUpModal({
           Level up
         </div>
         <h1 className="mt-3 text-center font-display text-[50px] font-extrabold leading-[0.95] tracking-[-0.04em]">
-          You&apos;re a
+          You reached
           <br />
-          <span className="italic text-ochre">{TURKEY_STAGE_LABELS[toLevel as 1]}</span> now.
+          <span className="italic text-ochre">level {toLevel}</span>.
         </h1>
         <p className="mt-1.5 text-center font-body text-sm text-bg/65">
-          New plumage unlocked.
+          Keep going. Some shop items open at higher levels.
         </p>
 
         {/* Turkey transition */}
         <div className="mt-10 flex items-center justify-center gap-6">
           <div className="text-center opacity-40">
-            <div className="grayscale" style={{ filter: "blur(1px)" }}>
-              <FlatTurkey stage={fromLevel} size={80} />
-            </div>
-            <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em] text-bg/50">
-              LV.{fromLevel} {TURKEY_STAGE_LABELS[fromLevel as 1]}
+            <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-bg/50">
+              Level {fromLevel}
             </div>
           </div>
           <svg width="28" height="14" viewBox="0 0 28 14" fill="none" aria-hidden>
@@ -112,49 +119,59 @@ export function LevelUpModal({
               stroke="rgb(228 165 71)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           <div className="text-center glow-ochre animate-level-pulse">
-            <FlatTurkey stage={toLevel} size={150} />
+            <MyTurkey turkey={turkey} size={150} inScene />
             <div className="mt-1 font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-ochre">
-              LV.{toLevel} {TURKEY_STAGE_LABELS[toLevel as 1]}
+              Level {toLevel}
             </div>
           </div>
         </div>
 
         {/* Rewards */}
-        <div className="mt-12 w-full">
-          <div className="text-center font-mono text-[10px] uppercase tracking-[0.16em] text-bg/40">
-            You earned
+        {rewards.feathers > 0 && (
+          <div className="mt-12 w-full">
+            <div className="text-center font-mono text-[10px] uppercase tracking-[0.16em] text-bg/40">
+              You earned
+            </div>
+            <div className="mt-3.5 grid grid-cols-3 gap-2.5">
+              <RewardTile value={`+${rewards.feathers}`} label="Feathers" color="text-ochre" />
+            </div>
           </div>
-          <div className="mt-3.5 grid grid-cols-3 gap-2.5">
-            <RewardTile value={`+${rewards.feathers}`} label="Feathers" color="text-ochre" />
-            {rewards.outfits != null && (
-              <RewardTile value={`+${rewards.outfits}`} label="Outfits" color="text-bg" />
-            )}
-            {rewards.newBadge && (
-              <RewardTile value="01" label="New badge" color="text-ochre" />
-            )}
-          </div>
-        </div>
+        )}
 
         {/* CTAs */}
         <div className="mt-auto mb-7 w-full">
-          <button
-            type="button"
-            onClick={onSeeWhatsNew ?? onClose}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-ochre py-4 font-body text-base font-bold text-ink active:scale-[0.98]"
-          >
-            Show me what&apos;s new
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M5 12h14M13 6l6 6-6 6"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="mt-1 w-full py-2.5 font-body text-sm font-semibold text-bg/60"
-          >
-            Skip for now
-          </button>
+          {onSeeWhatsNew ? (
+            <button
+              type="button"
+              autoFocus
+              onClick={onSeeWhatsNew}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-ochre py-4 font-body text-base font-bold text-ink active:scale-[0.98]"
+            >
+              Go to the shop
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M5 12h14M13 6l6 6-6 6"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          ) : (
+            <button
+              type="button"
+              autoFocus
+              onClick={onClose}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-ochre py-4 font-body text-base font-bold text-ink active:scale-[0.98]"
+            >
+              Keep going
+            </button>
+          )}
+          {onSeeWhatsNew && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-1 w-full py-2.5 font-body text-sm font-semibold text-bg/60"
+            >
+              Skip for now
+            </button>
+          )}
         </div>
       </div>
     </div>

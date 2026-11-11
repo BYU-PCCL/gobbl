@@ -7,41 +7,25 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
-import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { XPBar } from "@/components/gamification/XPBar";
-import { LevelUpModal } from "@/components/gamification/LevelUpModal";
-import { TurkeyCharacter, type TurkeyReaction } from "@/components/turkey/TurkeyCharacter";
-import { FlockSwitcher } from "@/components/turkey/FlockSwitcher";
+import { LockGlyph } from "@/components/layout/BottomNav";
+import { type TurkeyReaction } from "@/components/turkey/TurkeyCharacter";
+import { MyTurkey } from "@/components/turkey/MyTurkey";
 import { NeedBars } from "@/components/turkey/NeedBars";
 import { SkillTrend } from "@/components/turkey/SkillTrend";
 import { useFlock } from "@/components/turkey/useFlock";
 import type { CompanionUserData } from "@/components/companion/useCompanion";
 import { fetchJson } from "@/lib/fetchJson";
 import { getSpecies } from "@/lib/companion";
-import { activityHref, moodLine } from "@/lib/flock/home";
+import { activityHref, emphasizedActivity, moodLine } from "@/lib/flock/home";
+import { nextStep } from "@/lib/flock/progress";
 import { getTurkeySkill } from "@/lib/flock/skills";
 import type { TurkeyView } from "@/lib/flock/view";
 
 type TrendData = { points: number[]; delta: number | null };
 
-/** Streak and feathers, the account's level bar, and the level-up moment. Shared by both Home views. */
+/** Streak and feathers, and the account level bar. Shared by both Home views. */
 function AccountStrip({ user }: { user: CompanionUserData | null }) {
-  const router = useRouter();
-  const [levelUp, setLevelUp] = useState<{ from: number; to: number } | null>(null);
-
-  // The last level seen is kept for the browser session; a higher one now means a level-up to celebrate.
-  useEffect(() => {
-    if (!user) return;
-    try {
-      const key = `gobbl:lastLevel:${user.username}`;
-      const prev = Number(sessionStorage.getItem(key) || user.level);
-      if (user.level > prev) setLevelUp({ from: prev, to: user.level });
-      sessionStorage.setItem(key, String(user.level));
-    } catch {
-      // storage unavailable: no level-up moment, nothing else changes
-    }
-  }, [user]);
-
   if (!user) return null;
   const info = user.levelInfo;
 
@@ -57,21 +41,22 @@ function AccountStrip({ user }: { user: CompanionUserData | null }) {
           {user.featherBalance.toLocaleString()} feathers
         </span>
       </div>
-      <XPBar current={info.xpProgress} max={info.xpForNext} level={user.level} levelName={info.name} />
-      {levelUp && (
-        <LevelUpModal
-          open
-          fromLevel={levelUp.from}
-          toLevel={levelUp.to}
-          rewards={{ feathers: user.recentDebates[0]?.feathersEarned ?? 0 }}
-          onClose={() => setLevelUp(null)}
-          onSeeWhatsNew={() => {
-            setLevelUp(null);
-            router.push("/shop");
-          }}
-        />
-      )}
+      <XPBar current={info.xpProgress} max={info.xpForNext} level={user.level} />
     </div>
+  );
+}
+
+/** Link back to the flock page; shown only when there is more than one turkey or egg to pick from. */
+function AllTurkeysLink({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <Link
+      href="/flock"
+      className="inline-flex items-center gap-1.5 font-body text-sm font-semibold text-ink-soft hover:text-ink"
+    >
+      <Icon name="arrow-left" size={16} />
+      All turkeys
+    </Link>
   );
 }
 
@@ -82,9 +67,7 @@ function EggHome({ egg }: { egg: TurkeyView }) {
   return (
     <>
       <div className="flex flex-col items-center text-center">
-        <div className="animate-wiggle" style={{ transformOrigin: "50% 92%" }}>
-          <FlatTurkey stage={1} size={220} palette={species.palette} eggPattern={species.eggPattern} />
-        </div>
+        <MyTurkey turkey={egg} size={220} />
         <h1 className="mt-2 font-display text-display-lg text-ink">Your egg is listening</h1>
         <p className="font-body text-sm text-ink-soft">
           {species.commonName} egg · {skill.label}
@@ -100,16 +83,87 @@ function EggHome({ egg }: { egg: TurkeyView }) {
             Start its first lesson
           </Button>
         </Link>
-        <p className="font-body text-xs text-ink-soft">The Park and School open once it hatches.</p>
+        <p className="font-body text-xs text-ink-soft">School and the Park open once it hatches.</p>
       </Card>
     </>
+  );
+}
+
+function StepRow({
+  title,
+  detail,
+  done,
+  lockedReason,
+}: {
+  title: string;
+  detail: string;
+  done: boolean;
+  lockedReason: string | null;
+}) {
+  return (
+    <li className={`flex items-start gap-3 ${lockedReason ? "opacity-60" : ""}`}>
+      <span
+        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${
+          done ? "border-primary bg-primary text-white" : "border-line text-ink-muted"
+        }`}
+      >
+        {done ? <Icon name="check" size={14} /> : lockedReason ? <LockGlyph /> : null}
+      </span>
+      <span className="min-w-0 font-body text-sm">
+        <span className="font-semibold text-ink">{title}</span>
+        {done && <span className="sr-only"> (done)</span>}
+        <span className="block text-ink-soft">{lockedReason ?? detail}</span>
+      </span>
+    </li>
+  );
+}
+
+/** Feed, then School, then Park: what is done, what is locked, and the one next thing to do. */
+function StepsCard({ turkey }: { turkey: TurkeyView }) {
+  const name = turkey.name?.trim() || "your turkey";
+  const step = nextStep(turkey.hatched, turkey.done);
+  const low = emphasizedActivity(turkey.needs);
+
+  let cta: { label: string; href: string };
+  if (step === "feed" || (!step && low === "feed")) {
+    cta = { label: `Feed ${name}`, href: activityHref("feed", turkey) };
+  } else if (step === "school" || (!step && low === "school")) {
+    cta = { label: `Take ${name} to School`, href: activityHref("school", turkey) };
+  } else {
+    cta = { label: "Go to the Park", href: activityHref("park", turkey) };
+  }
+
+  return (
+    <Card className="space-y-4 p-4">
+      <h2 className="font-display text-base font-bold text-ink">Next steps</h2>
+      <ol className="space-y-3">
+        <StepRow title="Feed" detail="A short lesson" done={turkey.done.feed} lockedReason={null} />
+        <StepRow
+          title="School"
+          detail={`Teach ${name} what you learned`}
+          done={turkey.done.school}
+          lockedReason={turkey.unlocked.school ? null : `Feed ${name} first`}
+        />
+        <StepRow
+          title="Park"
+          detail="Talk it over with another turkey"
+          done={false}
+          lockedReason={turkey.unlocked.park ? null : `Take ${name} to School first`}
+        />
+      </ol>
+      <Link href={cta.href} className="block">
+        <Button size="lg" className="w-full">
+          {cta.label}
+        </Button>
+      </Link>
+    </Card>
   );
 }
 
 export default function HomePage() {
   const router = useRouter();
   const { status } = useSession();
-  const { turkeys, current, egg, firstEggReady, select, reload, loading, error } = useFlock();
+  const { turkeys, current, egg, firstEggReady, reload, loading, error } = useFlock();
 
   const [user, setUser] = useState<CompanionUserData | null>(null);
   const [trend, setTrend] = useState<TrendData | null>(null);
@@ -133,7 +187,7 @@ export default function HomePage() {
     if (needsHatch) router.replace("/hatch");
   }, [needsHatch, router]);
 
-  // Level, streak, feathers and equipped cosmetics; the page still works without them.
+  // Level, streak and feathers; the page still works without them.
   useEffect(() => {
     if (status !== "authenticated") return;
     let cancelled = false;
@@ -187,6 +241,7 @@ export default function HomePage() {
     return (
       <div className="mx-auto max-w-md space-y-5 px-4 py-6">
         <AccountStrip user={user} />
+        <AllTurkeysLink show={turkeys.length > 1} />
         <EggHome egg={egg} />
       </div>
     );
@@ -199,19 +254,15 @@ export default function HomePage() {
     <div className="mx-auto max-w-md space-y-5 px-4 py-6">
       <AccountStrip user={user} />
 
-      <FlockSwitcher turkeys={turkeys} currentId={current.id} onSelect={select} />
+      <AllTurkeysLink show={turkeys.length > 1} />
 
       <div className="flex flex-col items-center text-center">
-        <TurkeyCharacter
-          stage={current.stage}
-          mood={current.mood}
-          skill={current.skill}
-          equipped={user?.equippedCosmetics}
+        <MyTurkey
+          turkey={current}
           reaction={reaction}
           onReactionEnd={() => setReaction("none")}
           onTap={() => setReaction("pet")}
           size={240}
-          label={name}
         />
         <h1 className="mt-2 font-display text-display-lg text-ink">{name}</h1>
         <p className="font-body text-sm text-ink-soft">
@@ -225,6 +276,8 @@ export default function HomePage() {
           {moodLine(current.mood, current.name)}
         </p>
       </Card>
+
+      <StepsCard turkey={current} />
 
       <Card className="p-4">
         <h2 className="mb-2 font-display text-base font-bold text-ink">{current.skillLabel} trend</h2>

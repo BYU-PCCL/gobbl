@@ -26,6 +26,8 @@ export function BottomNav({ items }: { items: ResolvedNavItem[] }) {
               key={tab.label}
               href={tab.href}
               aria-current={active ? "page" : undefined}
+              aria-disabled={tab.locked ? "true" : undefined}
+              title={tab.locked ? tab.lockedReason : undefined}
               className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 transition-colors ${
                 active ? "text-primary" : "text-ink-muted hover:text-ink-soft"
               } ${tab.locked ? "opacity-40" : ""}`}
@@ -36,12 +38,13 @@ export function BottomNav({ items }: { items: ResolvedNavItem[] }) {
                 }`}
               >
                 <Icon name={tab.icon} />
-                {tab.needsAttention && <AttentionDot />}
+                {tab.needsAttention && !tab.locked && <AttentionDot />}
+                {tab.locked && <LockGlyph className="absolute -right-0.5 -top-0.5" />}
               </span>
               <span className="font-body text-[11px] font-semibold">
                 {tab.label}
                 {tab.needsAttention && <span className="sr-only"> (needed)</span>}
-                {tab.locked && <span className="sr-only"> (opens after your egg hatches)</span>}
+                {tab.locked && <span className="sr-only"> (locked: {tab.lockedReason})</span>}
               </span>
             </Link>
           );
@@ -57,5 +60,25 @@ export function AttentionDot({ className = "right-1.5 top-0" }: { className?: st
       aria-hidden
       className={`absolute h-2.5 w-2.5 rounded-full border-2 border-bg bg-primary ${className}`}
     />
+  );
+}
+
+export function LockGlyph({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V8a4 4 0 018 0v3" />
+    </svg>
   );
 }

@@ -19,3 +19,19 @@ export function stageForActivityCount(count: number, hatched: boolean): number {
   }
   return stage;
 }
+
+/**
+ * Where a turkey is inside its current stage: activities done since the stage began, and how
+ * many the stage needs before the next one. `nextStage` is null for an egg and at the last stage.
+ */
+export function stageProgress(
+  activityCount: number,
+  hatched: boolean
+): { stage: number; nextStage: number | null; done: number; needed: number } {
+  const stage = stageForActivityCount(activityCount, hatched);
+  if (!hatched) return { stage, nextStage: null, done: 0, needed: 0 };
+  const start = STAGE_THRESHOLDS[stage - 2];
+  const next = STAGE_THRESHOLDS[stage - 1];
+  if (next === undefined) return { stage, nextStage: null, done: activityCount - start, needed: 0 };
+  return { stage, nextStage: stage + 1, done: activityCount - start, needed: next - start };
+}

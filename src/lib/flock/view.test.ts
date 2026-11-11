@@ -12,6 +12,7 @@ const base = {
   lastFedAt: null,
   lastSocialAt: null,
   lastTaughtAt: null,
+  equippedCosmetics: null,
   createdAt: now,
 };
 

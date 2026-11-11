@@ -3,8 +3,8 @@ import type { NeedKey } from "@/lib/flock/needs";
 
 const ROWS: { key: NeedKey; label: string; action: string }[] = [
   { key: "hunger", label: "Fed", action: "Feed" },
-  { key: "loneliness", label: "Company", action: "Park" },
   { key: "sadness", label: "Cheer", action: "School" },
+  { key: "loneliness", label: "Company", action: "Park" },
 ];
 
 /** Three fullness bars; a full bar is a happy need. */

@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { getSchoolTurn } from "@/lib/ai";
 import { buildSchoolPrompt, parseSchoolHistory, schoolPhase } from "@/lib/flock/school";
 import { getTurkeySkill, isTurkeySkill } from "@/lib/flock/skills";
+import { unlockedFor } from "@/lib/flock/progress";
+import { activityDone } from "@/lib/flock/progressQueries";
 
 /**
  * The turkey's next line in a School lesson. The client sends the lesson so far;
@@ -32,6 +34,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
   if (!turkey || !isTurkeySkill(turkey.skill)) {
     return NextResponse.json({ error: "Turkey not found" }, { status: 404 });
+  }
+  if (!unlockedFor(true, await activityDone(id)).school) {
+    return NextResponse.json({ error: "Feed your turkey first" }, { status: 409 });
   }
 
   const skill = getTurkeySkill(turkey.skill);

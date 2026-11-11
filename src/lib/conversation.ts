@@ -1,4 +1,4 @@
-import type { EquippedCosmetics } from "@/lib/shop";
+import type { TurkeyView } from "@/lib/flock/view";
 
 /** User messages allowed per conversation unless a module practice step sets its own `maxTurns`. */
 export const MAX_TURNS = 8;
@@ -20,17 +20,33 @@ export interface ConvMsg {
   content: string;
 }
 
+/** What every finished activity (Feed, School, Park) hands back, so one screen can end them all. */
+export interface ActivityRewards {
+  feathers: number;
+  xp: number;
+  previousLevel: number;
+  newLevel: number;
+  /** Current streak after this activity. */
+  streak: number;
+  /** Badge keys earned just now. */
+  newBadges: string[];
+  /** The turkey after the activity (null if the activity had no turkey). */
+  turkey: TurkeyView | null;
+  /** Its stage before the activity, to show growth. */
+  previousStage: number | null;
+}
+
 /** Response of `POST /api/chat` with `finish: true` (same shape the old chat UI used). */
 export interface FinishResult {
   overallScore: number;
   dimensions: Record<string, number> | null;
-  xp: { base: number; difficultyBonus: number; dailyBonus: number; streakMultiplier: number; total: number };
-  feathers: { base: number; difficultyBonus: number; dailyBonus: number; total: number };
+  xp: { base: number; difficultyBonus: number; streakMultiplier: number; total: number };
+  feathers: { base: number; difficultyBonus: number; total: number };
   previousLevel: number;
   newLevel: number;
   newBadges: string[];
   streak: number;
-  equippedCosmetics?: EquippedCosmetics;
+  rewards: ActivityRewards;
 }
 
 /** Mid-conversation response of `POST /api/chat`. */

@@ -12,11 +12,10 @@ export interface CompanionUserData {
   username: string;
   xp: number;
   level: number;
-  levelInfo: { level: number; name: string; xpForNext: number; xpProgress: number; progressPercent: number };
+  levelInfo: { level: number; xpForNext: number; xpProgress: number; progressPercent: number };
   featherBalance: number;
   currentStreak: number;
   civilityScore: number;
-  equippedCosmetics: EquippedCosmetics;
   lastTopicId: string | null;
   badges: string[];
   recentDebates: {

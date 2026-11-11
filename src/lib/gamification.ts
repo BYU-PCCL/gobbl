@@ -5,20 +5,18 @@ export const XP_TEACH = 60;
 
 export interface LevelDef {
   level: number;
-  name: string;
   xpRequired: number;
-  description: string;
 }
 
 export const LEVELS: LevelDef[] = [
-  { level: 1, name: "Egg", xpRequired: 0, description: "Every great conversation starts somewhere" },
-  { level: 2, name: "Hatchling", xpRequired: 200, description: "You've cracked the shell!" },
-  { level: 3, name: "Poult", xpRequired: 500, description: "Finding your voice" },
-  { level: 4, name: "Youngster", xpRequired: 1000, description: "Starting to strut" },
-  { level: 5, name: "Tom", xpRequired: 2000, description: "A real contender" },
-  { level: 6, name: "Gobbler", xpRequired: 4000, description: "Your voice carries weight" },
-  { level: 7, name: "Grand Gobbler", xpRequired: 7000, description: "A force for good discourse" },
-  { level: 8, name: "Thunderbird", xpRequired: 11000, description: "A legend of civil conversation" },
+  { level: 1, xpRequired: 0 },
+  { level: 2, xpRequired: 200 },
+  { level: 3, xpRequired: 500 },
+  { level: 4, xpRequired: 1000 },
+  { level: 5, xpRequired: 2000 },
+  { level: 6, xpRequired: 4000 },
+  { level: 7, xpRequired: 7000 },
+  { level: 8, xpRequired: 11000 },
 ];
 
 export interface BadgeDefinition {
@@ -50,13 +48,13 @@ export const BADGES: BadgeDefinition[] = [
   },
   {
     key: "flock-leader",
-    name: "Flock Leader",
+    name: "Bold Gobbler",
     description: "Finish 10 Full Gobble conversations",
   },
   {
     key: "golden-drumstick",
     name: "Golden Drumstick",
-    description: "Reach level 5 (Tom)",
+    description: "Reach level 5",
   },
   {
     key: "sharp-beak",
@@ -66,7 +64,7 @@ export const BADGES: BadgeDefinition[] = [
   {
     key: "roosting-ritual",
     name: "Roosting Ritual",
-    description: "Complete 30 daily gobbles",
+    description: "Keep a 30-day streak",
   },
 ];
 
@@ -97,54 +95,47 @@ const DIFFICULTY_MULTIPLIER: Record<string, number> = {
   "Friendly Cluck": 1.0,
   "Spirited Strut": 1.25,
   "Full Gobble": 1.5,
-  "Friendly": 1.0,
-  "Challenging": 1.25,
-  "Devil's Advocate": 1.5,
 };
 
 /**
- * Progression XP — driven by civility, difficulty, daily challenge, and streak.
+ * Progression XP — driven by civility, difficulty, and streak.
  * Used only for leveling (never spent).
  */
 export function calculateXP(
   civilityScore: number,
   difficulty: string,
-  isDaily: boolean,
   streakDays: number
-): { base: number; difficultyBonus: number; dailyBonus: number; streakMultiplier: number; total: number } {
+): { base: number; difficultyBonus: number; streakMultiplier: number; total: number } {
   const base = Math.round(20 + (civilityScore / 10) * 30);
   const diffMult = DIFFICULTY_MULTIPLIER[difficulty] || 1.0;
   const difficultyBonus = Math.round(base * (diffMult - 1));
-  const dailyBonus = isDaily ? 25 : 0;
   const streakMultiplier = Math.min(2.0, 1 + streakDays * 0.1);
-  const total = Math.round((base + difficultyBonus + dailyBonus) * streakMultiplier);
-  return { base, difficultyBonus, dailyBonus, streakMultiplier, total };
+  const total = Math.round((base + difficultyBonus) * streakMultiplier);
+  return { base, difficultyBonus, streakMultiplier, total };
 }
 
 /**
- * Spendable feathers — driven by how much you engaged (user messages), difficulty, and daily.
+ * Spendable feathers — driven by how much you engaged (user messages), and difficulty.
  * No streak multiplier; streak rewards are XP-only.
  */
 export function calculateFeathers(
   userMessageCount: number,
-  difficulty: string,
-  isDaily: boolean
-): { base: number; difficultyBonus: number; dailyBonus: number; total: number } {
+  difficulty: string
+): { base: number; difficultyBonus: number; total: number } {
   const msgs = Math.max(1, userMessageCount);
   const base = 10 * msgs;
   const diffMult = DIFFICULTY_MULTIPLIER[difficulty] || 1.0;
   const afterDifficulty = Math.round(base * diffMult);
   const difficultyBonus = afterDifficulty - base;
-  const dailyBonus = isDaily ? 30 : 0;
-  const total = afterDifficulty + dailyBonus;
-  return { base, difficultyBonus, dailyBonus, total };
+  const total = afterDifficulty;
+  return { base, difficultyBonus, total };
 }
 
 export interface UserStats {
   totalDebates: number;
   civilDebates: number;
-  devilsAdvocateCount: number;
-  dailyChallengeCount: number;
+  /** Finished Full Gobble conversations. */
+  fullGobbleCount: number;
   maxMutualExchange: number;
   maxSelfExpressionReason: number;
   currentStreak: number;
@@ -159,10 +150,10 @@ export function checkNewBadges(stats: UserStats, existingBadges: string[]): stri
     ["free-range", stats.civilDebates >= 3],
     ["warm-nest", stats.maxMutualExchange >= 9],
     ["migration-streak", stats.currentStreak >= 7],
-    ["flock-leader", stats.devilsAdvocateCount >= 10],
+    ["flock-leader", stats.fullGobbleCount >= 10],
     ["golden-drumstick", stats.level >= 5],
     ["sharp-beak", stats.maxSelfExpressionReason >= 9],
-    ["roosting-ritual", stats.dailyChallengeCount >= 30],
+    ["roosting-ritual", stats.currentStreak >= 30],
   ];
 
   for (const [key, earned] of checks) {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { SHOP_CATALOG, parseEquippedCosmetics } from "@/lib/shop";
+import { SHOP_CATALOG } from "@/lib/shop";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -22,7 +22,6 @@ export async function GET() {
   }
 
   const ownedIds = new Set(user.inventory.map((i) => i.itemId));
-  const equipped = parseEquippedCosmetics(user.equippedCosmetics);
 
   const items = SHOP_CATALOG.map((item) => ({
     ...item,
@@ -33,7 +32,6 @@ export async function GET() {
   return NextResponse.json({
     featherBalance: user.featherBalance,
     level: user.level,
-    equipped,
     items,
   });
 }

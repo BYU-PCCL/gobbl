@@ -104,3 +104,80 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* TurkeyCharacter (src/components/turkey/TurkeyCharacter.tsx) */
+.gtc-bob, .gtc-react, .gtc-wobble { transform-box: view-box; }
+.gtc-bob { animation: gtc-bob 3.2s ease-in-out infinite; }
+.gtc-bob--happy { animation: gtc-bounce 2.4s ease-in-out infinite; }
+.gtc-bob--sad { animation: gtc-sag 5s ease-in-out infinite; }
+.gtc-wobble { animation: gtc-wobble 3.6s ease-in-out infinite; }
+.gtc-wobble--sad { animation-duration: 5.4s; }
+.gtc-shadow { transform-box: fill-box; transform-origin: center; animation: gtc-shadow 3.2s ease-in-out infinite; }
+.gtc-shadow--happy { animation-duration: 2.4s; }
+.gtc-shadow--sad { animation-duration: 5s; }
+.gtc-blink { transform-box: fill-box; transform-origin: center; animation: gtc-blink 4.2s ease-in-out infinite; }
+.gtc-twinkle { transform-box: fill-box; transform-origin: center; animation: gtc-twinkle 2.6s ease-in-out infinite; }
+.gtc-r-pet { animation: gtc-squish 0.9s ease-out; }
+.gtc-r-eat { animation: gtc-peck 0.9s ease-in-out; }
+.gtc-r-cheer { animation: gtc-hop 0.9s ease-out; }
+.gtc-r-listen { animation: gtc-tilt 0.9s ease-in-out; }
+.gtc-heart { transform-box: fill-box; transform-origin: center; animation: gtc-float-up 0.9s ease-out both; }
+.gtc-sparkle { transform-box: fill-box; transform-origin: center; animation: gtc-pop 0.9s ease-out both; }
+.gtc-seed { animation: gtc-seeds 0.9s ease-in forwards; }
+@keyframes gtc-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes gtc-bounce {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  35% { transform: translateY(-5px) scale(0.985, 1.02); }
+  60% { transform: translateY(-4px) scale(1, 1); }
+  85% { transform: translateY(0) scale(1.025, 0.975); }
+}
+@keyframes gtc-sag { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes gtc-wobble {
+  0%, 55%, 100% { transform: rotate(0deg); }
+  64% { transform: rotate(-4deg); }
+  73% { transform: rotate(4deg); }
+  82% { transform: rotate(-2deg); }
+  91% { transform: rotate(1deg); }
+}
+@keyframes gtc-shadow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.92); opacity: 0.8; } }
+@keyframes gtc-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+@keyframes gtc-twinkle { 0%, 100% { opacity: 0.45; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+@keyframes gtc-squish {
+  0% { transform: scale(1, 1); }
+  20% { transform: scale(1.1, 0.86); }
+  45% { transform: scale(0.95, 1.06); }
+  70% { transform: scale(1.03, 0.97); }
+  100% { transform: scale(1, 1); }
+}
+@keyframes gtc-peck {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  18%, 58% { transform: translateY(7px) scale(1.02, 0.94); }
+  36%, 78% { transform: translateY(0) scale(1, 1); }
+}
+@keyframes gtc-hop {
+  0% { transform: translateY(0) scale(1, 1); }
+  12% { transform: translateY(0) scale(1.06, 0.92); }
+  35% { transform: translateY(-18px) scale(0.96, 1.05); }
+  58% { transform: translateY(0) scale(1.06, 0.94); }
+  75% { transform: translateY(-6px) scale(1, 1); }
+  90%, 100% { transform: translateY(0) scale(1, 1); }
+}
+@keyframes gtc-tilt {
+  0%, 100% { transform: rotate(0deg); }
+  25%, 75% { transform: rotate(-9deg); }
+}
+@keyframes gtc-float-up {
+  0% { opacity: 0; transform: translateY(6px) scale(0.6); }
+  25% { opacity: 1; transform: translateY(0) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-24px) scale(1); }
+}
+@keyframes gtc-pop {
+  0% { opacity: 0; transform: scale(0) rotate(0deg); }
+  35% { opacity: 1; transform: scale(1.2) rotate(20deg); }
+  100% { opacity: 0; transform: scale(0.6) rotate(45deg); }
+}
+@keyframes gtc-seeds { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .gtc-root, .gtc-root * { animation: none !important; }
+}
+.gtc-static, .gtc-static * { animation: none !important; }

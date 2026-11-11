@@ -6,10 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Icon } from "@/components/ui/Icon";
-import { FlatTurkey, FlatTurkeyGlyph, TURKEY_STAGE_LABELS, type TurkeyStage } from "@/components/gamification/FlatTurkey";
+import { TurkeyCharacter } from "@/components/turkey/TurkeyCharacter";
+import { STAGE_NAMES } from "@/lib/flock/growth";
 import { ACCOUNT_MISSING_REASON, SIGN_OUT_REASON_PARAM } from "@/lib/signOutReasons";
 
-const STAGES: TurkeyStage[] = [1, 2, 3, 4, 5, 6, 7, 8];
+const STAGES = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 
 /** Each stage stands a little taller than the last, so the row reads as growth. */
 function stageSize(stage: number) {
@@ -19,22 +20,22 @@ function stageSize(stage: number) {
 const PROMISES = [
   {
     title: "Hatch a turkey",
-    body: "Pick an egg tied to a skill like listening or reason-giving, and watch it hatch into a turkey of your own.",
+    body: "Pick an egg tied to a skill like listening or reason-giving. Teach it its first lesson and it hatches into a turkey of your own.",
   },
   {
     title: "Take care of it",
-    body: "Feed it with short lessons, keep it company in the park, and practice at school. When you're away they get a little droopy — and they're always happy to see you.",
+    body: "Feed it with short lessons, teach it back at school, then take it to the park to talk things over with other turkeys. When you're away it gets a little droopy, and it's always happy to see you.",
   },
   {
     title: "Grow your skills",
-    body: "As your turkey grows through eight stages, so does the skill you practice together. Feathers buy new eggs and outfits.",
+    body: "Each turkey grows through eight stages as you practice its skill together. Feathers buy new eggs and outfits.",
   },
 ];
 
 function LoadingTurkey() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-bg">
-      <FlatTurkey stage={1} size="md" animate />
+      <TurkeyCharacter stage={1} size={96} decorative />
     </div>
   );
 }
@@ -122,7 +123,7 @@ function LandingPage() {
             onClick={() => switchMode("landing")}
             className="flex items-center gap-2 rounded-xl"
           >
-            <FlatTurkeyGlyph size={28} />
+            <TurkeyCharacter stage={5} size={28} crop="head" decorative />
             <span className="font-display text-2xl font-bold tracking-[-0.04em]">Gobbl</span>
           </button>
         </header>
@@ -130,14 +131,14 @@ function LandingPage() {
         <main className="flex flex-1 items-center justify-center px-5 pb-16 sm:px-8">
           <div className="w-full max-w-sm animate-fade-in">
             <div className="mb-8">
-              <FlatTurkey stage={isLogin ? 5 : 1} size={isLogin ? 96 : 72} />
+              <TurkeyCharacter stage={isLogin ? 5 : 1} size={isLogin ? 96 : 72} decorative />
               <h1 className="mt-4 font-display text-[32px] font-bold leading-none tracking-[-0.03em]">
-                {isLogin ? "Welcome back." : "Hatch your turkey."}
+                {isLogin ? "Welcome back." : "Create your account."}
               </h1>
               <p className="mt-2 font-body text-sm text-ink-soft">
                 {isLogin
                   ? "Sign in to pick up where you left off."
-                  : "Every Thunderbird starts as an egg. Pick a username to begin."}
+                  : "You'll pick your first egg next."}
               </p>
             </div>
 
@@ -156,7 +157,7 @@ function LandingPage() {
                 label="Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder={isLogin ? "Your username" : "Pick a name for your turkey"}
+                placeholder={isLogin ? "Your username" : "Pick a username"}
                 autoComplete="username"
                 required
               />
@@ -199,7 +200,7 @@ function LandingPage() {
     <div className="flex min-h-dvh flex-col bg-bg">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
         <div className="flex items-center gap-2">
-          <FlatTurkeyGlyph size={28} />
+          <TurkeyCharacter stage={5} size={28} crop="head" decorative />
           <span className="font-display text-2xl font-bold tracking-[-0.04em]">Gobbl</span>
         </div>
         <button
@@ -239,9 +240,9 @@ function LandingPage() {
             <ol className="flex min-w-max items-end gap-5 pt-6 sm:gap-8 lg:min-w-0 lg:justify-between lg:gap-0">
               {STAGES.map((stage) => (
                 <li key={stage} className="flex flex-col items-center">
-                  <FlatTurkey stage={stage} size={stageSize(stage)} animate={stage === 8} />
+                  <TurkeyCharacter stage={stage} size={stageSize(stage)} animate={stage === 8} decorative />
                   <span className="mt-2 pb-3 font-body text-xs font-semibold text-ink-muted">
-                    {TURKEY_STAGE_LABELS[stage]}
+                    {STAGE_NAMES[stage]}
                   </span>
                 </li>
               ))}

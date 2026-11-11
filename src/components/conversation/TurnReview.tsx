@@ -52,7 +52,7 @@ export function TurnReview({ debateId, personaInitials }: { debateId: string; pe
         setMessages(
           (d.messages as ReviewMsg[]).filter((m) => m.role !== "user" || m.content.trim() !== ""),
         );
-        if (d.personaInitials) setInitials(d.personaInitials);
+        if (d.personaInitials && !personaInitials) setInitials(d.personaInitials);
       })
       .catch(() => {});
     void analyze();

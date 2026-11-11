@@ -2,6 +2,7 @@
 const nextConfig = {
   async redirects() {
     return [
+      { source: "/skills", destination: "/flock", permanent: true },
       { source: "/dashboard", destination: "/home", permanent: true },
       { source: "/leaderboard", destination: "/friends", permanent: true },
       {

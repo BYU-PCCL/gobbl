@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getModule } from "@/lib/modules/registry";
 import { completeActivity } from "@/lib/flock/activities";
+import { touchStreak, awardBadges } from "@/lib/rewards";
+import { linkedTurkeyStage, linkedTurkeyView } from "@/lib/activityRewards";
+import type { ActivityRewards } from "@/lib/conversation";
 
 /**
  * Flat bonus for finishing a module, separate from the practice conversation's own
@@ -54,8 +57,9 @@ export async function POST(req: Request, { params }: { params: { key: string } }
   const preCivility = preDebate?.overallScore ?? null;
   const postCivility = postDebate?.overallScore ?? null;
 
+  let paid: { streak: number; level: number; badges: string[] };
   try {
-    await prisma.$transaction(async (tx) => {
+    paid = await prisma.$transaction(async (tx) => {
       // Claim the completion atomically so concurrent requests can't both pay out.
       const claimed = await tx.skillSession.updateMany({
         where: { id: skillSession.id, completedAt: null },
@@ -73,6 +77,13 @@ export async function POST(req: Request, { params }: { params: { key: string } }
         where: { id: userId },
         data: { featherBalance: { increment: MODULE_COMPLETION_FEATHERS } },
       });
+
+      // Lesson XP was paid step by step by the advance route; finishing still counts for the
+      // streak and can earn badges.
+      const streak = await touchStreak(tx, userId, new Date());
+      const badges = await awardBadges(tx, userId);
+      const user = await tx.user.findUnique({ where: { id: userId }, select: { level: true } });
+      return { streak: streak.currentStreak, level: user?.level ?? 1, badges: badges.map((b) => b.key) };
     });
   } catch (e) {
     if (e instanceof AlreadyCompleted) {
@@ -81,6 +92,7 @@ export async function POST(req: Request, { params }: { params: { key: string } }
     throw e;
   }
 
+  const previousStage = await linkedTurkeyStage(skillSession.id).catch(() => null);
   try {
     await completeActivity({
       refId: skillSession.id,
@@ -92,10 +104,22 @@ export async function POST(req: Request, { params }: { params: { key: string } }
     console.error("completeActivity failed", e);
   }
 
+  const rewards: ActivityRewards = {
+    feathers: MODULE_COMPLETION_FEATHERS,
+    xp: 0,
+    previousLevel: paid.level,
+    newLevel: paid.level,
+    streak: paid.streak,
+    newBadges: paid.badges,
+    turkey: await linkedTurkeyView(skillSession.id).catch(() => null),
+    previousStage,
+  };
+
   return NextResponse.json({
     completed: true,
     preCivility,
     postCivility,
     feathersEarned: MODULE_COMPLETION_FEATHERS,
+    rewards,
   });
 }

@@ -149,6 +149,7 @@ model Turkey {
   lastFedAt     DateTime?        // hunger
   lastSocialAt  DateTime?        // loneliness
   lastTaughtAt  DateTime?        // sadness
+  equippedCosmetics Json?        // this turkey's outfit, slot -> shop item id (items are owned by the user)
   createdAt     DateTime         @default(now())
   user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   activities    TurkeyActivity[]

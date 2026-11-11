@@ -14,7 +14,7 @@ describe("emphasizedActivity", () => {
 
 describe("moodLine", () => {
   it("uses the agreed copy", () => {
-    expect(moodLine("sad", "Gobbles")).toBe("Gobbles missed you.");
+    expect(moodLine("sad", "Gobbles")).toBe("Gobbles wants to learn something.");
     expect(moodLine("happy", "Gobbles")).toBe("Gobbles is feeling great!");
     expect(moodLine("hungry", null)).toBe("Your turkey is hungry.");
   });
@@ -33,7 +33,7 @@ describe("activityHref", () => {
   it("builds links", () => {
     expect(activityHref("park", { id: "a", moduleKey: null })).toBe("/chat?turkeyId=a");
     expect(activityHref("feed", { id: "a", moduleKey: "reason-giving" })).toBe("/skills/reason-giving?turkeyId=a");
-    expect(activityHref("feed", { id: "a", moduleKey: null })).toBe("/skills?turkeyId=a");
+    expect(activityHref("feed", { id: "a", moduleKey: null })).toBe("/home");
     expect(activityHref("school", { id: "a", moduleKey: null })).toBe("/school/a");
   });
 });

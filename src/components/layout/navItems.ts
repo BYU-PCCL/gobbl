@@ -15,14 +15,14 @@ const under = (p: string, root: string) => p === root || p.startsWith(`${root}/`
 /** The hotbar, shared by the mobile bottom nav and the desktop sidebar. */
 export const PRIMARY_NAV: NavItem[] = [
   {
-    href: "/home",
-    label: "Home",
-    icon: "home",
-    matches: (p) => p === "/" || ["/home", "/hatch", "/profile"].some((r) => under(p, r)),
+    href: "/flock",
+    label: "Flock",
+    icon: "flock",
+    matches: (p) => p === "/" || ["/flock", "/home", "/hatch"].some((r) => under(p, r)),
   },
+  { href: "/hatch", label: "Feed", icon: "feed", activity: "feed", matches: (p) => under(p, "/skills") },
   { href: "/hatch", label: "School", icon: "school", activity: "school", matches: (p) => under(p, "/school") },
   { href: "/hatch", label: "Park", icon: "park", activity: "park", matches: (p) => under(p, "/chat") },
-  { href: "/hatch", label: "Feed", icon: "feed", activity: "feed", matches: (p) => under(p, "/skills") },
   { href: "/shop", label: "Shop", icon: "shop", matches: (p) => under(p, "/shop") },
 ];
 
@@ -30,6 +30,8 @@ export const PRIMARY_NAV: NavItem[] = [
 export interface ResolvedNavItem extends NavItem {
   /** The selected turkey's need for this activity is low. */
   needsAttention: boolean;
-  /** Not available until the first egg hatches. */
+  /** Not open yet: the steps on Home explain what comes first. */
   locked: boolean;
+  /** Why it is locked, for the title and screen readers. */
+  lockedReason?: string;
 }

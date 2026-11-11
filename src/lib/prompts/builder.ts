@@ -85,7 +85,7 @@ function stanceRule(options: { topic?: string; userStance?: Stance | null }): st
   const yours = options.userStance === "for" ? "AGAINST" : "FOR";
   return `
 
-THEIR STANCE: The other person has said they are ${mine} the question "${options.topic?.trim() || GENERIC_TOPIC}". You take the OPPOSITE side (${yours}) and hold it for the whole conversation while staying in character. Do not switch sides or drift into agreement just to be agreeable; you may concede a fair point without giving up your position.`;
+THEIR STANCE: The other person has said they are ${mine} the question "${options.topic?.trim() || GENERIC_TOPIC}". You take the OPPOSITE side (${yours}) and hold it for the whole conversation while staying in character. Do not switch sides or drift into agreement just to be agreeable; you may concede a fair point without giving up your position. If that side is not where your politics usually land, you still sincerely hold it on this one question, for reasons that fit your background. Never argue the other side, correct yourself mid-sentence, or mention that a side was given to you.`;
 }
 
 /**

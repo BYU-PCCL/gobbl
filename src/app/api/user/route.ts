@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getLevelInfo } from "@/lib/gamification";
-import { parseEquippedCosmetics } from "@/lib/shop";
+import { DIMENSION_LABELS, CivilityDimensions } from "@/lib/civility";
 import { getUserBelief } from "@/lib/prompts/userBelief";
 
 export async function GET() {
@@ -32,7 +33,7 @@ export async function GET() {
 
   // The account-wide level. Turkeys grow separately, from their own activities (/api/turkeys).
   const levelInfo = getLevelInfo(user.xp);
-  const equippedCosmetics = parseEquippedCosmetics(user.equippedCosmetics);
+  const civilityByDimension = await averageDimensions(userId);
 
   return NextResponse.json({
     id: user.id,
@@ -41,9 +42,9 @@ export async function GET() {
     featherBalance: user.featherBalance,
     level: user.level,
     levelInfo,
-    equippedCosmetics,
     ownedItemIds: user.inventory.map((i) => i.itemId),
     civilityScore: user.civilityScore,
+    civilityByDimension,
     currentStreak: user.currentStreak,
     longestStreak: user.longestStreak,
     lastTopicId: user.lastTopicId ?? null,
@@ -61,4 +62,28 @@ export async function GET() {
     })),
     createdAt: user.createdAt,
   });
+}
+
+const DIMENSION_KEYS = ["participation", "selfExpressionReason", "mutualExchange", "interrogation"] as const;
+
+/** Average of each civility dimension over the user's finished, scored conversations (0-10, one decimal). */
+async function averageDimensions(userId: string) {
+  const rows = await prisma.debate.findMany({
+    where: { userId, completed: true, dimensions: { not: Prisma.DbNull } },
+    select: { dimensions: true },
+  });
+  const sums: Record<string, number> = {};
+  let n = 0;
+  for (const r of rows) {
+    const d = r.dimensions as Partial<CivilityDimensions> | null;
+    if (!d || DIMENSION_KEYS.some((k) => typeof d[k] !== "number")) continue;
+    n++;
+    for (const k of DIMENSION_KEYS) sums[k] = (sums[k] ?? 0) + (d[k] as number);
+  }
+  if (n === 0) return [];
+  return DIMENSION_KEYS.map((key) => ({
+    key,
+    label: DIMENSION_LABELS[key],
+    average: Math.round((sums[key] / n) * 10) / 10,
+  }));
 }

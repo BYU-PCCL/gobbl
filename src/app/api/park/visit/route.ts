@@ -3,8 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createDebate } from "@/lib/debates";
 import { startActivity } from "@/lib/flock/activities";
-import { getParkTurkey, parkPersonaIdFor } from "@/lib/flock/parkTurkeys";
-import { isTier } from "@/lib/personas/pool";
+import { activityDone } from "@/lib/flock/progressQueries";
+import { unlockedFor } from "@/lib/flock/progress";
+import { getPersonaById, isTier } from "@/lib/personas/pool";
 import { prisma } from "@/lib/db";
 import { isStance } from "@/lib/conversation";
 import { formatTopicForDebate, getRandomTopic, getTopic } from "@/lib/topics";
@@ -35,14 +36,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const parkTurkey = typeof body.personaId === "string" ? getParkTurkey(body.personaId) : null;
-  if (!parkTurkey) {
+  const tier = typeof body.difficulty === "string" && isTier(body.difficulty) ? body.difficulty : "Friendly Cluck";
+  const persona = typeof body.personaId === "string" ? getPersonaById(body.personaId) : null;
+  if (!persona || persona.tier !== tier) {
     return NextResponse.json({ error: "That turkey isn't at the park" }, { status: 400 });
+  }
+
+  const turkey =
+    typeof body.turkeyId === "string"
+      ? await prisma.turkey.findFirst({ where: { id: body.turkeyId, userId }, select: { id: true } })
+      : null;
+  if (!turkey) {
+    return NextResponse.json({ error: "Pick one of your turkeys first" }, { status: 400 });
+  }
+  const done = await activityDone(turkey.id);
+  if (!unlockedFor(true, done).park) {
+    return NextResponse.json({ error: "Take your turkey to School first" }, { status: 409 });
   }
 
   const picked = typeof body.topicId === "string" ? getTopic(body.topicId) : undefined;
   const topic = picked ?? getRandomTopic();
-  const tier = typeof body.difficulty === "string" && isTier(body.difficulty) ? body.difficulty : "Friendly Cluck";
   const userStance = isStance(body.userStance) ? body.userStance : null;
   let debate: Awaited<ReturnType<typeof createDebate>>;
   try {
@@ -53,11 +66,11 @@ export async function POST(req: Request) {
       difficulty: tier,
       allowProfanity: body.allowProfanity === true,
       userStance,
-      parkPersonaId: parkPersonaIdFor(parkTurkey, tier),
+      parkPersonaId: persona.id,
     });
   } catch {
     return NextResponse.json(
-      { error: `${parkTurkey.name} couldn't chat right now. Try again in a moment.` },
+      { error: `${persona.initials} couldn't chat right now. Try again in a moment.` },
       { status: 502 },
     );
   }

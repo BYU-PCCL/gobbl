@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { FlatTurkey, FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
 import { TurkeyCharacter } from "@/components/turkey/TurkeyCharacter";
 import { useFlock } from "@/components/turkey/useFlock";
 import { fetchJson } from "@/lib/fetchJson";
@@ -85,7 +84,7 @@ function NestPicker({ username, onPicked }: { username: string | null; onPicked:
     <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
       <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-soft">
-          <FlatTurkeyGlyph size={30} />
+          <TurkeyCharacter stage={7} size={30} crop="head" decorative />
         </div>
         <div className="min-w-0 flex-1">
           <div className="eyebrow mb-1 text-ink-muted">{PROFESSOR_NAME}</div>
@@ -134,7 +133,7 @@ function NestPicker({ username, onPicked }: { username: string | null; onPicked:
               }}
             >
               <span style={{ filter: lifted ? "drop-shadow(0 14px 8px rgba(92,74,58,0.32))" : "drop-shadow(0 8px 5px rgba(92,74,58,0.25))" }}>
-                <FlatTurkey stage={1} size={150} palette={sp.palette} eggPattern={sp.eggPattern} />
+                <TurkeyCharacter stage={1} size={150} palette={sp.palette} eggPattern={sp.eggPattern} animate={false} showShadow={false} decorative />
               </span>
               <span className="pointer-events-none absolute left-1/2 top-full mt-0.5 -translate-x-1/2 whitespace-nowrap rounded-md border border-line bg-surface px-1.5 py-px font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-ink">
                 {s.label}
@@ -180,7 +179,7 @@ function EggArt({ egg, size }: { egg: TurkeyView; size: number }) {
   const speciesId = getTurkeySkill(egg.skill).species;
   if (!speciesId) return <TurkeyCharacter stage={1} mood="happy" skill={egg.skill} size={size} label="Your egg" />;
   const sp = getSpecies(speciesId);
-  return <FlatTurkey stage={1} size={size} palette={sp.palette} eggPattern={sp.eggPattern} />;
+  return <TurkeyCharacter stage={1} size={size} palette={sp.palette} eggPattern={sp.eggPattern} animate={false} decorative />;
 }
 
 export default function HatchPage() {
@@ -246,7 +245,7 @@ export default function HatchPage() {
   if (loading || status === "loading" || goHome) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center font-body text-ink-soft">
-        Warming the nest...
+        Warming the eggs...
       </div>
     );
   }

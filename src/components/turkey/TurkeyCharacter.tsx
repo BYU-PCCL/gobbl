@@ -8,7 +8,7 @@
  * props contract stable and replace the drawing inside.
  *
  * Everything is one inline SVG in a 200×200 viewBox. Head / neck / chest
- * positions per stage follow FlatTurkey's geometry so existing shop items
+ * positions per stage follow the shop items' anchor geometry so existing shop items
  * (ItemLayers + avatarAnchors) still sit on the turkey. Items live inside the
  * same animated group as the body, so they bob and react with it.
  */
@@ -20,14 +20,19 @@ import type { EquippedCosmetics } from "@/lib/shop";
 import type { TurkeyMood } from "@/lib/flock/needs";
 import { getTurkeySkill, type TurkeySkillKey } from "@/lib/flock/skills";
 import { getSpecies, type EggPattern } from "@/lib/companion";
+import type { TurkeyPalette } from "@/lib/turkeyPalette";
 import { STAGE_NAMES } from "@/lib/flock/growth";
 
 export type TurkeyReaction = "none" | "pet" | "eat" | "cheer" | "listen";
 
 export interface TurkeyCharacterProps {
   stage: number; // 1 = egg … 8
-  mood: TurkeyMood;
-  skill: TurkeySkillKey; // decides the species look (colours, egg pattern), see lookFor
+  mood?: TurkeyMood; // default "happy"
+  /** Decides the species look (colours, egg pattern). Ignored when `palette` is given. */
+  skill?: TurkeySkillKey;
+  /** Colours for a turkey that has no skill of its own (a conversation partner, a species preview). */
+  palette?: TurkeyPalette;
+  eggPattern?: EggPattern; // with `palette`, stage 1 only
   equipped?: EquippedCosmetics;
   reaction?: TurkeyReaction; // one-shot; parent resets to "none" via onReactionEnd
   onReactionEnd?: () => void;
@@ -35,6 +40,12 @@ export interface TurkeyCharacterProps {
   size?: number; // px, default 220
   label?: string; // turkey's name, used in the aria-label
   className?: string;
+  animate?: boolean; // false: no idle motion (lists, wrappers that animate themselves). Default true
+  showShadow?: boolean; // default true
+  showBackground?: boolean; // false hides an equipped background item. Default true
+  flip?: boolean; // mirror, so side-view stages face right
+  decorative?: boolean; // hidden from assistive tech
+  crop?: "full" | "head"; // "head": just the face, for avatars under ~40px
 }
 
 const REACTION_MS = 900;
@@ -88,7 +99,7 @@ interface BirdGeo {
 }
 
 const BIRDS: Record<number, BirdGeo> = {
-  // Three-quarter view facing left (matches FlatTurkey 3/4 + avatarAnchors offsets)
+  // Three-quarter view facing left (matches avatarAnchors offsets)
   3: {
     kind: "side",
     head: { cx: 70, cy: 88, r: 26 },
@@ -111,7 +122,7 @@ const BIRDS: Record<number, BirdGeo> = {
     fan: { px: 122, py: 112, count: 5, len: 48, spread: 90, center: 62, w: 10 },
     groundY: 160,
   },
-  // Front-facing (matches FlatTurkey 5–8)
+  // Front-facing
   5: {
     kind: "front",
     head: { cx: 100, cy: 96, r: 23 },
@@ -178,82 +189,7 @@ function topYFor(stage: number) {
 
 // ─── Scoped styles ───────────────────────────────────────────────────────────
 
-const STYLES = `
-.gtc-bob, .gtc-react, .gtc-wobble { transform-box: view-box; }
-.gtc-bob { animation: gtc-bob 3.2s ease-in-out infinite; }
-.gtc-bob--happy { animation: gtc-bounce 2.4s ease-in-out infinite; }
-.gtc-bob--sad { animation: gtc-sag 5s ease-in-out infinite; }
-.gtc-wobble { animation: gtc-wobble 3.6s ease-in-out infinite; }
-.gtc-wobble--sad { animation-duration: 5.4s; }
-.gtc-shadow { transform-box: fill-box; transform-origin: center; animation: gtc-shadow 3.2s ease-in-out infinite; }
-.gtc-shadow--happy { animation-duration: 2.4s; }
-.gtc-shadow--sad { animation-duration: 5s; }
-.gtc-blink { transform-box: fill-box; transform-origin: center; animation: gtc-blink 4.2s ease-in-out infinite; }
-.gtc-twinkle { transform-box: fill-box; transform-origin: center; animation: gtc-twinkle 2.6s ease-in-out infinite; }
-.gtc-r-pet { animation: gtc-squish 0.9s ease-out; }
-.gtc-r-eat { animation: gtc-peck 0.9s ease-in-out; }
-.gtc-r-cheer { animation: gtc-hop 0.9s ease-out; }
-.gtc-r-listen { animation: gtc-tilt 0.9s ease-in-out; }
-.gtc-heart { transform-box: fill-box; transform-origin: center; animation: gtc-float-up 0.9s ease-out both; }
-.gtc-sparkle { transform-box: fill-box; transform-origin: center; animation: gtc-pop 0.9s ease-out both; }
-.gtc-seed { animation: gtc-seeds 0.9s ease-in forwards; }
-@keyframes gtc-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-@keyframes gtc-bounce {
-  0%, 100% { transform: translateY(0) scale(1, 1); }
-  35% { transform: translateY(-5px) scale(0.985, 1.02); }
-  60% { transform: translateY(-4px) scale(1, 1); }
-  85% { transform: translateY(0) scale(1.025, 0.975); }
-}
-@keyframes gtc-sag { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
-@keyframes gtc-wobble {
-  0%, 55%, 100% { transform: rotate(0deg); }
-  64% { transform: rotate(-4deg); }
-  73% { transform: rotate(4deg); }
-  82% { transform: rotate(-2deg); }
-  91% { transform: rotate(1deg); }
-}
-@keyframes gtc-shadow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.92); opacity: 0.8; } }
-@keyframes gtc-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
-@keyframes gtc-twinkle { 0%, 100% { opacity: 0.45; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
-@keyframes gtc-squish {
-  0% { transform: scale(1, 1); }
-  20% { transform: scale(1.1, 0.86); }
-  45% { transform: scale(0.95, 1.06); }
-  70% { transform: scale(1.03, 0.97); }
-  100% { transform: scale(1, 1); }
-}
-@keyframes gtc-peck {
-  0%, 100% { transform: translateY(0) scale(1, 1); }
-  18%, 58% { transform: translateY(7px) scale(1.02, 0.94); }
-  36%, 78% { transform: translateY(0) scale(1, 1); }
-}
-@keyframes gtc-hop {
-  0% { transform: translateY(0) scale(1, 1); }
-  12% { transform: translateY(0) scale(1.06, 0.92); }
-  35% { transform: translateY(-18px) scale(0.96, 1.05); }
-  58% { transform: translateY(0) scale(1.06, 0.94); }
-  75% { transform: translateY(-6px) scale(1, 1); }
-  90%, 100% { transform: translateY(0) scale(1, 1); }
-}
-@keyframes gtc-tilt {
-  0%, 100% { transform: rotate(0deg); }
-  25%, 75% { transform: rotate(-9deg); }
-}
-@keyframes gtc-float-up {
-  0% { opacity: 0; transform: translateY(6px) scale(0.6); }
-  25% { opacity: 1; transform: translateY(0) scale(1.1); }
-  100% { opacity: 0; transform: translateY(-24px) scale(1); }
-}
-@keyframes gtc-pop {
-  0% { opacity: 0; transform: scale(0) rotate(0deg); }
-  35% { opacity: 1; transform: scale(1.2) rotate(20deg); }
-  100% { opacity: 0; transform: scale(0.6) rotate(45deg); }
-}
-@keyframes gtc-seeds { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .gtc-root, .gtc-root * { animation: none !important; }
-}
-`;
+// Keyframes and classes (gtc-*) live in src/app/globals.css.
 
 // ─── Small parts ─────────────────────────────────────────────────────────────
 
@@ -429,9 +365,10 @@ interface Look {
  * A turkey looks like the species of its skill (body, belly, tail and egg colours plus the egg
  * pattern). A skill with no species keeps the house colours with its skill tint on the tail.
  */
-function lookFor(skill: TurkeySkillKey): Look {
-  const def = getTurkeySkill(skill);
-  const tint = def?.tint ?? C.body;
+function lookFor(skill?: TurkeySkillKey, palette?: TurkeyPalette, eggPattern?: EggPattern): Look {
+  const def = skill ? getTurkeySkill(skill) : undefined;
+  const tint = def?.tint ?? C.bodyLo;
+  if (palette) return lookFromPalette(palette, eggPattern ?? "flecks", tint);
   if (!def?.species) {
     return {
       bodyHi: C.bodyHi, body: C.body, bodyMid: C.bodyMid, bodyLo: C.bodyLo,
@@ -441,7 +378,10 @@ function lookFor(skill: TurkeySkillKey): Look {
     };
   }
   const species = getSpecies(def.species);
-  const p = species.palette;
+  return lookFromPalette(species.palette, species.eggPattern, tint);
+}
+
+function lookFromPalette(p: TurkeyPalette, eggPattern: EggPattern, tint: string): Look {
   const body = p.body ?? C.body;
   const bodyDark = p.bodyDark ?? C.bodyLo;
   const belly = p.belly ?? C.bellyLo;
@@ -454,7 +394,7 @@ function lookFor(skill: TurkeySkillKey): Look {
     accent: p.crown ?? tint,
     wattle: p.wattle ?? "#B82914",
     speck: p.speck ?? tint,
-    eggPattern: species.eggPattern,
+    eggPattern,
   };
 }
 
@@ -689,8 +629,10 @@ function ariaLabelFor(label: string | undefined, stageName: string, mood: Turkey
 
 export function TurkeyCharacter({
   stage,
-  mood,
+  mood = "happy",
   skill,
+  palette,
+  eggPattern,
   equipped = {},
   reaction = "none",
   onReactionEnd,
@@ -698,9 +640,15 @@ export function TurkeyCharacter({
   size = 220,
   label,
   className,
+  animate = true,
+  showShadow = true,
+  showBackground = true,
+  flip = false,
+  decorative = false,
+  crop = "full",
 }: TurkeyCharacterProps) {
   const s = Math.max(1, Math.min(8, Math.round(stage) || 1));
-  const look = lookFor(skill);
+  const look = lookFor(skill, palette, eggPattern);
 
   const rawId = useId();
   const uid = rawId.replace(/[^a-zA-Z0-9_-]/g, "");
@@ -754,20 +702,29 @@ export function TurkeyCharacter({
         ? `translate(0 1.5) rotate(-4 100 ${groundY})`
         : undefined;
 
-  const BgRenderer = equipped.background ? ITEM_RENDERERS[equipped.background] : undefined;
+  const head = crop === "head";
+  const BgRenderer = equipped.background && showBackground && !head ? ITEM_RENDERERS[equipped.background] : undefined;
   const geo = s >= 3 ? BIRDS[s] : undefined;
+  // Head crop: a square around the face (the whole egg at stage 1).
+  const viewBox = !head
+    ? "0 0 200 200"
+    : geo
+      ? `${geo.head.cx - geo.head.r * 1.45} ${geo.head.cy - geo.head.r * 1.55} ${geo.head.r * 2.9} ${geo.head.r * 2.9}`
+      : s === 2
+        ? "52 50 96 96"
+        : "34 34 132 132";
 
   const svg = (
     <svg
-      viewBox="0 0 200 200"
+      viewBox={viewBox}
       width={size}
       height={size}
-      role="img"
-      aria-label={ariaLabelFor(label, STAGE_NAMES[s] ?? "turkey", mood)}
-      className="gtc-root"
-      style={{ display: "block", overflow: "visible" }}
+      role={decorative ? undefined : "img"}
+      aria-hidden={decorative ? true : undefined}
+      aria-label={decorative ? undefined : ariaLabelFor(label, STAGE_NAMES[s] ?? "turkey", mood)}
+      className={animate && !head ? "gtc-root" : "gtc-root gtc-static"}
+      style={{ display: "block", overflow: head ? "hidden" : "visible" }}
     >
-      <style>{STYLES}</style>
       <defs>
         <radialGradient id={ids.body} cx="35%" cy="30%" r="80%">
           <stop offset="0" stopColor={look.bodyHi} />
@@ -802,7 +759,7 @@ export function TurkeyCharacter({
         </clipPath>
       </defs>
 
-      {/* Background item — clipped to a squircle like AvatarWithItems */}
+      {/* Background item — clipped to a squircle */}
       {BgRenderer && (
         <g clipPath={`url(#${clipId})`}>
           <BgRenderer />
@@ -810,9 +767,10 @@ export function TurkeyCharacter({
       )}
 
       {/* Soft ground shadow */}
-      <ellipse className={shadowClass} cx={100} cy={groundY + 1} rx={s === 1 ? 36 : s === 2 ? 40 : 44} ry={5.5} fill={C.shadow} fillOpacity={0.16} />
+      {showShadow && !head && <ellipse className={shadowClass} cx={100} cy={groundY + 1} rx={s === 1 ? 36 : s === 2 ? 40 : 44} ry={5.5} fill={C.shadow} fillOpacity={0.16} />}
 
       {/* Idle (bob / wobble) → reaction → posture; items move with the body */}
+      <g transform={flip ? "translate(200 0) scale(-1 1)" : undefined}>
       <g className={bobClass} style={origin}>
         <g key={playKey} className={playing !== "none" ? `gtc-react gtc-r-${playing}` : "gtc-react"} style={origin}>
           <g transform={posture}>
@@ -826,6 +784,7 @@ export function TurkeyCharacter({
             {equipped.chest && <ItemLayer id={equipped.chest} translate={getSlotOffset(s, "chest")} />}
           </g>
         </g>
+      </g>
       </g>
 
       {playing !== "none" && (

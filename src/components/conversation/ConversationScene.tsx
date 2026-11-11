@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MAX_MESSAGE_CHARS, type ConvMsg, type FinishResult, type Stance, type TurnResult } from "@/lib/conversation";
-import { PARTNER_PALETTE, getSpecies, partnerStage, type SpeciesId } from "@/lib/companion";
-import type { EquippedCosmetics } from "@/lib/shop";
-import { FlatTurkey } from "@/components/gamification/FlatTurkey";
-import { AvatarWithItems } from "@/components/gamification/AvatarWithItems";
+import type { TurkeyView } from "@/lib/flock/view";
+import { MyTurkey } from "@/components/turkey/MyTurkey";
+import { PartnerTurkey } from "@/components/turkey/PartnerTurkey";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { SpeechBubble } from "./SpeechBubble";
@@ -17,24 +16,17 @@ import { TypingDots } from "./TypingDots";
  * an input dock, a transcript sheet and a wrap-up. No scores are shown
  * anywhere until `onFinish`.
  */
-export interface ConversationYou {
-  speciesId: SpeciesId | null;
-  /** The growth stage of the user's own turkey (1 = egg). */
-  stage: number;
-  equipped?: EquippedCosmetics | null;
-}
-
 export interface ConversationSceneProps {
   debateId: string;
   topic: string;
   personaInitials: string;
-  /** Shown in place of the initials when the partner is a named park turkey. */
-  partnerName?: string;
+  /** For the partner's colours. */
+  personaId: string | null;
   difficulty: string;
   userStance: Stance | null;
   initialMessages: ConvMsg[];
   maxTurns: number;
-  you: ConversationYou;
+  turkey: TurkeyView | null;
   onFinish: (result: FinishResult) => void;
   onLeave?: () => void;
 }
@@ -45,12 +37,12 @@ export function ConversationScene({
   debateId,
   topic,
   personaInitials,
-  partnerName,
+  personaId,
   difficulty,
   userStance,
   initialMessages,
   maxTurns,
-  you,
+  turkey,
   onFinish,
   onLeave,
 }: ConversationSceneProps) {
@@ -70,8 +62,7 @@ export function ConversationScene({
   const [compact, setCompact] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const species = getSpecies(you.speciesId);
-  const partnerLabel = partnerName ?? personaInitials;
+  const partnerLabel = personaInitials;
 
   // Shrink the turkeys when the on-screen keyboard leaves little room for the scene.
   useEffect(() => {
@@ -168,7 +159,7 @@ export function ConversationScene({
         >
           {finishError ? (
             <>
-              <FlatTurkey stage={1} size="md" />
+              <MyTurkey turkey={turkey} size={96} inScene />
               <p className="font-body text-sm text-ink-soft">{finishError}</p>
               <div className="flex gap-2">
                 <Button size="sm" onClick={handleFinish}>Try again</Button>
@@ -177,7 +168,7 @@ export function ConversationScene({
             </>
           ) : (
             <>
-              <FlatTurkey stage={3} size="md" animate />
+              <MyTurkey turkey={turkey} size={96} inScene />
               <p className="font-display text-lg font-bold tracking-[-0.02em]">Wrapping up…</p>
               <p className="font-body text-sm text-ink-soft">Looking back over your conversation and counting feathers.</p>
             </>
@@ -225,8 +216,8 @@ export function ConversationScene({
 
       {/* Scene */}
       <div className="min-h-0 flex-1 bg-gradient-to-b from-surface-2 to-bg">
-        <div className="mx-auto flex h-full max-w-3xl flex-col justify-between gap-2 px-3 py-3 sm:px-8">
-          {/* Partner, top right */}
+        <div className="mx-auto flex h-full max-w-2xl flex-col justify-center gap-6 px-3 py-3 sm:gap-8 sm:px-8">
+          {/* Partner, right */}
           <div className="flex min-h-0 items-start gap-3">
             <SpeechBubble
               tail="right"
@@ -238,21 +229,16 @@ export function ConversationScene({
               {loading || !lastPartner ? <TypingDots /> : <p className="whitespace-pre-wrap">{lastPartner}</p>}
             </SpeechBubble>
             <div className="flex shrink-0 flex-col items-center">
-              <FlatTurkey stage={partnerStage(difficulty)} size={turkeyPx} palette={PARTNER_PALETTE} />
+              <PartnerTurkey personaId={personaId} initials={personaInitials} size={turkeyPx} />
               <span className="-mt-1 rounded-full border border-line bg-surface px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
                 {partnerLabel}
               </span>
             </div>
           </div>
 
-          {/* You, bottom left */}
+          {/* You, left */}
           <div className="flex min-h-0 items-end gap-3">
-            <AvatarWithItems
-              stage={you.stage}
-              size={turkeyPx}
-              palette={species.palette}
-              equipped={you.equipped ?? {}}
-            />
+            <MyTurkey turkey={turkey} size={turkeyPx} inScene flip />
             {lastYou && (
               <SpeechBubble tail="left" tone="you" maxHeightClass="max-h-24" className="mb-6 max-w-[75%] flex-1">
                 <p className="whitespace-pre-wrap text-[13px] leading-5">{lastYou}</p>

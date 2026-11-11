@@ -7,20 +7,21 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { FlatTurkey } from "@/components/gamification/FlatTurkey";
+import { TurkeyCharacter } from "@/components/turkey/TurkeyCharacter";
 import { LevelUpModal } from "@/components/gamification/LevelUpModal";
 import { Companion } from "@/components/companion/Companion";
 import { HatchOverlay } from "@/components/companion/HatchOverlay";
 import { TopicPicker } from "@/components/conversation/TopicPicker";
 import { StancePicker } from "@/components/conversation/StancePicker";
-import { ConversationScene, type ConversationYou } from "@/components/conversation/ConversationScene";
+import { ConversationScene } from "@/components/conversation/ConversationScene";
 import { ConversationResults } from "@/components/conversation/ConversationResults";
+import { ActivityResults } from "@/components/activity/ActivityResults";
 import { QuizStep } from "@/components/skills/QuizStep";
 import { InlineToast } from "@/components/skills/InlineToast";
 import { useVisualViewportHeight } from "@/components/chat/useVisualViewportHeight";
 import { companionLine } from "@/lib/companion";
 import { useCompanion, companionFromTurkey } from "@/components/companion/useCompanion";
-import { MAX_TURNS, isStance, type ConvMsg, type FinishResult, type Stance } from "@/lib/conversation";
+import { MAX_TURNS, isStance, type ActivityRewards, type ConvMsg, type FinishResult, type Stance } from "@/lib/conversation";
 import { getModule } from "@/lib/modules/registry";
 import type { ModuleStep } from "@/lib/modules/types";
 import { isAnswerValid } from "@/lib/survey/questions";
@@ -46,6 +47,7 @@ interface CompleteResult {
   preCivility: number | null;
   postCivility: number | null;
   feathersEarned: number;
+  rewards: ActivityRewards;
 }
 
 interface XpGain {
@@ -68,12 +70,20 @@ type RunnerPhase =
       debateId: string;
       topic: string;
       personaInitials: string;
+      personaId: string | null;
       difficulty: string;
       userStance: Stance | null;
       maxTurns: number;
       initialMessages: ConvMsg[];
     }
-  | { kind: "practice-results"; sessionId: string; step: ModuleStep; debateId: string; result: FinishResult }
+  | {
+      kind: "practice-results";
+      sessionId: string;
+      step: ModuleStep;
+      debateId: string;
+      personaInitials: string;
+      result: FinishResult;
+    }
   | { kind: "complete"; result: CompleteResult };
 
 /** Quiz passed with a hatch: the overlay shows before the lesson moves on. */
@@ -122,8 +132,8 @@ function ModuleRunner() {
   const moduleKey = params.key as string;
   const moduleConfig = getModule(moduleKey);
   const turkeyId = useSearchParams().get("turkeyId");
-  const { data: userData, companion, flock, refresh: refreshUser } = useCompanion(turkeyId);
-  const turkeyName = flock.turkeys.find((t) => t.id === turkeyId)?.name ?? "your turkey";
+  const { companion, turkey, flock, refresh: refreshUser } = useCompanion(turkeyId);
+  const turkeyName = turkey?.name ?? "your turkey";
   const homeHref = "/home";
 
   const [phase, setPhase] = useState<RunnerPhase>({ kind: "loading" });
@@ -229,7 +239,12 @@ function ModuleRunner() {
    * and `start` resumes the open run, so the user lands back on the step they left.
    */
   function leave() {
-    router.push(turkeyId ? homeHref : "/skills");
+    if (turkey) {
+      flock.select(turkey.id);
+      router.push(homeHref);
+    } else {
+      router.push("/flock");
+    }
   }
 
   /** Returns true if the failure was handled (caller should stop). */
@@ -305,6 +320,7 @@ function ModuleRunner() {
       debateId: r.data.debateId,
       topic: debate.topic,
       personaInitials: debate.personaInitials ?? "",
+      personaId: typeof debate.personaId === "string" ? debate.personaId : null,
       difficulty: debate.difficulty,
       userStance: isStance(debate.userStance) ? debate.userStance : null,
       maxTurns: debate.maxTurns ?? stepMax ?? MAX_TURNS,
@@ -349,7 +365,7 @@ function ModuleRunner() {
       const r = await post("advance", { sessionId, stepId: step.id, answer });
       if (handleFailure(r)) return;
       if (r.data.xp) {
-        noteXp(r.data.xp, `+${r.data.xp.amount} XP · Your turkey feels the lesson coming.`);
+        noteXp(r.data.xp, `+${r.data.xp.amount} XP · ${turkey?.hatched ? `${turkey.name ?? "Your turkey"} is` : "Your egg is"} taking it in.`);
         void refreshUser();
       }
       await goToNextStep(sessionId, r.data.nextStep);
@@ -406,12 +422,6 @@ function ModuleRunner() {
   }
 
   const hasAdvancedVariant = moduleConfig.variants.some((v) => v.key === "advanced");
-  const you: ConversationYou = {
-    speciesId: companion?.speciesId ?? null,
-    stage: companion?.stage ?? 1,
-    equipped: userData?.equippedCosmetics ?? null,
-  };
-  const stage = you.stage;
   const hatched = companion?.hatched ?? false;
   const hatchSpecies = hatch
     ? companionFromTurkey(flock.turkeys.find((t) => t.id === hatch.eggId) ?? null).speciesId
@@ -423,7 +433,7 @@ function ModuleRunner() {
       {hatch && (
         <HatchOverlay
           turkeyId={hatch.eggId}
-          speciesId={hatchSpecies ?? you.speciesId}
+          speciesId={hatchSpecies ?? companion?.speciesId ?? null}
           onDone={finishHatch}
           doneLabel="Keep going"
         />
@@ -432,6 +442,7 @@ function ModuleRunner() {
         open={levelUp !== null && !hatch}
         fromLevel={levelUp?.from ?? 1}
         toLevel={levelUp?.to ?? 1}
+        turkey={turkey}
         rewards={{ feathers: 0 }}
         onClose={() => setLevelUp(null)}
       />
@@ -441,7 +452,7 @@ function ModuleRunner() {
   if (phase.kind === "loading") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <FlatTurkey stage={1} size="md" animate />
+        <TurkeyCharacter stage={1} size={96} decorative />
       </div>
     );
   }
@@ -453,7 +464,7 @@ function ModuleRunner() {
   if (phase.kind === "load-error") {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
-        <p className="font-body text-sm text-ink-soft">Couldn&apos;t load this module.</p>
+        <p className="font-body text-sm text-ink-soft">Couldn&apos;t load this lesson.</p>
         <Button variant="outline" onClick={() => window.location.reload()}>
           Try again
         </Button>
@@ -477,9 +488,9 @@ function ModuleRunner() {
         {phase.summary.timesCompleted > 0 ? (
           <div className="flex flex-col gap-2.5">
             <Button disabled={busy} onClick={() => start("standard")}>
-              Try again
+              Feed again
             </Button>
-            {/* Only offer "Level up" when this module actually has a harder variant. */}
+            {/* Only offer "Level up" when this lesson actually has a harder variant. */}
             {hasAdvancedVariant && (
               <Button variant="outline" disabled={busy} onClick={() => start("advanced")}>
                 Level up
@@ -509,17 +520,19 @@ function ModuleRunner() {
             debateId={phase.debateId}
             topic={phase.topic}
             personaInitials={phase.personaInitials}
+            personaId={phase.personaId}
             difficulty={phase.difficulty}
             userStance={phase.userStance}
             initialMessages={phase.initialMessages}
             maxTurns={phase.maxTurns}
-            you={you}
+            turkey={turkey}
             onFinish={(result) =>
               setPhase({
                 kind: "practice-results",
                 sessionId: phase.sessionId,
                 step: phase.step,
                 debateId: phase.debateId,
+                personaInitials: phase.personaInitials,
                 result,
               })
             }
@@ -537,7 +550,8 @@ function ModuleRunner() {
         <ConversationResults
           debateId={phase.debateId}
           result={phase.result}
-          you={you}
+          turkey={turkey}
+          personaInitials={phase.personaInitials}
           continueLabel="Continue the lesson"
           onContinue={() => finishPractice(phase.sessionId, phase.step)}
         />
@@ -555,28 +569,27 @@ function ModuleRunner() {
   }
 
   if (phase.kind === "complete") {
+    const civility = phase.result.postCivility ?? phase.result.preCivility;
+    const rewards: ActivityRewards = {
+      ...phase.result.rewards,
+      turkey: phase.result.rewards.turkey ?? turkey,
+    };
     return (
-      <div className="flex flex-col items-center gap-4 py-10 text-center">
-        <Companion
-          variant="scene"
-          speciesId={you.speciesId}
-          stage={stage}
-          equipped={you.equipped}
-          line="We did it. I remember every word."
-        />
-        <h1 className="font-display text-2xl font-bold">Module complete</h1>
-        <p className="font-body text-sm text-ink-soft">
-          +{phase.result.feathersEarned} feathers
-          {(() => {
-            const civility = phase.result.postCivility ?? phase.result.preCivility;
-            return civility != null ? `. Civility ${Math.round(civility)} out of 10` : null;
-          })()}
-        </p>
-        <Link href={turkeyId ? homeHref : "/skills"}>
-          <Button>{turkeyId ? `Back to ${turkeyName}` : "Back to skills"}</Button>
-        </Link>
+      <>
+        <ActivityResults
+          kind="feed"
+          rewards={rewards}
+          onContinue={leave}
+          continueLabel={turkey ? `Back to ${turkeyName}` : "Back to my turkeys"}
+        >
+          {civility != null && (
+            <p className="text-center font-body text-sm text-ink-soft">
+              Civility {civility.toFixed(1)} out of 10
+            </p>
+          )}
+        </ActivityResults>
         {overlays}
-      </div>
+      </>
     );
   }
 
@@ -590,12 +603,10 @@ function ModuleRunner() {
         <LeaveBar onLeave={leave} hint="Finished steps are saved. You can pick this up later." />
         <QuizStep
           questions={step.questions}
-          speciesId={you.speciesId}
-          stage={stage}
-          equipped={you.equipped}
+          turkey={turkey}
           busy={busy}
           onSubmit={(answer) => submitQuiz(sessionId, step, answer)}
-          onBack={() => router.push(turkeyId ? homeHref : "/skills")}
+          onBack={leave}
         />
         {error && <p className="text-center font-body text-sm text-plume-500">{error}</p>}
         {overlays}
@@ -608,13 +619,7 @@ function ModuleRunner() {
   return (
     <div className="flex flex-col gap-5">
       <LeaveBar onLeave={leave} hint="Finished steps are saved. You can pick this up later." />
-      <Companion
-        variant="row"
-        speciesId={you.speciesId}
-        stage={stage}
-        equipped={you.equipped}
-        line={line}
-      />
+      <Companion variant="row" turkey={turkey} line={line} />
       <StepView
         step={step}
         answers={answers}
@@ -808,9 +813,9 @@ function LeaveBar({ onLeave, hint }: { onLeave: () => void; hint?: string }) {
 function NotFoundView() {
   return (
     <div className="flex flex-col items-center gap-3 py-16 text-center">
-      <p className="font-body text-sm text-ink-soft">That module doesn&apos;t exist.</p>
-      <Link href="/skills">
-        <Button variant="outline">Back to skills</Button>
+      <p className="font-body text-sm text-ink-soft">That lesson doesn&apos;t exist.</p>
+      <Link href="/flock">
+        <Button variant="outline">Back to my turkeys</Button>
       </Link>
     </div>
   );

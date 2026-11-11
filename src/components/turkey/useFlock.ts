@@ -6,6 +6,7 @@ import type { TurkeyView } from "@/lib/flock/view";
 
 const STORAGE_KEY = "gobbl.currentTurkey";
 const SELECT_EVENT = "gobbl:select-turkey";
+const CHANGED_EVENT = "gobbl:flock-changed";
 
 function readStored(): string | null {
   try {
@@ -32,7 +33,7 @@ export function useFlock() {
     };
   }, []);
 
-  const reload = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
       const data = await fetchJson<{ turkeys: TurkeyView[]; featherBalance: number; firstEggReady?: boolean }>(
         "/api/turkeys",
@@ -50,10 +51,26 @@ export function useFlock() {
     }
   }, []);
 
+  // A reload asked for by one component (a hatch, a finished activity) refreshes every mounted
+  // instance, so the hotbar and user bubble never show a stale flock.
+  const reload = useCallback(async () => {
+    await load();
+    window.dispatchEvent(new CustomEvent(CHANGED_EVENT, { detail: load }));
+  }, [load]);
+
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      // Skip the instance that already reloaded itself.
+      if ((e as CustomEvent<unknown>).detail !== load) void load();
+    };
+    window.addEventListener(CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(CHANGED_EVENT, onChanged);
+  }, [load]);
+
   useEffect(() => {
     setSelectedId(readStored());
-    void reload();
-  }, [reload]);
+    void load();
+  }, [load]);
 
   // Several components use this hook at once (Home and the hotbar), so a
   // selection made in one is broadcast to the others.

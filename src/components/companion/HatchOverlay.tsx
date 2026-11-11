@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { FlatTurkey } from "@/components/gamification/FlatTurkey";
+import { TurkeyCharacter } from "@/components/turkey/TurkeyCharacter";
 import { fetchJson } from "@/lib/fetchJson";
 import { getSpecies, type SpeciesId } from "@/lib/companion";
 import type { TurkeyView } from "@/lib/flock/view";
@@ -82,11 +82,11 @@ export function HatchOverlay({ turkeyId, speciesId, onDone, doneLabel = "Keep go
       <div className="flex h-[220px] w-[220px] items-center justify-center">
         {hatched ? (
           <div className="animate-strut">
-            <FlatTurkey stage={2} size={200} palette={species.palette} />
+            <TurkeyCharacter stage={2} size={200} palette={species.palette} eggPattern={species.eggPattern} animate={false} decorative />
           </div>
         ) : (
           <div className="animate-hatch">
-            <FlatTurkey stage={1} size={200} palette={species.palette} eggPattern={species.eggPattern} />
+            <TurkeyCharacter stage={1} size={200} palette={species.palette} eggPattern={species.eggPattern} animate={false} decorative />
           </div>
         )}
       </div>
