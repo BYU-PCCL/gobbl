@@ -18,7 +18,6 @@ export function isStance(x: unknown): x is Stance {
 export interface ConvMsg {
   role: "user" | "assistant";
   content: string;
-  moveId?: string | null;
 }
 
 /** Response of `POST /api/chat` with `finish: true` (same shape the old chat UI used). */

@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { FinishResult } from "@/lib/conversation";
 import { civilityLabel } from "@/lib/civility";
 import { LEVELS } from "@/lib/gamification";
-import { companionStage, getSpecies } from "@/lib/companion";
+import { getSpecies } from "@/lib/companion";
 import { AvatarWithItems } from "@/components/gamification/AvatarWithItems";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -50,7 +50,7 @@ export function ConversationResults({ debateId, result, you, onContinue, continu
   return (
     <div className="mx-auto max-w-3xl animate-fade-in px-5 py-8 motion-reduce:animate-none sm:px-8">
       <div className="flex flex-col items-center text-center">
-        <AvatarWithItems stage={companionStage(result.newLevel, true)} size={150} equipped={equipped} palette={species.palette} />
+        <AvatarWithItems stage={you.stage} size={150} equipped={equipped} palette={species.palette} />
         <h2 className="mt-4 font-display text-[28px] font-bold leading-[1.05] tracking-[-0.03em]">
           Here is how it went.
         </h2>

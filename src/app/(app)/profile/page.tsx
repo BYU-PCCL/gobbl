@@ -9,12 +9,14 @@ import { fetchJson } from "@/lib/fetchJson";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { FlatTurkey, TURKEY_STAGE_LABELS } from "@/components/gamification/FlatTurkey";
+import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { AvatarWithItems } from "@/components/gamification/AvatarWithItems";
 import { BadgeMark } from "@/components/gamification/BadgeMark";
 import { Icon } from "@/components/ui/Icon";
 import { BADGES } from "@/lib/gamification";
-import { companionStage, getSpecies, isHatched, type CompanionInfo } from "@/lib/companion";
+import { getSpecies } from "@/lib/companion";
+import { getTurkeySkill } from "@/lib/flock/skills";
+import { useCompanion } from "@/components/companion/useCompanion";
 import type { EquippedCosmetics } from "@/lib/shop";
 
 interface UserData {
@@ -30,7 +32,6 @@ interface UserData {
   badges: string[];
   recentDebates: { id: string; topic: string; score: number | null; difficulty: string; completedAt: string }[];
   createdAt: string;
-  companion?: CompanionInfo;
 }
 
 // Replace this map with real per-dimension scores once the API exposes them.
@@ -49,6 +50,7 @@ function civilityBreakdown(score: number) {
 export default function ProfilePage() {
   const { status } = useSession();
   const router = useRouter();
+  const { companion, flock } = useCompanion();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -88,11 +90,9 @@ export default function ProfilePage() {
     );
   }
 
-  const species = getSpecies(userData.companion?.speciesId);
-  const hatched = userData.companion?.hatched ?? isHatched({ companionHatchedAt: null, level: userData.level });
-  const myStage = companionStage(userData.level, hatched);
-  const stages: number[] = [1, 2, 3, 4, 5, 6, 7, 8];
-    const civilityRows = userData.civilityScore > 0 ? civilityBreakdown(userData.civilityScore) : null;
+  const species = getSpecies(companion?.speciesId);
+  const myStage = companion?.stage ?? 1;
+  const civilityRows = userData.civilityScore > 0 ? civilityBreakdown(userData.civilityScore) : null;
 
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
@@ -115,43 +115,55 @@ export default function ProfilePage() {
           <div className="mt-3 flex justify-center gap-1.5">
             <MiniStat k="Civility" v={userData.civilityScore > 0 ? Math.round(userData.civilityScore * 10) : "—"} />
             <MiniStat k="Streak" v={`${userData.currentStreak}d`} />
-            <MiniStat k="Rank" v="—" />
           </div>
         </div>
       </Card>
 
       <div className="flex flex-col gap-5 lg:col-span-7 lg:gap-8">
-      {/* Evolution timeline */}
+      {/* Your flock */}
       <section>
         <div className="mb-2.5 flex items-baseline justify-between">
-          <h2 className="font-display text-xl font-bold tracking-[-0.02em]">Evolution</h2>
-          <span className="font-body text-xs text-ink-muted">{myStage} of 8 unlocked</span>
+          <h2 className="font-display text-xl font-bold tracking-[-0.02em]">Your flock</h2>
+          <span className="font-body text-xs text-ink-muted">
+            {flock.turkeys.length} {flock.turkeys.length === 1 ? "turkey" : "turkeys"}
+          </span>
         </div>
-        <Card className="p-4">
-          <div className="grid grid-cols-4 gap-x-1.5 gap-y-3.5 xl:grid-cols-8">
-            {stages.map((s) => {
-              const unlocked = s <= myStage;
-              const current = s === myStage;
+        <Card className="p-2">
+          {flock.turkeys.length === 0 ? (
+            <p className="px-2 py-4 font-body text-sm text-ink-soft">Your flock is empty for now.</p>
+          ) : (
+            flock.turkeys.map((t, i) => {
+              const tSpecies = getSpecies(getTurkeySkill(t.skill).species);
               return (
-                <div
-                  key={s}
-                  className={`flex flex-col items-center gap-1 rounded-2xl border p-1 ${
-                    current ? "border-primary bg-primary-soft" : "border-transparent"
+                <Link
+                  key={t.id}
+                  href="/home"
+                  onClick={() => {
+                    if (t.hatched) flock.select(t.id);
+                  }}
+                  className={`flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-surface-2 ${
+                    i > 0 ? "border-t border-line" : ""
                   }`}
                 >
-                  <div className={unlocked ? "" : "opacity-35 grayscale"}>
-                    <FlatTurkey stage={s} size={56} palette={species.palette} eggPattern={species.eggPattern} />
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center">
+                    <FlatTurkey
+                      stage={t.stage}
+                      size={52}
+                      palette={tSpecies.palette}
+                      eggPattern={t.stage === 1 ? tSpecies.eggPattern : undefined}
+                    />
                   </div>
-                  <div className={`font-mono text-[10px] font-semibold ${unlocked ? "text-ink" : "text-ink-muted"}`}>
-                    {s}
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-body text-sm font-semibold">{t.name ?? "Unhatched egg"}</div>
+                    <div className="truncate font-body text-xs text-ink-soft">
+                      {t.skillLabel} · {t.stageName}
+                    </div>
                   </div>
-                  <div className="text-center font-body text-[10px] leading-tight text-ink-soft">
-                    {TURKEY_STAGE_LABELS[s as 1]}
-                  </div>
-                </div>
+                  <ChevronRight />
+                </Link>
               );
-            })}
-          </div>
+            })
+          )}
         </Card>
       </section>
 
@@ -213,8 +225,8 @@ export default function ProfilePage() {
 
       {/* Actions list */}
       <div className="overflow-hidden rounded-2xl border border-line bg-surface">
-        <Link href="/leaderboard" className="flex items-center justify-between px-4 py-3.5 hover:bg-surface-2">
-          <span className="font-body text-sm font-semibold">View the Flock</span>
+        <Link href="/friends" className="flex items-center justify-between px-4 py-3.5 hover:bg-surface-2">
+          <span className="font-body text-sm font-semibold">Friends</span>
           <ChevronRight />
         </Link>
         <div className="border-t border-line" />

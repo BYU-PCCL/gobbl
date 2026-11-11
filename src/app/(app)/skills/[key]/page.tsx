@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/Button";
@@ -18,13 +18,12 @@ import { ConversationResults } from "@/components/conversation/ConversationResul
 import { QuizStep } from "@/components/skills/QuizStep";
 import { InlineToast } from "@/components/skills/InlineToast";
 import { useVisualViewportHeight } from "@/components/chat/useVisualViewportHeight";
-import { companionLine, type CompanionInfo } from "@/lib/companion";
+import { companionLine } from "@/lib/companion";
+import { useCompanion, companionFromTurkey } from "@/components/companion/useCompanion";
 import { MAX_TURNS, isStance, type ConvMsg, type FinishResult, type Stance } from "@/lib/conversation";
-import { availableMoves, type Move } from "@/lib/moves";
 import { getModule } from "@/lib/modules/registry";
 import type { ModuleStep } from "@/lib/modules/types";
 import { isAnswerValid } from "@/lib/survey/questions";
-import type { EquippedCosmetics } from "@/lib/shop";
 import { MODULE_TOPIC, TOPICS, getTopic } from "@/lib/topics";
 
 interface ModuleProgressSummary {
@@ -47,12 +46,6 @@ interface CompleteResult {
   preCivility: number | null;
   postCivility: number | null;
   feathersEarned: number;
-}
-
-interface UserInfo {
-  level: number;
-  companion: CompanionInfo;
-  equippedCosmetics: EquippedCosmetics | null;
 }
 
 interface XpGain {
@@ -87,7 +80,7 @@ type RunnerPhase =
 interface HatchPending {
   sessionId: string;
   nextStep: ModuleStep | null;
-  moveName: string;
+  eggId: string;
   xp: XpGain | null;
 }
 
@@ -115,7 +108,9 @@ function markPractice(sessionId: string, stepId: string, on: boolean) {
 export default function ModuleRunnerPage() {
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <ModuleRunner />
+      <Suspense fallback={null}>
+        <ModuleRunner />
+      </Suspense>
     </div>
   );
 }
@@ -126,12 +121,15 @@ function ModuleRunner() {
   const params = useParams();
   const moduleKey = params.key as string;
   const moduleConfig = getModule(moduleKey);
+  const turkeyId = useSearchParams().get("turkeyId");
+  const { data: userData, companion, flock, refresh: refreshUser } = useCompanion(turkeyId);
+  const turkeyName = flock.turkeys.find((t) => t.id === turkeyId)?.name ?? "your turkey";
+  const homeHref = "/home";
 
   const [phase, setPhase] = useState<RunnerPhase>({ kind: "loading" });
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<UserInfo | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [levelUp, setLevelUp] = useState<{ from: number; to: number } | null>(null);
   const [hatch, setHatch] = useState<HatchPending | null>(null);
@@ -144,28 +142,10 @@ function ModuleRunner() {
 
   const hideToast = useCallback(() => setToast(null), []);
 
-  const refreshUser = useCallback(async () => {
-    try {
-      const res = await fetch("/api/user");
-      if (!res.ok) return;
-      const d = await res.json();
-      setUser({
-        level: d.level ?? 1,
-        companion: d.companion ?? { speciesId: null, hatched: false, stage: 1, learnedMoves: [], lastTopicId: null },
-        equippedCosmetics: d.equippedCosmetics ?? null,
-      });
-    } catch {
-      /* the companion falls back to defaults */
-    }
-  }, []);
-
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/");
       return;
-    }
-    if (status === "authenticated") {
-      void refreshUser();
     }
     if (status === "authenticated" && moduleConfig) {
       (async () => {
@@ -190,10 +170,35 @@ function ModuleRunner() {
           setPhase({ kind: "complete", result: await done.json() });
           return;
         }
+        // `start` is where a turkey gets linked to the run, and it resumes an open run, so go through it
+        // when a turkey is feeding on this module.
+        if (progress?.inProgress && turkeyId) {
+          const resumed = await fetch(`/api/modules/${moduleKey}/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ turkeyId }),
+          });
+          if (!resumed.ok) throw new Error("resume failed");
+          const data = await resumed.json();
+          if (!data.step) {
+            const done = await fetch(`/api/modules/${moduleKey}/complete`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId: data.sessionId }),
+            });
+            if (!done.ok) throw new Error("complete failed");
+            setPhase({ kind: "complete", result: await done.json() });
+            return;
+          }
+          const variant = moduleConfig.variants.find((v) => v.key === data.variant) ?? moduleConfig.variants[0];
+          const linked = practiceLinked(variant.steps, data.step, data.linkedDebates);
+          setPhase({ kind: "step", sessionId: data.sessionId, step: data.step, linked });
+          return;
+        }
         setPhase(resumeStep(moduleConfig, summary) ?? { kind: "intro", summary });
       })().catch(() => setPhase({ kind: "load-error" }));
     }
-  }, [status, moduleKey, moduleConfig, router, refreshUser]);
+  }, [status, moduleKey, moduleConfig, router, turkeyId]);
 
   async function post(path: string, body: unknown) {
     const res = await fetch(`/api/modules/${moduleKey}/${path}`, {
@@ -224,7 +229,7 @@ function ModuleRunner() {
    * and `start` resumes the open run, so the user lands back on the step they left.
    */
   function leave() {
-    router.push("/skills");
+    router.push(turkeyId ? homeHref : "/skills");
   }
 
   /** Returns true if the failure was handled (caller should stop). */
@@ -261,7 +266,7 @@ function ModuleRunner() {
 
   function start(variant: "standard" | "advanced") {
     return run(async () => {
-      const r = await post("start", { variant });
+      const r = await post("start", { variant, ...(turkeyId ? { turkeyId } : {}) });
       if (handleFailure(r)) return;
       setAnswers({});
       // step is null when resuming a run whose last step was done but never finalized.
@@ -303,10 +308,9 @@ function ModuleRunner() {
       difficulty: debate.difficulty,
       userStance: isStance(debate.userStance) ? debate.userStance : null,
       maxTurns: debate.maxTurns ?? stepMax ?? MAX_TURNS,
-      initialMessages: (debate.messages as { role: string; content: string; moveId?: string | null }[]).map((m) => ({
+      initialMessages: (debate.messages as { role: string; content: string }[]).map((m) => ({
         role: m.role === "assistant" ? "assistant" : "user",
         content: m.content,
-        moveId: m.moveId ?? null,
       })),
     });
   }
@@ -362,26 +366,27 @@ function ModuleRunner() {
         outcome = "failed";
         return;
       }
-      const learned: Move | null = r.data.learnedMove ?? null;
       const xp: XpGain | null = r.data.xp ?? null;
       const nextStep: ModuleStep | null = r.data.nextStep ?? null;
       void refreshUser();
-      if (r.data.hatched) {
-        setHatch({ sessionId, nextStep, moveName: learned?.name ?? "", xp });
+      if (r.data.hatched && r.data.eggId) {
+        setHatch({ sessionId, nextStep, eggId: r.data.eggId, xp });
         return;
       }
-      if (xp) noteXp(xp, `+${xp.amount} XP${learned ? ` · ${learned.name} learned` : ""}`);
-      else if (learned) setToast(`${learned.name} sharpened`);
+      if (xp) noteXp(xp, `+${xp.amount} XP`);
       await goToNextStep(sessionId, nextStep);
     });
     return outcome;
   }
 
-  function finishHatch() {
+  /** The egg has hatched and been named: make it the selected turkey, refresh the flock, then continue. */
+  function finishHatch(turkey: { id: string }) {
     if (!hatch) return;
     const h = hatch;
     setHatch(null);
-    if (h.xp) noteXp(h.xp, `+${h.xp.amount} XP${h.moveName ? ` · ${h.moveName} learned` : ""}`);
+    flock.select(turkey.id);
+    void flock.reload();
+    if (h.xp) noteXp(h.xp, `+${h.xp.amount} XP`);
     void run(() => goToNextStep(h.sessionId, h.nextStep));
   }
 
@@ -402,16 +407,27 @@ function ModuleRunner() {
 
   const hasAdvancedVariant = moduleConfig.variants.some((v) => v.key === "advanced");
   const you: ConversationYou = {
-    speciesId: user?.companion.speciesId ?? null,
-    level: user?.level ?? 1,
-    hatched: user?.companion.hatched ?? false,
-    equipped: user?.equippedCosmetics ?? null,
+    speciesId: companion?.speciesId ?? null,
+    stage: companion?.stage ?? 1,
+    equipped: userData?.equippedCosmetics ?? null,
   };
+  const stage = you.stage;
+  const hatched = companion?.hatched ?? false;
+  const hatchSpecies = hatch
+    ? companionFromTurkey(flock.turkeys.find((t) => t.id === hatch.eggId) ?? null).speciesId
+    : null;
 
   const overlays = (
     <>
       <InlineToast message={toast} onHide={hideToast} />
-      {hatch && <HatchOverlay speciesId={you.speciesId} moveName={hatch.moveName} onDone={finishHatch} doneLabel="Keep going" />}
+      {hatch && (
+        <HatchOverlay
+          turkeyId={hatch.eggId}
+          speciesId={hatchSpecies ?? you.speciesId}
+          onDone={finishHatch}
+          doneLabel="Keep going"
+        />
+      )}
       <LevelUpModal
         open={levelUp !== null && !hatch}
         fromLevel={levelUp?.from ?? 1}
@@ -497,7 +513,6 @@ function ModuleRunner() {
             userStance={phase.userStance}
             initialMessages={phase.initialMessages}
             maxTurns={phase.maxTurns}
-            moves={availableMoves(user?.companion.learnedMoves ?? [])}
             you={you}
             onFinish={(result) =>
               setPhase({
@@ -545,8 +560,7 @@ function ModuleRunner() {
         <Companion
           variant="scene"
           speciesId={you.speciesId}
-          level={you.level}
-          hatched={you.hatched}
+          stage={stage}
           equipped={you.equipped}
           line="We did it. I remember every word."
         />
@@ -558,8 +572,8 @@ function ModuleRunner() {
             return civility != null ? `. Civility ${Math.round(civility)} out of 10` : null;
           })()}
         </p>
-        <Link href="/skills">
-          <Button>Back to skills</Button>
+        <Link href={turkeyId ? homeHref : "/skills"}>
+          <Button>{turkeyId ? `Back to ${turkeyName}` : "Back to skills"}</Button>
         </Link>
         {overlays}
       </div>
@@ -568,7 +582,7 @@ function ModuleRunner() {
 
   const { sessionId, step } = phase;
   const isLastStep = moduleConfig.variants.some((v) => v.steps[v.steps.length - 1]?.id === step.id);
-  const line = companionLine(isLastStep ? "last" : step.kind, you.hatched);
+  const line = companionLine(isLastStep ? "last" : step.kind, hatched);
 
   if (step.kind === "quiz") {
     return (
@@ -577,12 +591,11 @@ function ModuleRunner() {
         <QuizStep
           questions={step.questions}
           speciesId={you.speciesId}
-          level={you.level}
-          hatched={you.hatched}
+          stage={stage}
           equipped={you.equipped}
           busy={busy}
           onSubmit={(answer) => submitQuiz(sessionId, step, answer)}
-          onBack={() => router.push("/dashboard")}
+          onBack={() => router.push(turkeyId ? homeHref : "/skills")}
         />
         {error && <p className="text-center font-body text-sm text-plume-500">{error}</p>}
         {overlays}
@@ -598,8 +611,7 @@ function ModuleRunner() {
       <Companion
         variant="row"
         speciesId={you.speciesId}
-        level={you.level}
-        hatched={you.hatched}
+        stage={stage}
         equipped={you.equipped}
         line={line}
       />

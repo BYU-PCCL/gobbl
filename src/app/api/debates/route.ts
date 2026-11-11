@@ -6,6 +6,7 @@ import { createDebate, maxTurnsForDebate } from "@/lib/debates";
 import { isStance } from "@/lib/conversation";
 import { getTopic } from "@/lib/topics";
 import { getPersonaById } from "@/lib/personas/pool";
+import { startActivity } from "@/lib/flock/activities";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -24,13 +25,14 @@ export async function POST(req: Request) {
     allowProfanity?: boolean;
     userStance?: unknown;
     topicId?: string;
+    turkeyId?: unknown;
   };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  const { topic, category, difficulty, personaId, isDaily, allowProfanity, topicId } = body;
+  const { topic, category, difficulty, personaId, isDaily, allowProfanity, topicId, turkeyId } = body;
   const userStance = isStance(body.userStance) ? body.userStance : null;
   if (!topic) {
     return NextResponse.json({ error: "A topic is required" }, { status: 400 });
@@ -49,6 +51,11 @@ export async function POST(req: Request) {
     });
     if (typeof topicId === "string" && getTopic(topicId)) {
       await prisma.user.update({ where: { id: userId }, data: { lastTopicId: topicId } }).catch(() => {});
+    }
+    try {
+      await startActivity({ userId, turkeyId, kind: "park", refId: result.id });
+    } catch (e) {
+      console.error("startActivity failed", e);
     }
     return NextResponse.json(result);
   } catch {
@@ -86,7 +93,6 @@ export async function GET(req: Request) {
           debateId: m.debateId,
           role: m.role,
           content: m.content,
-          moveId: m.moveId,
           createdAt: m.createdAt,
         }));
     return NextResponse.json({

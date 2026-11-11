@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { MODULES } from "@/lib/modules/registry";
-import { companionStage, getSpecies } from "@/lib/companion";
+import { getSpecies } from "@/lib/companion";
+import { useCompanion } from "@/components/companion/useCompanion";
 
 interface ModuleListItem {
   key: string;
@@ -61,11 +62,21 @@ function levelLabel(module: ModuleListItem): string {
 }
 
 export default function SkillsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SkillsContent />
+    </Suspense>
+  );
+}
+
+function SkillsContent() {
   const { status } = useSession();
   const router = useRouter();
+  const turkeyId = useSearchParams().get("turkeyId");
+  const withTurkey = turkeyId ? `?turkeyId=${encodeURIComponent(turkeyId)}` : "";
   const [modules, setModules] = useState<ModuleListItem[] | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [me, setMe] = useState<{ speciesId: string | null; stage: number } | null>(null);
+  const { companion } = useCompanion(turkeyId);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -73,12 +84,6 @@ export default function SkillsPage() {
       return;
     }
     if (status === "authenticated") {
-      fetch("/api/user")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d) => {
-          if (d) setMe({ speciesId: d.companion?.speciesId ?? null, stage: companionStage(d.level ?? 1, !!d.companion?.hatched) });
-        })
-        .catch(() => {});
       fetch("/api/modules")
         .then((r) => {
           if (!r.ok) throw new Error("load failed");
@@ -113,8 +118,8 @@ export default function SkillsPage() {
   }
 
   const active = modules.find((m) => m.progress?.inProgress);
-  const myPalette = getSpecies(me?.speciesId).palette;
-  const myStage = me?.stage ?? 1;
+  const mySpecies = getSpecies(companion?.speciesId);
+  const myStage = companion?.stage ?? 1;
   const activePercent = active ? percentComplete(active) : 0;
 
   return (
@@ -130,17 +135,17 @@ export default function SkillsPage() {
           </h1>
         </div>
         <div className="lg:hidden">
-          <FlatTurkey stage={myStage} size={60} palette={myPalette} />
+          <FlatTurkey stage={myStage} size={60} palette={mySpecies.palette} eggPattern={mySpecies.eggPattern} />
         </div>
         <div className="hidden lg:block">
-          <FlatTurkey stage={myStage} size={120} palette={myPalette} />
+          <FlatTurkey stage={myStage} size={120} palette={mySpecies.palette} eggPattern={mySpecies.eggPattern} />
         </div>
       </div>
 
       {/* Active module, if any */}
       {active && (
         <Link
-          href={`/skills/${active.key}`}
+          href={`/skills/${active.key}${withTurkey}`}
           className="relative block overflow-hidden rounded-3xl bg-ink p-5 text-bg lg:p-8"
         >
           <div className="pointer-events-none absolute -bottom-7 -right-7 opacity-15">
@@ -177,7 +182,7 @@ export default function SkillsPage() {
           return (
             <Link
               key={m.key}
-              href={`/skills/${m.key}`}
+              href={`/skills/${m.key}${withTurkey}`}
               className="rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-ink-muted lg:p-5"
             >
               <div className="flex items-center gap-3.5">

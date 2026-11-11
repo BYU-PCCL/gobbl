@@ -4,32 +4,39 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
-import { PRIMARY_NAV, SECONDARY_NAV, type NavItem } from "./navItems";
+import type { ResolvedNavItem } from "./navItems";
+import { AttentionDot } from "./BottomNav";
 import { getSpecies } from "@/lib/companion";
+import { getTurkeySkill } from "@/lib/flock/skills";
+import type { TurkeyView } from "@/lib/flock/view";
 import type { UserSummary } from "./useUserSummary";
 
 /**
  * Desktop sidebar (lg and up). Deliberately quiet: wordmark, destinations,
- * and the user's feathers and profile pinned to the bottom.
+ * and the user's feathers and profile bubble pinned to the bottom.
  */
-export function SideNav({ user }: { user: UserSummary | null }) {
+export function SideNav({
+  user,
+  items,
+  turkey,
+}: {
+  user: UserSummary | null;
+  items: ResolvedNavItem[];
+  turkey: TurkeyView | null;
+}) {
   const pathname = usePathname();
-  const palette = getSpecies(user?.companion?.speciesId).palette;
+  const palette = getSpecies(turkey ? getTurkeySkill(turkey.skill).species : null).palette;
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-line bg-surface-2/40 px-4 py-6 lg:flex">
-      <Link href="/dashboard" className="mb-8 flex items-center gap-2 rounded-xl px-3">
+      <Link href="/home" className="mb-8 flex items-center gap-2 rounded-xl px-3">
         <FlatTurkeyGlyph size={30} />
         <span className="font-display text-[26px] font-bold tracking-[-0.04em] text-ink">Gobbl</span>
       </Link>
 
       <nav aria-label="Primary" className="flex flex-col gap-1">
-        {PRIMARY_NAV.map((item) => (
-          <SideNavLink key={item.href} item={item} active={item.matches(pathname)} />
-        ))}
-        <div className="my-3 border-t border-line" />
-        {SECONDARY_NAV.map((item) => (
-          <SideNavLink key={item.href} item={item} active={item.matches(pathname)} />
+        {items.map((item) => (
+          <SideNavLink key={item.label} item={item} active={item.matches(pathname)} />
         ))}
       </nav>
 
@@ -65,17 +72,22 @@ export function SideNav({ user }: { user: UserSummary | null }) {
   );
 }
 
-function SideNavLink({ item, active }: { item: NavItem; active: boolean }) {
+function SideNavLink({ item, active }: { item: ResolvedNavItem; active: boolean }) {
   return (
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
       className={`flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-[15px] font-semibold transition-colors ${
         active ? "bg-primary-soft text-primary" : "text-ink-soft hover:bg-surface hover:text-ink"
-      }`}
+      } ${item.locked ? "opacity-40" : ""}`}
     >
-      <Icon name={item.icon} />
+      <span className="relative flex">
+        <Icon name={item.icon} />
+        {item.needsAttention && <AttentionDot className="-right-1 -top-1" />}
+      </span>
       {item.label}
+      {item.needsAttention && <span className="sr-only"> (needed)</span>}
+      {item.locked && <span className="sr-only"> (opens after your egg hatches)</span>}
     </Link>
   );
 }

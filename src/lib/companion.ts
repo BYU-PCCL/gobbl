@@ -1,8 +1,8 @@
 import type { FlatTurkeyPalette } from "@/components/gamification/FlatTurkey";
 
 /**
- * The companion: the egg a user picks at onboarding and the turkey it becomes.
- * Client-safe (no Prisma, no DOM). Species data is ported from the Gobbl Hatch prototype.
+ * Species looks for flock turkeys (one species per skill, see `TURKEY_SKILLS[].species`) and the
+ * lines a turkey says on lesson screens. Client-safe (no Prisma, no DOM).
  */
 export type SpeciesId = "eastern" | "ocellated" | "goulds" | "rio" | "merriams";
 export type EggPattern = "flecks" | "rings" | "split" | "stripe" | "tips";
@@ -13,7 +13,7 @@ export interface Species {
   name: string;
   /** Short name used in UI, e.g. "Eastern". */
   commonName: string;
-  /** Module this egg "wants to practice" first (ModuleConfig.key). */
+  /** The module of the skill this species belongs to (ModuleConfig.key). */
   suggestedModuleKey: string;
   /** Starter-style blurb shown on the egg screen. */
   eggDesc: string;
@@ -68,7 +68,7 @@ export function isSpeciesId(x: unknown): x is SpeciesId {
   return typeof x === "string" && SPECIES.some((s) => s.id === x);
 }
 
-/** Falls back to the Eastern (the app's default Harvest palette) for users who have not picked yet. */
+/** Falls back to the Eastern (the app's default Harvest palette) when there is no turkey or its skill has no species. */
 export function getSpecies(id: string | null | undefined): Species {
   return SPECIES.find((s) => s.id === id) ?? SPECIES[0];
 }
@@ -86,39 +86,19 @@ export function partnerStage(difficulty: string | null | undefined): 3 | 5 | 7 {
   return 3;
 }
 
-/** Existing users who reached level 2 before the companion shipped count as hatched. */
-export function isHatched(u: { companionHatchedAt: Date | string | null | undefined; level: number }): boolean {
-  return Boolean(u.companionHatchedAt) || u.level >= 2;
-}
-
-/** FlatTurkey stage for the companion: an egg until hatched, then never below the Hatchling. */
-export function companionStage(level: number, hatched: boolean): number {
-  return hatched ? Math.max(2, Math.min(8, level)) : 1;
-}
-
 export const STAGE_LABELS: Record<number, string> = {
   1: "Egg", 2: "Hatchling", 3: "Poult", 4: "Youngster", 5: "Tom", 6: "Gobbler", 7: "Grand Gobbler", 8: "Thunderbird",
 };
 
-/**
- * Warmth: 100 right after any activity, minus 1 per 20 minutes since `lastActiveDate`, floor 10.
- * Derived, not stored (the prototype rule). Users with no activity yet sit at 60.
- */
-export function warmthFrom(lastActiveDate: Date | string | null | undefined, now: number = Date.now()): number {
-  if (!lastActiveDate) return 60;
-  const at = new Date(lastActiveDate).getTime();
-  if (!Number.isFinite(at)) return 60;
-  const lost = Math.floor(Math.max(0, now - at) / (20 * 60_000));
-  return Math.max(10, 100 - lost);
-}
-
-/** Shape `GET /api/user` returns under `companion`. */
+/** The turkey (or egg) shown beside the user on lesson and conversation screens. See `companionFromTurkey`. */
 export interface CompanionInfo {
+  /** The flock turkey this is; null when the user has no turkey yet. */
+  turkeyId: string | null;
   speciesId: SpeciesId | null;
   hatched: boolean;
+  /** Per-turkey growth stage (1 = egg), from its own activities. */
   stage: number;
-  learnedMoves: string[];
-  lastTopicId: string | null;
+  name: string | null;
 }
 
 /* ---------- copy ---------- */
@@ -138,37 +118,6 @@ export const COMPANION_LINES: Record<CompanionLineKind, { egg: string; turkey: s
 
 export function companionLine(kind: CompanionLineKind, hatched: boolean): string {
   return COMPANION_LINES[kind][hatched ? "turkey" : "egg"];
-}
-
-export function playgroundPickedLine(topicTitle: string, moveName: string): string {
-  return `${topicTitle}? Okay. I'll bring ${moveName}.`;
-}
-
-/** Nest bubble lines, chosen by `nestLineKey`. */
-export const NEST_LINES = {
-  egg: ["…it’s warm in here. Teach me something and I’ll come out.", "I can hear you through the shell. Read something good to me?"],
-  cold: ["It’s getting chilly. Come sit with me for a bit?", "I missed you. A short lesson would warm me right up."],
-  warm: ["I feel great. Want to try a real conversation?", "All warm and fluffed up. Ready when you are."],
-  good: ["That last talk was good. I keep thinking about it.", "We stayed kind and still said what we meant. I liked that."],
-  rough: ["That last one was rocky. We can try again, slower.", "Rough talk. It happens. Want to go over the lesson first?"],
-  def: ["Hi. What are we working on today?", "Good to see you. I am listening."],
-} as const;
-
-export type NestLineKey = keyof typeof NEST_LINES;
-
-/** `mood` is the user's civility score 0-10 (null when they have no finished conversation). */
-export function nestLineKey(s: { hatched: boolean; warmth: number; mood: number | null }): NestLineKey {
-  if (!s.hatched) return "egg";
-  if (s.warmth < 40) return "cold";
-  if (s.mood != null && s.mood >= 7) return "good";
-  if (s.mood != null && s.mood > 0 && s.mood < 5) return "rough";
-  if (s.warmth >= 80) return "warm";
-  return "def";
-}
-
-export function nestLine(s: { hatched: boolean; warmth: number; mood: number | null; seed?: number }): string {
-  const pool = NEST_LINES[nestLineKey(s)];
-  return pool[Math.abs(s.seed ?? 0) % pool.length];
 }
 
 export const PROFESSOR_NAME = "Professor Pinfeather";

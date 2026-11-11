@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { fetchJson } from "@/lib/fetchJson";
 
 import { ConversationScene, type ConversationYou } from "@/components/conversation/ConversationScene";
@@ -13,41 +13,52 @@ import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { AvatarWithItems } from "@/components/gamification/AvatarWithItems";
 import { Button } from "@/components/ui/Button";
 import { MAX_TURNS, isStance, type ConvMsg, type FinishResult, type Stance } from "@/lib/conversation";
-import { availableMoves } from "@/lib/moves";
 import { civilityLabel } from "@/lib/civility";
-import { companionStage, getSpecies, isHatched, type SpeciesId } from "@/lib/companion";
-import type { EquippedCosmetics } from "@/lib/shop";
+import { getSpecies } from "@/lib/companion";
+import { getParkTurkey } from "@/lib/flock/parkTurkeys";
+import { useCompanion } from "@/components/companion/useCompanion";
 
 interface DebateData {
   id: string;
   topic: string;
   difficulty: string;
+  personaId?: string | null;
   personaInitials: string | null;
   userStance?: string | null;
   maxTurns?: number | null;
   completed: boolean;
   overallScore: number | null;
   dimensions?: Record<string, number> | null;
-  messages: { role: string; content: string; moveId?: string | null }[];
+  messages: { role: string; content: string }[];
 }
 
-interface UserData {
-  level?: number;
-  equippedCosmetics?: EquippedCosmetics | null;
-  companion?: {
-    speciesId: SpeciesId | null;
-    hatched: boolean;
-    learnedMoves: string[];
-  } | null;
+export default function ConversationPageRoute() {
+  return (
+    <Suspense fallback={<ConversationLoading />}>
+      <ConversationPage />
+    </Suspense>
+  );
 }
 
-export default function ConversationPage() {
+function ConversationLoading() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="text-center">
+        <FlatTurkey stage={1} size="md" animate />
+        <p className="mt-3 font-body text-sm text-ink-soft">Getting the conversation ready…</p>
+      </div>
+    </div>
+  );
+}
+
+function ConversationPage() {
   const { status } = useSession();
   const router = useRouter();
   const params = useParams();
   const debateId = params.id as string;
+  const turkeyIdParam = useSearchParams().get("turkeyId");
+  const { data: user, companion, error: userError, flock } = useCompanion(turkeyIdParam);
   const [debate, setDebate] = useState<DebateData | null>(null);
-  const [user, setUser] = useState<UserData | null>(null);
   const [result, setResult] = useState<FinishResult | null>(null);
 
   useEffect(() => {
@@ -56,31 +67,29 @@ export default function ConversationPage() {
       fetchJson<DebateData>(`/api/debates?id=${debateId}`)
         .then(setDebate)
         .catch(() => router.push("/chat"));
-      // Non-critical: the scene falls back to the default turkey without it.
-      fetchJson<UserData>("/api/user").then(setUser).catch(() => setUser({}));
     }
   }, [status, debateId, router]);
 
   const you: ConversationYou = useMemo(
     () => ({
-      speciesId: user?.companion?.speciesId ?? null,
-      level: user?.level ?? 1,
-      hatched: user?.companion?.hatched ?? isHatched({ companionHatchedAt: null, level: user?.level ?? 1 }),
+      speciesId: companion?.speciesId ?? null,
+      stage: companion?.stage ?? 1,
       equipped: user?.equippedCosmetics ?? null,
     }),
-    [user],
+    [companion, user],
   );
 
-  if (!debate || !user) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-center">
-          <FlatTurkey stage={1} size="md" animate />
-          <p className="mt-3 font-body text-sm text-ink-soft">Getting the conversation ready…</p>
-        </div>
-      </div>
-    );
-  }
+  // The user's cosmetics are non-critical: wait for them, but not if the request failed.
+  if (!debate || !companion || (!user && !userError)) return <ConversationLoading />;
+
+  // Back navigation: a park conversation returns to the park, anything else to Home.
+  const parkTurkey = getParkTurkey(debate.personaId);
+  const myName = companion.name ?? "your turkey";
+  const homeLabel = `Back to ${myName}`;
+  const toPark = () =>
+    router.push(companion.turkeyId ? `/chat?turkeyId=${encodeURIComponent(companion.turkeyId)}` : "/chat");
+  const toHome = () => router.push("/home");
+  const partnerName = parkTurkey?.name;
 
   if (result) {
     // The layout hides the nav and clips this route's <main> (overflow-hidden) so the
@@ -91,8 +100,8 @@ export default function ConversationPage() {
           debateId={debate.id}
           result={result}
           you={you}
-          continueLabel="Back to the Nest"
-          onContinue={() => router.push("/dashboard")}
+          continueLabel={homeLabel}
+          onContinue={toHome}
         />
       </div>
     );
@@ -100,17 +109,20 @@ export default function ConversationPage() {
 
   if (debate.completed) {
     const species = getSpecies(you.speciesId);
+    const youName = companion.name ?? "Your turkey";
     return (
       <div className="h-full overflow-y-auto">
         <div className="mx-auto max-w-3xl px-5 py-8 sm:px-8">
           <div className="flex flex-col items-center text-center">
             <AvatarWithItems
-              stage={companionStage(you.level, you.hatched)}
+              stage={you.stage}
               size={120}
               palette={species.palette}
               equipped={you.equipped ?? {}}
             />
-            <p className="mt-4 font-body text-sm font-semibold text-primary">Finished conversation</p>
+            <p className="mt-4 font-body text-sm font-semibold text-primary">
+              {partnerName ? `${youName} and ${partnerName}` : "Finished conversation"}
+            </p>
             <h1 className="mt-1 font-display text-2xl font-bold tracking-[-0.03em]">{debate.topic}</h1>
             {debate.overallScore != null && (
               <div className="mt-4">
@@ -137,13 +149,18 @@ export default function ConversationPage() {
           )}
 
           <div className="mt-10">
-            <TurnReview debateId={debate.id} personaInitials={debate.personaInitials} />
+            <TurnReview debateId={debate.id} personaInitials={partnerName ?? debate.personaInitials} />
           </div>
 
-          <div className="mt-10 flex justify-center">
-            <Button size="lg" onClick={() => router.push("/dashboard")} className="w-full sm:w-auto">
-              Back to the Nest
+          <div className="mt-10 flex flex-col justify-center gap-2 sm:flex-row">
+            <Button size="lg" onClick={toHome} className="w-full sm:w-auto">
+              {homeLabel}
             </Button>
+            {parkTurkey && (
+              <Button size="lg" variant="ghost" onClick={toPark} className="w-full sm:w-auto">
+                Back to the park
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -155,7 +172,6 @@ export default function ConversationPage() {
     .map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
-      moveId: m.moveId ?? null,
     }));
   const stance: Stance | null = isStance(debate.userStance) ? debate.userStance : null;
 
@@ -164,14 +180,14 @@ export default function ConversationPage() {
       debateId={debate.id}
       topic={debate.topic}
       personaInitials={debate.personaInitials ?? "Robert"}
+      partnerName={partnerName}
       difficulty={debate.difficulty}
       userStance={stance}
       initialMessages={initialMessages}
       maxTurns={debate.maxTurns ?? MAX_TURNS}
-      moves={availableMoves(user.companion?.learnedMoves ?? [])}
       you={you}
-      onFinish={setResult}
-      onLeave={() => router.push("/dashboard")}
+      onFinish={(r) => { setResult(r); void flock.reload(); }}
+      onLeave={parkTurkey ? toPark : toHome}
     />
   );
 }

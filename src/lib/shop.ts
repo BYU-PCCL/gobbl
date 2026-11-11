@@ -8,6 +8,7 @@ export interface ShopItem {
   accent: string;
   accentBg: string;
   isNew?: boolean;
+  /** User level needed before the item can be bought. */
   unlockAt?: number;
 }
 

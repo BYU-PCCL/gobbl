@@ -4,20 +4,17 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { ACCOUNT_MISSING_CALLBACK_URL } from "@/lib/signOutReasons";
-import type { CompanionInfo } from "@/lib/companion";
 
 export interface UserSummary {
   username: string;
   level: number;
   levelName: string;
   featherBalance: number;
-  /** null while unknown (older API response). */
-  companion: CompanionInfo | null;
 }
 
 /**
  * The signed-in user's name, level and feather balance for the app chrome.
- * Refetches on navigation so the balance reflects purchases and finished debates.
+ * Refetches on navigation so the balance reflects purchases and finished conversations.
  *
  * Also the one place that notices a dead session. With the JWT strategy a signed
  * cookie can outlive its account (database move, deleted user) and the server has
@@ -48,7 +45,6 @@ export function useUserSummary(): UserSummary | null {
           level: data.level,
           levelName: data.levelInfo?.name ?? "",
           featherBalance: data.featherBalance,
-          companion: data.companion ?? null,
         });
       })
       .catch(() => {});

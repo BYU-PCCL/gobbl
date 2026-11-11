@@ -11,8 +11,7 @@ import type { EquippedCosmetics } from "@/lib/shop";
 export interface QuizStepProps {
   questions: QuizQuestion[];
   speciesId: SpeciesId | null;
-  level: number;
-  hatched: boolean;
+  stage: number;
   equipped?: EquippedCosmetics | null;
   /**
    * Submits one chosen option index per question. Resolves "failed" when the quiz was not passed
@@ -24,7 +23,7 @@ export interface QuizStepProps {
 }
 
 /** "Teach": the turkey asks each question in its bubble; the user taps one of four options. */
-export function QuizStep({ questions, speciesId, level, hatched, equipped, onSubmit, busy, onBack }: QuizStepProps) {
+export function QuizStep({ questions, speciesId, stage, equipped, onSubmit, busy, onBack }: QuizStepProps) {
   const [index, setIndex] = useState(0);
   const [picks, setPicks] = useState<number[]>([]);
   const [locked, setLocked] = useState(false);
@@ -57,15 +56,14 @@ export function QuizStep({ questions, speciesId, level, hatched, equipped, onSub
         <Companion
           variant="scene"
           speciesId={speciesId}
-          level={level}
-          hatched={hatched}
+          stage={stage}
           equipped={equipped}
           line="Not quite. Read it again together?"
         />
         <div className="flex w-full flex-col gap-2.5">
           <Button onClick={reset}>Try again</Button>
           <Button variant="outline" onClick={onBack}>
-            Back to the Nest
+            Back
           </Button>
         </div>
       </div>
@@ -74,7 +72,7 @@ export function QuizStep({ questions, speciesId, level, hatched, equipped, onSub
 
   return (
     <div className="flex flex-col gap-4">
-      <Companion variant="scene" speciesId={speciesId} level={level} hatched={hatched} equipped={equipped} line={q.q} />
+      <Companion variant="scene" speciesId={speciesId} stage={stage} equipped={equipped} line={q.q} />
       <p className="text-center font-mono text-[10px] uppercase tracking-wider text-ink-muted">
         Question {index + 1} of {questions.length}
       </p>

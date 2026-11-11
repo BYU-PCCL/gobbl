@@ -419,7 +419,7 @@ export function FlatTurkeyGlyph({
   );
 }
 
-/** Wrapper with name + level pill underneath. Convenient for profile/leaderboard rows. */
+/** Wrapper with name + level pill underneath. Convenient for list rows. */
 export function FlatTurkeyWithLabel({
   stage,
   size = "md",

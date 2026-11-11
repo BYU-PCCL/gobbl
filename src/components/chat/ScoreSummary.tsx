@@ -301,7 +301,7 @@ export function ScoreSummary({ result }: ScoreSummaryProps) {
         <Link href="/chat">
           <Button className="w-full sm:w-auto">Start another conversation</Button>
         </Link>
-        <Link href="/dashboard">
+        <Link href="/home">
           <Button variant="secondary" className="w-full sm:w-auto">Back to home</Button>
         </Link>
       </div>

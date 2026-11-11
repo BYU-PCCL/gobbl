@@ -6,7 +6,6 @@ import { getModule } from "@/lib/modules/registry";
 import { createDebate } from "@/lib/debates";
 import { isStance } from "@/lib/conversation";
 import { formatTopicForDebate, getTopic } from "@/lib/topics";
-import { MODULE_MOVES, parseLearnedMoves } from "@/lib/moves";
 import { QUIZ_PASS } from "@/lib/quizzes";
 import { XP_LEARN, XP_TEACH, getLevelInfo } from "@/lib/gamification";
 import { isAnswerValid } from "@/lib/survey/questions";
@@ -129,7 +128,6 @@ export async function POST(req: Request, { params }: { params: { key: string } }
       select: { stepResponses: true },
     });
     const alreadyTaught = otherSessions.some((s) => asObject(asObject(s.stepResponses)[step.id]).passed === true);
-    const move = MODULE_MOVES[moduleConfig.key] ?? null;
     const nextQuizStep = variant.steps[stepIndex + 1] ?? null;
     const now = new Date();
 
@@ -140,29 +138,26 @@ export async function POST(req: Request, { params }: { params: { key: string } }
       });
       if (advanced.count === 0) return null;
 
-      const hatchedNow = await tx.user.updateMany({
-        where: { id: userId, companionHatchedAt: null },
-        data: { companionHatchedAt: now },
+      await tx.user.update({ where: { id: userId }, data: { lastActiveDate: now } });
+      // The first egg hatches on the first passed quiz, whatever the account's level. The client
+      // shows the hatch moment and names the turkey (POST /api/turkeys/[id]/hatch, which checks
+      // for this passed quiz). Eggs bought later hatch by tapping, so they are not offered here.
+      const flock = await tx.turkey.findMany({
+        where: { userId },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, hatchedAt: true },
       });
-      const me = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { learnedMoves: true, level: true } });
-      // Users already at level 2+ were shown as hatched before the column existed: stamp it quietly, no overlay.
-      const wasEgg = me.level < 2;
-      const learned = parseLearnedMoves(me.learnedMoves);
-      if (move && !learned.includes(move.id)) learned.push(move.id);
-      await tx.user.update({
-        where: { id: userId },
-        data: { learnedMoves: learned, lastActiveDate: now },
-      });
+      const firstEgg = flock.length > 0 && flock.every((t) => t.hatchedAt === null) ? flock[0] : null;
       const xp = alreadyTaught ? null : await awardXp(tx, userId, XP_TEACH);
-      return { hatched: hatchedNow.count > 0 && wasEgg, xp };
+      return { eggId: firstEgg?.id ?? null, xp };
     });
     if (!outcome) return bad("Not the current step", 409);
 
     return NextResponse.json({
       passed: true,
       results,
-      hatched: outcome.hatched,
-      learnedMove: move,
+      hatched: outcome.eggId !== null,
+      eggId: outcome.eggId,
       xp: outcome.xp,
       nextStep: nextQuizStep,
     });

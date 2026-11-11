@@ -349,3 +349,21 @@ function getMockAnalysis(userTurnCount: number): TurnFeedback[] {
     tryInstead: "Try asking a follow-up question before making your next point.",
   }));
 }
+
+/**
+ * The turkey's next line in a School lesson. `messages` comes from
+ * buildSchoolPrompt (src/lib/flock/school.ts). Throws when Grok fails so the
+ * caller can show the "sleepy turkey" retry state.
+ */
+export async function getSchoolTurn(messages: ChatMessage[]): Promise<string> {
+  if (MOCK_MODE) return "I'm a bit sleepy today (no AI key is set). Can you tell me what you know about this?";
+  const completion = await complete("school", {
+    model: GROK_MODEL,
+    messages,
+    max_tokens: 200,
+    temperature: 0.8,
+  });
+  const text = completion.choices[0]?.message?.content?.trim();
+  if (!text) throw new Error("Empty school reply");
+  return text;
+}

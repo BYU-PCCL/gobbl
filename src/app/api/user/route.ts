@@ -5,8 +5,6 @@ import { prisma } from "@/lib/db";
 import { getLevelInfo } from "@/lib/gamification";
 import { parseEquippedCosmetics } from "@/lib/shop";
 import { getUserBelief } from "@/lib/prompts/userBelief";
-import { companionStage, isHatched, type CompanionInfo, type SpeciesId } from "@/lib/companion";
-import { parseLearnedMoves } from "@/lib/moves";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -32,31 +30,9 @@ export async function GET() {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
+  // The account-wide level. Turkeys grow separately, from their own activities (/api/turkeys).
   const levelInfo = getLevelInfo(user.xp);
-
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(todayStart);
-  todayEnd.setDate(todayEnd.getDate() + 1);
-
-  const dailyDebateToday = await prisma.debate.findFirst({
-    where: {
-      userId,
-      isDaily: true,
-      createdAt: { gte: todayStart, lt: todayEnd },
-    },
-  });
-
   const equippedCosmetics = parseEquippedCosmetics(user.equippedCosmetics);
-
-  const hatched = isHatched(user);
-  const companion: CompanionInfo = {
-    speciesId: (user.companionSpecies as SpeciesId | null) ?? null,
-    hatched,
-    stage: companionStage(user.level, hatched),
-    learnedMoves: parseLearnedMoves(user.learnedMoves),
-    lastTopicId: user.lastTopicId ?? null,
-  };
 
   return NextResponse.json({
     id: user.id,
@@ -66,13 +42,11 @@ export async function GET() {
     level: user.level,
     levelInfo,
     equippedCosmetics,
-    companion,
     ownedItemIds: user.inventory.map((i) => i.itemId),
     civilityScore: user.civilityScore,
     currentStreak: user.currentStreak,
     longestStreak: user.longestStreak,
-    lastActiveDate: user.lastActiveDate,
-    dailyCompleted: !!dailyDebateToday,
+    lastTopicId: user.lastTopicId ?? null,
     badges: user.badges.map((b) => b.badgeKey),
     beliefKey: getUserBelief(user.surveyResponses),
     recentDebates: user.debates.map((d) => ({

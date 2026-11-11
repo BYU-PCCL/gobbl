@@ -10,8 +10,8 @@ import { parseEquippedCosmetics } from "@/lib/shop";
 import { fallbackHolisticFromUserMessages, parseStoredDimensions } from "@/lib/civility";
 import { maxTurnsForDebate } from "@/lib/debates";
 import { MIN_TURNS_TO_FINISH } from "@/lib/conversation";
-import { isMoveId } from "@/lib/moves";
 import { getPersonaById, pickPersona, isTier } from "@/lib/personas/pool";
+import { completeActivity } from "@/lib/flock/activities";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   }
 
   const userId = (session.user as { id: string }).id;
-  const { debateId, message, finish, moveId } = await req.json();
+  const { debateId, message, finish } = await req.json();
   const hasMessage = typeof message === "string" && message.trim().length > 0;
 
   if (!hasMessage && !finish) {
@@ -85,7 +85,6 @@ export async function POST(req: Request) {
       debateId,
       role: "user",
       content: message,
-      moveId: isMoveId(moveId) ? moveId : null,
       civilityScore: civilityResult.overall,
       dimensions: JSON.stringify(civilityResult.dimensions),
     },
@@ -220,7 +219,8 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
   const existingBadgeKeys = user.badges.map((b) => b.badgeKey);
   const newBadges = checkNewBadges(stats, existingBadgeKeys);
 
-  // Two racing "finish" calls (double tap, two tabs) must pay out once: the guarded updateMany picks the winner.
+  // Two racing "finish" calls (double tap, two tabs) must pay out once: the guarded updateMany
+  // picks the winner. Balances use increments so a concurrent egg debit / school credit isn't overwritten.
   const paid = await prisma.$transaction(async (tx) => {
     const won = await tx.debate.updateMany({
       where: { id: debateId, completed: false },
@@ -254,6 +254,19 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
   if (!paid) {
     const fresh = await prisma.debate.findUnique({ where: { id: debateId } });
     if (fresh) return await alreadyFinished(userId, fresh);
+    return NextResponse.json({ error: "This conversation is already finished" }, { status: 409 });
+  }
+
+  // Links the finished conversation to the turkey that went to the park (growth + "lonely" need).
+  try {
+    await completeActivity({
+      refId: debateId,
+      score: overallScore,
+      feathers: featherResult.total,
+      counts: true,
+    });
+  } catch (e) {
+    console.error("completeActivity failed", e);
   }
 
   const dimensionsOut = {

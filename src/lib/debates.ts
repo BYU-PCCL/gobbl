@@ -20,6 +20,11 @@ interface CreateDebateParams {
   allowProfanity?: boolean;
   /** Which side the user said they take; the partner takes the other. */
   userStance?: Stance | null;
+  /**
+   * The persona of a turkey picked at the park. Honored as-is when it matches the chosen
+   * difficulty: park turkeys may share the user's views, unlike the opposing-side default.
+   */
+  parkPersonaId?: string;
 }
 
 /** User messages allowed in a debate: the module's first practice step `maxTurns`, else MAX_TURNS. */
@@ -44,6 +49,7 @@ export async function createDebate({
   trainingMode,
   allowProfanity,
   userStance,
+  parkPersonaId,
 }: CreateDebateParams) {
   const tier = difficulty && isTier(difficulty) ? difficulty : "Friendly Cluck";
   const profanity = tier === "Full Gobble" && allowProfanity === true;
@@ -56,9 +62,12 @@ export async function createDebate({
 
   // Honor the partner previewed on the setup screen only if it's still a valid match —
   // right tier and across the aisle from the user.
+  const parkPick = getPersonaById(parkPersonaId);
   const requested = getPersonaById(personaId);
   const persona =
-    requested && opposingPersonas(tier, userBelief).includes(requested)
+    parkPick && parkPick.tier === tier
+      ? parkPick
+      : requested && opposingPersonas(tier, userBelief).includes(requested)
       ? requested
       : pickOpposingPersona(tier, userBelief);
 

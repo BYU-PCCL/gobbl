@@ -22,12 +22,14 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/dashboard/:path*",
+    "/home/:path*",
+    "/hatch/:path*",
+    "/school/:path*",
     "/chat/:path*",
     "/skills/:path*",
     "/shop/:path*",
     "/profile/:path*",
-    "/leaderboard/:path*",
+    "/friends/:path*",
     "/onboarding/:path*",
   ],
 };

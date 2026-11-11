@@ -2,27 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MAX_MESSAGE_CHARS, type ConvMsg, type FinishResult, type Stance, type TurnResult } from "@/lib/conversation";
-import { getMove, type Move } from "@/lib/moves";
-import { PARTNER_PALETTE, companionStage, getSpecies, partnerStage, type SpeciesId } from "@/lib/companion";
+import { PARTNER_PALETTE, getSpecies, partnerStage, type SpeciesId } from "@/lib/companion";
 import type { EquippedCosmetics } from "@/lib/shop";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { AvatarWithItems } from "@/components/gamification/AvatarWithItems";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { MoveChips } from "./MoveChips";
 import { SpeechBubble } from "./SpeechBubble";
 import { TranscriptSheet } from "./TranscriptSheet";
 import { TypingDots } from "./TypingDots";
 
 /**
  * The conversation: your turkey and the partner's turkey in a scene, each with a speech bubble,
- * an input dock with optional move hints, a transcript sheet and a wrap-up. No scores are shown
+ * an input dock, a transcript sheet and a wrap-up. No scores are shown
  * anywhere until `onFinish`.
  */
 export interface ConversationYou {
   speciesId: SpeciesId | null;
-  level: number;
-  hatched: boolean;
+  /** The growth stage of the user's own turkey (1 = egg). */
+  stage: number;
   equipped?: EquippedCosmetics | null;
 }
 
@@ -30,11 +28,12 @@ export interface ConversationSceneProps {
   debateId: string;
   topic: string;
   personaInitials: string;
+  /** Shown in place of the initials when the partner is a named park turkey. */
+  partnerName?: string;
   difficulty: string;
   userStance: Stance | null;
   initialMessages: ConvMsg[];
   maxTurns: number;
-  moves: Move[];
   you: ConversationYou;
   onFinish: (result: FinishResult) => void;
   onLeave?: () => void;
@@ -46,11 +45,11 @@ export function ConversationScene({
   debateId,
   topic,
   personaInitials,
+  partnerName,
   difficulty,
   userStance,
   initialMessages,
   maxTurns,
-  moves,
   you,
   onFinish,
   onLeave,
@@ -67,13 +66,12 @@ export function ConversationScene({
   const [turnNumber, setTurnNumber] = useState(
     () => initialMessages.filter((m) => m.role === "user" && m.content.trim() !== "").length,
   );
-  const [moveId, setMoveId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [compact, setCompact] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const species = getSpecies(you.speciesId);
-  const selectedMove = moveId ? (moves.find((m) => m.id === moveId) ?? getMove(moveId)) : undefined;
+  const partnerLabel = partnerName ?? personaInitials;
 
   // Shrink the turkeys when the on-screen keyboard leaves little room for the scene.
   useEffect(() => {
@@ -107,7 +105,7 @@ export function ConversationScene({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ debateId, message: text, ...(moveId ? { moveId } : {}) }),
+        body: JSON.stringify({ debateId, message: text }),
       });
       const data = (await res.json().catch(() => ({}))) as Partial<TurnResult> & { error?: string };
       if (!res.ok || typeof data.aiResponse !== "string") {
@@ -118,12 +116,11 @@ export function ConversationScene({
       }
       setMessages((prev) => [
         ...prev,
-        { role: "user", content: text, moveId },
+        { role: "user", content: text },
         { role: "assistant", content: data.aiResponse as string },
       ]);
       setTurnNumber(data.turnNumber ?? turnNumber + 1);
       setInput("");
-      setMoveId(null);
       setPending(null);
     } catch {
       setSendError("Couldn't reach the server. Your message is still here.");
@@ -131,7 +128,7 @@ export function ConversationScene({
     } finally {
       setLoading(false);
     }
-  }, [input, loading, finishing, debateId, moveId, maxTurns, turnNumber]);
+  }, [input, loading, finishing, debateId, maxTurns, turnNumber]);
 
   const handleFinish = useCallback(async () => {
     setFinishing(true);
@@ -234,7 +231,7 @@ export function ConversationScene({
             <SpeechBubble
               tail="right"
               live
-              label={`${personaInitials} says`}
+              label={`${partnerLabel} says`}
               maxHeightClass="max-h-[min(22rem,38vh)]"
               className="flex-1"
             >
@@ -243,7 +240,7 @@ export function ConversationScene({
             <div className="flex shrink-0 flex-col items-center">
               <FlatTurkey stage={partnerStage(difficulty)} size={turkeyPx} palette={PARTNER_PALETTE} />
               <span className="-mt-1 rounded-full border border-line bg-surface px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-                {personaInitials}
+                {partnerLabel}
               </span>
             </div>
           </div>
@@ -251,7 +248,7 @@ export function ConversationScene({
           {/* You, bottom left */}
           <div className="flex min-h-0 items-end gap-3">
             <AvatarWithItems
-              stage={companionStage(you.level, you.hatched)}
+              stage={you.stage}
               size={turkeyPx}
               palette={species.palette}
               equipped={you.equipped ?? {}}
@@ -279,17 +276,10 @@ export function ConversationScene({
           ) : (
             <>
               <div className="mb-2 flex items-center gap-2">
-                <MoveChips moves={moves} selectedId={moveId} onSelect={setMoveId} disabled={busy} className="flex-1" />
-                <Button variant="ghost" size="sm" onClick={() => setSheetOpen(true)} className="shrink-0">
+                <Button variant="ghost" size="sm" onClick={() => setSheetOpen(true)} className="ml-auto shrink-0">
                   Transcript
                 </Button>
               </div>
-              {selectedMove && (
-                <p className="mb-2 rounded-xl bg-ochre-soft px-3 py-2 font-body text-xs text-ink">
-                  <span className="font-semibold">{selectedMove.name}: </span>
-                  {selectedMove.hint}
-                </p>
-              )}
               {sendError && (
                 <div role="alert" className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 py-2">
                   <span className="font-body text-xs text-plume-500">{sendError}</span>
@@ -342,7 +332,7 @@ export function ConversationScene({
         </div>
       </div>
 
-      <TranscriptSheet open={sheetOpen} onClose={() => setSheetOpen(false)} messages={messages} initials={personaInitials} />
+      <TranscriptSheet open={sheetOpen} onClose={() => setSheetOpen(false)} messages={messages} initials={partnerLabel} />
     </div>
   );
 }

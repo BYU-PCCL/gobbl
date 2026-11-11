@@ -5,16 +5,18 @@ import { useSession } from "next-auth/react";
 import { Icon } from "@/components/ui/Icon";
 import { FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
 import { getSpecies } from "@/lib/companion";
+import { getTurkeySkill } from "@/lib/flock/skills";
+import type { TurkeyView } from "@/lib/flock/view";
 import type { UserSummary } from "./useUserSummary";
 
 /**
  * Top app bar for phones and tablets: avatar and greeting on the left, feather
  * balance on the right. The sidebar carries both at lg, so this hides there.
  */
-export function TopAppBar({ user }: { user: UserSummary | null }) {
+export function TopAppBar({ user, turkey }: { user: UserSummary | null; turkey: TurkeyView | null }) {
   const { data: session } = useSession();
   const name = user?.username ?? session?.user?.name ?? "";
-  const palette = getSpecies(user?.companion?.speciesId).palette;
+  const palette = getSpecies(turkey ? getTurkeySkill(turkey.skill).species : null).palette;
 
   return (
     <header className="sticky top-0 z-40 bg-bg lg:hidden">

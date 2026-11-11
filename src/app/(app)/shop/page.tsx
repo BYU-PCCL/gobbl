@@ -3,13 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { Badge } from "@/components/ui/Badge";
 import { Icon } from "@/components/ui/Icon";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
-import { AvatarWithItems, ItemProductShot } from "@/components/gamification/AvatarWithItems";
+import { ItemProductShot } from "@/components/gamification/AvatarWithItems";
+import { TurkeyCharacter } from "@/components/turkey/TurkeyCharacter";
+import { useFlock } from "@/components/turkey/useFlock";
+import { EGG_COST } from "@/lib/flock/config";
+import { EGG_SKILLS, getTurkeySkill, type TurkeySkillKey } from "@/lib/flock/skills";
+import { getSpecies } from "@/lib/companion";
 import type { EquippedCosmetics, ShopSlot } from "@/lib/shop";
 import { SHOP_SLOTS } from "@/lib/shop";
 
@@ -52,6 +58,9 @@ export default function ShopPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  const { turkeys, current, loading: flockLoading, error: flockError } = useFlock();
+  const [eggBusy, setEggBusy] = useState<TurkeySkillKey | null>(null);
+  const [eggError, setEggError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     return fetch("/api/shop")
@@ -82,6 +91,34 @@ export default function ShopPage() {
     } finally { setBusyId(null); }
   }
 
+  async function buyEgg(skill: TurkeySkillKey) {
+    setEggBusy(skill);
+    setEggError(null);
+    try {
+      const r = await fetch("/api/turkeys/eggs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skill }),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setEggError(
+          r.status === 402
+            ? "Not enough feathers for that egg yet."
+            : r.status === 409
+              ? "You already have a turkey for that skill."
+              : typeof body.error === "string" ? body.error : "Could not buy the egg",
+        );
+        return;
+      }
+      router.push("/hatch");
+    } catch {
+      setEggError("Could not buy the egg");
+    } finally {
+      setEggBusy(null);
+    }
+  }
+
   async function equip(slot: ShopSlot, itemId: string | null) {
     setBusyId(`eq-${slot}`);
     setError(null);
@@ -105,6 +142,8 @@ export default function ShopPage() {
     );
   }
 
+  const ownedSkills = new Set(turkeys.map((t) => t.skill));
+  const eggsForSale = EGG_SKILLS.filter((sk) => !ownedSkills.has(sk.key));
   const visible = filter === "all" ? data.items : data.items.filter((i) => i.slot === filter);
   // Equipped items as a list for hero preview chips
   const equippedItems = SHOP_SLOTS
@@ -137,15 +176,23 @@ export default function ShopPage() {
         <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-ochre-soft/60" />
         <div className="pointer-events-none absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-primary-soft/55" />
         <div className="relative flex items-center gap-4 lg:flex-col lg:items-stretch lg:text-center">
-          <div className="lg:hidden">
-            <AvatarWithItems stage={data.level} size={140} equipped={data.equipped} />
-          </div>
-          <div className="hidden justify-center lg:flex">
-            <AvatarWithItems stage={data.level} size={220} equipped={data.equipped} />
+          <div className="shrink-0">
+            {current ? (
+              <TurkeyCharacter
+                stage={current.stage}
+                mood={current.mood}
+                skill={current.skill}
+                equipped={data.equipped}
+                size={160}
+                label={current.name ?? current.skillLabel}
+              />
+            ) : (
+              <FlatTurkey stage={1} size={120} />
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="font-body text-xs font-semibold text-ink-muted">
-              Your look, level {data.level}
+              Your look{current ? `, ${current.name ?? current.skillLabel}` : ""}
             </div>
             <div className="mt-1 font-display text-[20px] font-bold tracking-[-0.02em]">
               {equippedItems.length > 0 ? "Looking sharp." : "Bare-feathered."}
@@ -178,6 +225,56 @@ export default function ShopPage() {
         </div>
       )}
 
+      {/* Eggs */}
+      {!flockLoading && !flockError && turkeys.length === 0 && (
+        <section aria-label="Eggs">
+          <Link href="/hatch" className="font-body text-sm font-semibold text-primary underline">
+            Hatch your free egg first
+          </Link>
+        </section>
+      )}
+      {!flockLoading && !flockError && turkeys.length > 0 && (
+      <section aria-label="Eggs">
+        <h2 className="font-display text-xl font-bold tracking-[-0.02em]">Eggs</h2>
+        <p className="mt-1 font-body text-xs text-ink-soft">Each egg hatches a new turkey tied to a skill.</p>
+        {eggError && (
+          <div role="alert" className="mt-3 rounded-xl bg-plume-100 px-4 py-3 font-body text-sm text-plume-700">
+            {eggError}
+          </div>
+        )}
+        {eggsForSale.length === 0 ? (
+          <p className="mt-3 font-body text-sm text-ink-soft">Your flock covers every skill.</p>
+        ) : (
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {eggsForSale.map((sk) => (
+              <div key={sk.key} className="rounded-2xl border border-line bg-surface p-2.5">
+                <div className="flex items-center justify-center rounded-xl bg-bg py-2">
+                  <FlatTurkey
+                    stage={1}
+                    size={96}
+                    palette={getSpecies(getTurkeySkill(sk.key).species).palette}
+                    eggPattern={getSpecies(getTurkeySkill(sk.key).species).eggPattern}
+                  />
+                </div>
+                <div className="px-1 pb-1 pt-2.5">
+                  <div className="truncate font-body text-[13px] font-bold">{sk.label}</div>
+                  <div className="mt-1.5 flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1 font-mono text-xs font-bold text-ink num-tabular">
+                      <Icon name="feather" size={11} />
+                      {EGG_COST.toLocaleString()}
+                    </span>
+                    <Button size="sm" onClick={() => buyEgg(sk.key)} disabled={eggBusy !== null || data.featherBalance < EGG_COST}>
+                      Buy
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+      )}
+
       {/* Filter tabs */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 lg:flex-wrap lg:overflow-visible">
         <Chip selected={filter === "all"} onClick={() => setFilter("all")}>All</Chip>
@@ -194,6 +291,7 @@ export default function ShopPage() {
           <ShopItemCard
             key={item.id}
             item={item}
+            level={data.level}
             equippedHere={data.equipped[item.slot] === item.id}
             onBuy={() => buy(item.id)}
             onEquip={() => equip(item.slot, item.id)}
@@ -208,15 +306,17 @@ export default function ShopPage() {
 }
 
 function ShopItemCard({
-  item, equippedHere, onBuy, onEquip, onUnequip, busy,
+  item, level, equippedHere, onBuy, onEquip, onUnequip, busy,
 }: {
   item: ShopItemRow;
+  level: number;
   equippedHere: boolean;
   onBuy: () => void;
   onEquip: () => void;
   onUnequip: () => void;
   busy: boolean;
 }) {
+  const locked = !item.owned && item.unlockAt !== undefined && item.unlockAt > level;
   return (
     <div
       className={`overflow-hidden rounded-2xl border bg-surface p-2.5 transition-colors ${
@@ -229,7 +329,7 @@ function ShopItemCard({
       >
         <div className="pointer-events-none absolute inset-2 rounded-xl border border-dashed border-white/45" />
         <div
-          style={!item.owned && !item.canAfford ? { filter: "grayscale(0.6) opacity(0.7)" } : undefined}
+          style={!item.owned && (locked || !item.canAfford) ? { filter: "grayscale(0.6) opacity(0.7)" } : undefined}
         >
           <ItemProductShot itemId={item.id} size={90} />
         </div>
@@ -259,14 +359,17 @@ function ShopItemCard({
               {item.cost.toLocaleString()}
             </span>
           )}
+          {locked && (
+            <span className="font-body text-[11px] font-semibold text-ink-muted">Reach level {item.unlockAt}</span>
+          )}
           {!item.owned && (
             <Button
               size="sm"
-              variant={item.canAfford ? "primary" : "outline"}
+              variant={item.canAfford && !locked ? "primary" : "outline"}
               onClick={onBuy}
-              disabled={busy || !item.canAfford}
+              disabled={busy || locked || !item.canAfford}
             >
-              {item.canAfford ? "Buy" : "Locked"}
+              {locked ? "Locked" : "Buy"}
             </Button>
           )}
         </div>

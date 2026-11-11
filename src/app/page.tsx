@@ -18,16 +18,16 @@ function stageSize(stage: number) {
 
 const PROMISES = [
   {
-    title: "Talk with someone who disagrees",
-    body: "Your AI partner holds the opposite view on the topic you pick, and pushes back as hard as you choose.",
+    title: "Hatch a turkey",
+    body: "Pick an egg tied to a skill like listening or reason-giving, and watch it hatch into a turkey of your own.",
   },
   {
-    title: "Get scored on civility, not winning",
-    body: "After each conversation you see how you did on tone, evidence, empathy, constructive framing and listening, with notes turn by turn.",
+    title: "Take care of it",
+    body: "Feed it with short lessons, keep it company in the park, and practice at school. When you're away they get a little droopy — and they're always happy to see you.",
   },
   {
-    title: "Grow your turkey",
-    body: "XP from good conversations evolves your turkey through eight stages. Feathers buy it an outfit.",
+    title: "Grow your skills",
+    body: "As your turkey grows through eight stages, so does the skill you practice together. Feathers buy new eggs and outfits.",
   },
 ];
 
@@ -63,7 +63,7 @@ function LandingPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (session) router.push("/dashboard");
+    if (session) router.push("/home");
   }, [session, router]);
 
   if (status === "loading" || session) {
@@ -79,7 +79,7 @@ function LandingPage() {
     if (res?.error) {
       setError("That username and password don't match. Check them and try again.");
     } else {
-      router.push("/dashboard");
+      router.push("/home");
     }
   };
 
@@ -100,7 +100,7 @@ function LandingPage() {
         return;
       }
       await signIn("credentials", { username, password, redirect: false });
-      router.push("/dashboard");
+      router.push("/home");
     } catch {
       setError("Couldn't reach the server. Check your connection and try again.");
     }
@@ -220,8 +220,8 @@ function LandingPage() {
             Build bridges.
           </h1>
           <p className="mt-6 max-w-xl font-body text-base leading-relaxed text-ink-soft lg:text-lg">
-            Practice political conversations with an AI partner who sees things differently.
-            You&apos;re scored on how civil you are, not on whether you win.
+            Hatch a turkey, take care of it, and grow your skills along the way.
+            Each turkey is tied to a civil-discourse skill you practice together.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button size="lg" onClick={() => switchMode("register")} className="shadow-lift">
@@ -268,7 +268,7 @@ function LandingPage() {
             onClick={() => switchMode("register")}
             className="inline-flex items-center gap-1.5 self-start font-body text-sm font-semibold text-primary"
           >
-            Start your first conversation
+            Hatch your first turkey
             <Icon name="chevron-right" size={14} strokeWidth={2} />
           </button>
         </div>

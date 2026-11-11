@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { TopAppBar } from "./TopAppBar";
 import { BottomNav } from "./BottomNav";
 import { SideNav } from "./SideNav";
 import { useUserSummary } from "./useUserSummary";
+import { useHotbar } from "./useHotbar";
 import { useVisualViewportHeight } from "@/components/chat/useVisualViewportHeight";
 
 /**
@@ -19,22 +20,16 @@ import { useVisualViewportHeight } from "@/components/chat/useVisualViewportHeig
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const user = useUserSummary();
-  const isDebateView = /^\/chat\/[^/]+$/.test(pathname) && pathname !== "/chat/setup";
+  const { items: navItems, turkey } = useHotbar();
+  const isDebateView = /^\/chat\/[^/]+$/.test(pathname);
   useVisualViewportHeight(isDebateView);
-
-  // Everyone needs an egg: send accounts without a species to pick one.
-  const needsEgg = !!user?.companion && user.companion.speciesId === null;
-  useEffect(() => {
-    if (needsEgg && !pathname.startsWith("/onboarding")) router.replace("/onboarding/egg");
-  }, [needsEgg, pathname, router]);
 
   return (
     <div className="flex h-[var(--vvh,100dvh)] w-full bg-bg">
-      <SideNav user={user} />
+      <SideNav user={user} items={navItems} turkey={turkey} />
       <div className="flex min-w-0 flex-1 flex-col">
-        {!isDebateView && <TopAppBar user={user} />}
+        {!isDebateView && <TopAppBar user={user} turkey={turkey} />}
         <main
           className={isDebateView ? "min-h-0 flex-1 overflow-hidden" : "min-h-0 flex-1 overflow-y-auto"}
         >
@@ -46,7 +41,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
         </main>
-        {!isDebateView && <BottomNav />}
+        {!isDebateView && <BottomNav items={navItems} />}
       </div>
     </div>
   );

@@ -22,19 +22,17 @@ model User {
   equippedCosmetics  Json?
   surveyResponses    Json?
   onboardingCompletedAt DateTime?
-  /// Gobbl Hatch companion: egg species picked at onboarding (see src/lib/companion.ts).
-  companionSpecies   String?
-  /// Set when the user first passes a module quiz ("Teach"); the egg hatches.
-  companionHatchedAt DateTime?
-  /// Move ids learned from passed quizzes, e.g. ["common-ground"] (see src/lib/moves.ts).
-  learnedMoves       Json?
-  /// Last topic picked on the Playground, preselected next time.
-  lastTopicId        String?
   createdAt          DateTime        @default(now())
   debates            Debate[]
   badges             UserBadge[]
   inventory          UserInventory[]
   skillSessions      SkillSession[]
+  turkeys            Turkey[]
+  // Columns from another prototype sharing this DB — kept so db push never drops them. Unused by this branch.
+  companionHatchedAt DateTime?
+  companionSpecies   String?
+  lastTopicId        String?
+  learnedMoves       Json?
 }
 
 model UserInventory {
@@ -69,13 +67,12 @@ model Debate {
   trainingMode        String?
   trainingSkillScores Json?
   mode         String    @default("text")
+  // Columns from another prototype sharing this DB — kept so db push never drops them. Unused by this branch.
+  dimensions   Json?
+  userStance   String?
   /// Opt-in from the setup screen; only honored for Full Gobble debates.
   allowProfanity Boolean @default(false)
   analysis     Json?
-  /// "for" | "against": the side the user chose before the conversation; the partner takes the other.
-  userStance   String?
-  /// Holistic civility dimensions persisted at finish so results can be re-shown.
-  dimensions   Json?
   user         User      @relation(fields: [userId], references: [id])
   messages     Message[]
   personaRatings PersonaRating[] // No longer written (rating UI removed); drop with the model below.
@@ -88,7 +85,7 @@ model Message {
   content        String
   civilityScore  Float?
   dimensions     String?
-  /// Coaching move the user tapped before sending this message (see src/lib/moves.ts).
+  // Columns from another prototype sharing this DB — kept so db push never drops them. Unused by this branch.
   moveId         String?
   createdAt      DateTime @default(now())
   debate         Debate   @relation(fields: [debateId], references: [id])
@@ -140,4 +137,36 @@ model PersonaRating {
   debate     Debate   @relation(fields: [debateId], references: [id])
 
   @@unique([userId, debateId])
+}
+
+model Turkey {
+  id            String           @id @default(cuid())
+  userId        String
+  skill         String           // a TurkeySkillKey from src/lib/flock/skills.ts
+  name          String?          // null until hatched
+  hatchedAt     DateTime?        // null = still an egg
+  activityCount Int              @default(0)
+  lastFedAt     DateTime?        // hunger
+  lastSocialAt  DateTime?        // loneliness
+  lastTaughtAt  DateTime?        // sadness
+  createdAt     DateTime         @default(now())
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activities    TurkeyActivity[]
+
+  @@unique([userId, skill])
+}
+
+model TurkeyActivity {
+  id          String    @id @default(cuid())
+  turkeyId    String
+  kind        String    // "park" | "feed" | "school"
+  refId       String?   @unique // Debate.id (park) or SkillSession.id (feed); null for school
+  score       Float?    // 0-10 civility snapshot for the skill trend
+  feathers    Int       @default(0)
+  counted     Boolean   @default(false) // true when it refilled a need and counted toward growth
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  turkey      Turkey    @relation(fields: [turkeyId], references: [id], onDelete: Cascade)
+
+  @@index([turkeyId, completedAt])
 }

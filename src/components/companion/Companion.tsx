@@ -2,17 +2,17 @@
 
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { AvatarWithItems } from "@/components/gamification/AvatarWithItems";
-import { companionStage, getSpecies, type SpeciesId } from "@/lib/companion";
+import { getSpecies, type SpeciesId } from "@/lib/companion";
 import type { EquippedCosmetics } from "@/lib/shop";
 
 /**
- * The egg/turkey plus a speech bubble. Appears on every Learn/Teach/Reflect step, the Playground
- * topic picker and the Nest. `row`: art left, bubble right. `scene`: bubble above, art centered.
+ * A flock turkey (or egg) plus a speech bubble. Appears on every Learn/Teach/Reflect step and
+ * the topic picker. `row`: art left, bubble right. `scene`: bubble above, art centered.
  */
 export interface CompanionProps {
   speciesId: SpeciesId | null;
-  level: number;
-  hatched: boolean;
+  /** The turkey's own growth stage; 1 is an egg. */
+  stage: number;
   equipped?: EquippedCosmetics | null;
   line: string;
   variant: "row" | "scene";
@@ -33,9 +33,8 @@ export function StrawPad({ className = "" }: { className?: string }) {
   );
 }
 
-export function Companion({ speciesId, level, hatched, equipped, line, variant, size, className }: CompanionProps) {
+export function Companion({ speciesId, stage, equipped, line, variant, size, className }: CompanionProps) {
   const species = getSpecies(speciesId);
-  const stage = companionStage(level, hatched);
   const scene = variant === "scene";
   const px = size ?? (scene ? 140 : 88);
 
