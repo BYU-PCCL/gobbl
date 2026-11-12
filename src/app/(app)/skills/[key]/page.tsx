@@ -3,12 +3,14 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
-import Link from "next/link";
 
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { TurkeyCharacter } from "@/components/turkey/TurkeyCharacter";
-import { LevelUpModal } from "@/components/gamification/LevelUpModal";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { PageShell } from "@/components/layout/PageShell";
+import { DimensionRow } from "@/components/chat/ScoreSummary";
+import { LessonBlocks } from "@/components/skills/LessonBlocks";
+import { RadioOptions } from "@/components/skills/RadioOptions";
 import { Companion } from "@/components/companion/Companion";
 import { HatchOverlay } from "@/components/companion/HatchOverlay";
 import { TopicPicker } from "@/components/conversation/TopicPicker";
@@ -16,10 +18,12 @@ import { StancePicker } from "@/components/conversation/StancePicker";
 import { ConversationScene } from "@/components/conversation/ConversationScene";
 import { ConversationResults } from "@/components/conversation/ConversationResults";
 import { ActivityResults } from "@/components/activity/ActivityResults";
-import { QuizStep } from "@/components/skills/QuizStep";
+import { QuizStep, type QuizSubmitOutcome } from "@/components/skills/QuizStep";
 import { InlineToast } from "@/components/skills/InlineToast";
 import { useVisualViewportHeight } from "@/components/chat/useVisualViewportHeight";
 import { companionLine } from "@/lib/companion";
+import { civilityLabel } from "@/lib/civility";
+import { QUIZ_PASS } from "@/lib/quizzes";
 import { useCompanion, companionFromTurkey } from "@/components/companion/useCompanion";
 import { MAX_TURNS, isStance, type ActivityRewards, type ConvMsg, type FinishResult, type Stance } from "@/lib/conversation";
 import { getModule } from "@/lib/modules/registry";
@@ -114,14 +118,12 @@ function markPractice(sessionId: string, stepId: string, on: boolean) {
   }
 }
 
-/** Modules are reading-and-writing flows, so they keep a comfortable column width on desktop. */
+/** Each screen sets its own width through PageShell: modules are reading-and-writing flows, so a narrow column. */
 export default function ModuleRunnerPage() {
   return (
-    <div className="mx-auto w-full max-w-2xl">
-      <Suspense fallback={null}>
-        <ModuleRunner />
-      </Suspense>
-    </div>
+    <Suspense fallback={<LoadingState message="Getting the lesson ready..." />}>
+      <ModuleRunner />
+    </Suspense>
   );
 }
 
@@ -134,17 +136,18 @@ function ModuleRunner() {
   const turkeyId = useSearchParams().get("turkeyId");
   const { companion, turkey, flock, refresh: refreshUser } = useCompanion(turkeyId);
   const turkeyName = turkey?.name ?? "your turkey";
-  const homeHref = "/home";
 
   const [phase, setPhase] = useState<RunnerPhase>({ kind: "loading" });
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [levelUp, setLevelUp] = useState<{ from: number; to: number } | null>(null);
   const [hatch, setHatch] = useState<HatchPending | null>(null);
   const [topicId, setTopicId] = useState<string | null>(MODULE_TOPIC[moduleKey] ?? null);
   const [stance, setStance] = useState<Stance | null>(null);
+  const [practiceStage, setPracticeStage] = useState<"topic" | "stance">("topic");
+  /** The user's level before this lesson started, so the one level-up on the final screen covers XP paid mid-lesson. */
+  const levelBefore = useRef<number | null>(null);
   const resumeTried = useRef<string | null>(null);
   // The practice conversation fills the phone screen, so size it to the visual viewport
   // (keeps the composer above the keyboard).
@@ -239,12 +242,8 @@ function ModuleRunner() {
    * and `start` resumes the open run, so the user lands back on the step they left.
    */
   function leave() {
-    if (turkey) {
-      flock.select(turkey.id);
-      router.push(homeHref);
-    } else {
-      router.push("/flock");
-    }
+    if (turkey) flock.select(turkey.id);
+    router.push("/flock");
   }
 
   /** Returns true if the failure was handled (caller should stop). */
@@ -252,7 +251,7 @@ function ModuleRunner() {
     if (r.ok) return false;
     if (r.status === 401) {
       router.push("/");
-    } else if (r.status === 409) {
+    } else if (r.status === 409 && !/finish the conversation/i.test(r.data?.error ?? "")) {
       // Our view of the run is out of date (second tab, double submit) — reload from the server.
       window.location.reload();
     } else {
@@ -275,6 +274,7 @@ function ModuleRunner() {
     }
     setAnswers({});
     setStance(null);
+    setPracticeStage("topic");
     setTopicId(MODULE_TOPIC[moduleKey] ?? null);
     setPhase({ kind: "step", sessionId, step: nextStep });
   }
@@ -356,7 +356,12 @@ function ModuleRunner() {
   function noteXp(xp: XpGain | null | undefined, message: string) {
     if (!xp) return;
     setToast(message);
-    if (xp.newLevel > xp.previousLevel) setLevelUp({ from: xp.previousLevel, to: xp.newLevel });
+    noteLevel(xp.previousLevel);
+  }
+
+  /** Remembers the lowest level seen this lesson; the final screen shows the single level-up from there. */
+  function noteLevel(previousLevel: number) {
+    levelBefore.current = levelBefore.current === null ? previousLevel : Math.min(levelBefore.current, previousLevel);
   }
 
   function advance(sessionId: string, step: ModuleStep, answer: unknown) {
@@ -372,14 +377,14 @@ function ModuleRunner() {
     });
   }
 
-  /** Submits the quiz. Resolves "failed" when not passed so QuizStep can offer a retry. */
-  async function submitQuiz(sessionId: string, step: ModuleStep, answer: number[]): Promise<"failed" | "other"> {
-    let outcome: "failed" | "other" = "other";
+  /** Submits the quiz. Resolves "failed" with the per-question results when not passed, so QuizStep can review and offer a retry. */
+  async function submitQuiz(sessionId: string, step: ModuleStep, answer: number[]): Promise<QuizSubmitOutcome> {
+    let outcome: QuizSubmitOutcome = { kind: "other" };
     await run(async () => {
       const r = await post("advance", { sessionId, stepId: step.id, answer });
       if (handleFailure(r)) return;
       if (!r.data.passed) {
-        outcome = "failed";
+        outcome = { kind: "failed", results: Array.isArray(r.data.results) ? r.data.results : [] };
         return;
       }
       const xp: XpGain | null = r.data.xp ?? null;
@@ -421,7 +426,6 @@ function ModuleRunner() {
     return <NotFoundView />;
   }
 
-  const hasAdvancedVariant = moduleConfig.variants.some((v) => v.key === "advanced");
   const hatched = companion?.hatched ?? false;
   const hatchSpecies = hatch
     ? companionFromTurkey(flock.turkeys.find((t) => t.id === hatch.eggId) ?? null).speciesId
@@ -438,23 +442,14 @@ function ModuleRunner() {
           doneLabel="Keep going"
         />
       )}
-      <LevelUpModal
-        open={levelUp !== null && !hatch}
-        fromLevel={levelUp?.from ?? 1}
-        toLevel={levelUp?.to ?? 1}
-        turkey={turkey}
-        rewards={{ feathers: 0 }}
-        onClose={() => setLevelUp(null)}
-      />
     </>
   );
 
+  const leaveAside = <LeaveButton onLeave={leave} />;
+  const savedHint = "Finished steps are saved. You can pick this up later.";
+
   if (phase.kind === "loading") {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <TurkeyCharacter stage={1} size={96} decorative />
-      </div>
-    );
+    return <LoadingState message="Getting the lesson ready..." />;
   }
 
   if (phase.kind === "not-found") {
@@ -463,48 +458,38 @@ function ModuleRunner() {
 
   if (phase.kind === "load-error") {
     return (
-      <div className="flex flex-col items-center gap-3 py-16 text-center">
-        <p className="font-body text-sm text-ink-soft">Couldn&apos;t load this lesson.</p>
-        <Button variant="outline" onClick={() => window.location.reload()}>
-          Try again
-        </Button>
-      </div>
+      <PageShell width="narrow">
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <p className="font-body text-sm text-ink-soft">Couldn&apos;t load this lesson.</p>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            Try again
+          </Button>
+        </div>
+      </PageShell>
     );
   }
 
   if (phase.kind === "intro") {
     return (
-      <div className="flex flex-col gap-5">
-        <LeaveBar onLeave={leave} />
-        <div>
-          <div className="font-body text-xs font-semibold text-ink-muted">
-            About {phase.summary.estimatedMinutes} minutes
-          </div>
-          <h1 className="mt-1.5 font-display text-[28px] font-bold tracking-[-0.03em]">
-            {phase.summary.title}
-          </h1>
-          <p className="mt-2 font-body text-sm text-ink-soft">{phase.summary.description}</p>
-        </div>
-        {phase.summary.timesCompleted > 0 ? (
-          <div className="flex flex-col gap-2.5">
-            <Button disabled={busy} onClick={() => start("standard")}>
-              Feed again
-            </Button>
-            {/* Only offer "Level up" when this lesson actually has a harder variant. */}
-            {hasAdvancedVariant && (
-              <Button variant="outline" disabled={busy} onClick={() => start("advanced")}>
-                Level up
-              </Button>
-            )}
-          </div>
-        ) : (
-          <Button disabled={busy} onClick={() => start("standard")}>
-            Start
+      <PageShell
+        width="narrow"
+        eyebrow={`About ${phase.summary.estimatedMinutes} minutes`}
+        title={phase.summary.title}
+        subtitle={phase.summary.description}
+        aside={leaveAside}
+      >
+        <div className="flex flex-col gap-5">
+          <Button size="lg" disabled={busy} loading={busy} onClick={() => start("standard")}>
+            {phase.summary.timesCompleted > 0 ? "Feed again" : "Start"}
           </Button>
-        )}
-        {error && <p className="text-center font-body text-sm text-plume-500">{error}</p>}
+          {error && (
+            <p role="alert" className="text-center font-body text-sm text-danger">
+              {error}
+            </p>
+          )}
+        </div>
         {overlays}
-      </div>
+      </PageShell>
     );
   }
 
@@ -526,7 +511,8 @@ function ModuleRunner() {
             initialMessages={phase.initialMessages}
             maxTurns={phase.maxTurns}
             turkey={turkey}
-            onFinish={(result) =>
+            onFinish={(result) => {
+              noteLevel(result.previousLevel);
               setPhase({
                 kind: "practice-results",
                 sessionId: phase.sessionId,
@@ -534,8 +520,8 @@ function ModuleRunner() {
                 debateId: phase.debateId,
                 personaInitials: phase.personaInitials,
                 result,
-              })
-            }
+              });
+            }}
             onLeave={leave}
           />
         </div>
@@ -545,47 +531,64 @@ function ModuleRunner() {
   }
 
   if (phase.kind === "practice-results") {
+    const score = phase.result.overallScore;
+    const scoreTone = score >= 8 ? "text-forest-fg" : score >= 6 ? "text-ink" : "text-danger";
     return (
-      <div className="flex flex-col gap-3">
-        <ConversationResults
-          debateId={phase.debateId}
-          result={phase.result}
-          turkey={turkey}
-          personaInitials={phase.personaInitials}
-          continueLabel="Continue the lesson"
-          onContinue={() => finishPractice(phase.sessionId, phase.step)}
-        />
-        {error && (
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-plume-100 px-4 py-2 font-body text-xs text-plume-700">
-            <span>{error}</span>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => finishPractice(phase.sessionId, phase.step)}>
-              Retry
-            </Button>
+      <PageShell width="narrow" eyebrow={moduleConfig.title} title="How the conversation went">
+        <div className="flex flex-col gap-5">
+          <div className="rounded-2xl border border-line bg-surface p-5">
+            <div className="flex flex-col items-center text-center">
+              <div className="flex items-baseline justify-center gap-2">
+                <span className={`font-display text-[56px] font-bold leading-none tracking-[-0.04em] num-tabular ${scoreTone}`}>
+                  {score.toFixed(1)}
+                </span>
+                <span className="font-body text-sm text-ink-muted">civility out of 10</span>
+              </div>
+              <p className="mt-1 font-body text-base font-semibold text-ink">{civilityLabel(score)}</p>
+            </div>
+            {phase.result.dimensions && (
+              <div className="mt-5 space-y-4">
+                {Object.entries(phase.result.dimensions).map(([key, value]) => (
+                  <DimensionRow key={key} dimKey={key} value={value} />
+                ))}
+              </div>
+            )}
           </div>
-        )}
+          <Button size="lg" disabled={busy} loading={busy} onClick={() => finishPractice(phase.sessionId, phase.step)}>
+            Continue
+          </Button>
+          {error && (
+            <p role="alert" className="text-center font-body text-sm text-danger">
+              {error}
+            </p>
+          )}
+        </div>
         {overlays}
-      </div>
+      </PageShell>
     );
   }
 
   if (phase.kind === "complete") {
     const civility = phase.result.postCivility ?? phase.result.preCivility;
+    const r = phase.result.rewards;
+    // One level-up for the whole lesson: start from the level before the lesson, not before this last call.
+    const previousLevel = Math.min(r.previousLevel, levelBefore.current ?? r.previousLevel);
     const rewards: ActivityRewards = {
-      ...phase.result.rewards,
-      turkey: phase.result.rewards.turkey ?? turkey,
+      ...r,
+      previousLevel,
+      turkey: r.turkey ?? turkey,
     };
     return (
       <>
-        <ActivityResults
-          kind="feed"
-          rewards={rewards}
-          onContinue={leave}
-          continueLabel={turkey ? `Back to ${turkeyName}` : "Back to my turkeys"}
-        >
+        <ActivityResults kind="feed" rewards={rewards} onContinue={leave} continueLabel={`Back to ${turkeyName}`}>
           {civility != null && (
-            <p className="text-center font-body text-sm text-ink-soft">
-              Civility {civility.toFixed(1)} out of 10
-            </p>
+            <div className="mx-auto flex w-fit flex-col items-center rounded-2xl border border-line bg-surface px-6 py-3">
+              <span className="eyebrow">Civility</span>
+              <span className="font-display text-2xl font-bold tracking-[-0.03em] text-ink num-tabular">
+                {civility.toFixed(1)}
+                <span className="ml-1 font-body text-sm font-normal text-ink-muted">/ 10</span>
+              </span>
+            </div>
           )}
         </ActivityResults>
         {overlays}
@@ -598,49 +601,119 @@ function ModuleRunner() {
   const line = companionLine(isLastStep ? "last" : step.kind, hatched);
 
   if (step.kind === "quiz") {
+    const variant = moduleConfig.variants.find((v) => v.steps.some((s) => s.id === step.id)) ?? moduleConfig.variants[0];
+    const lessonBlocks = variant.steps.flatMap((s) => (s.kind === "content" ? s.blocks : []));
     return (
-      <div className="flex flex-col gap-5">
-        <LeaveBar onLeave={leave} hint="Finished steps are saved. You can pick this up later." />
+      <PageShell width="narrow" eyebrow={moduleConfig.title} title="Quick quiz" subtitle={savedHint} aside={leaveAside}>
         <QuizStep
           questions={step.questions}
           turkey={turkey}
           busy={busy}
+          passScore={step.passScore || QUIZ_PASS}
+          lessonBlocks={lessonBlocks}
           onSubmit={(answer) => submitQuiz(sessionId, step, answer)}
-          onBack={leave}
         />
-        {error && <p className="text-center font-body text-sm text-plume-500">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-4 text-center font-body text-sm text-danger">
+            {error}
+          </p>
+        )}
         {overlays}
-      </div>
+      </PageShell>
     );
   }
 
-  const canContinue = isStepComplete(step, answers) && (step.kind !== "practice" || (!!topicId && !!stance));
+  if (step.kind === "practice") {
+    const topic = getTopic(topicId);
+    const stanceTopic = practiceStage === "stance" ? topic : null;
+    return (
+      <PageShell
+        width="narrow"
+        eyebrow={moduleConfig.title}
+        title={stanceTopic ? stanceTopic.title : "Pick a topic"}
+        subtitle={savedHint}
+        aside={leaveAside}
+      >
+        <div className="flex flex-col gap-5">
+          <Companion variant="row" turkey={turkey} line={line} />
+          {!stanceTopic ? (
+            <>
+              <div className="sticky top-0 z-10 -mx-1 flex items-center gap-3 rounded-2xl border border-primary bg-surface px-4 py-2.5 shadow-soft">
+                <div className="min-w-0 flex-1">
+                  <p className="eyebrow">Chosen</p>
+                  <p className="truncate font-display text-sm font-bold">{topic ? topic.title : "Pick a topic to continue"}</p>
+                </div>
+                <Button size="sm" disabled={!topic} onClick={() => setPracticeStage("stance")}>
+                  Next
+                </Button>
+              </div>
+              <TopicPicker
+                topics={TOPICS}
+                suggestedTopicId={MODULE_TOPIC[moduleKey]}
+                suggestedLabel={moduleConfig.title}
+                value={topicId}
+                onChange={(id) => {
+                  setTopicId(id);
+                  setStance(null);
+                }}
+              />
+            </>
+          ) : (
+            <>
+              <StancePicker question={stanceTopic.description} value={stance} onChange={setStance} />
+              <div className="flex flex-col gap-2">
+                <Button
+                  size="lg"
+                  disabled={!stance || busy}
+                  loading={busy}
+                  onClick={() => advance(sessionId, step, null)}
+                >
+                  Start the conversation
+                </Button>
+                <p role="status" className="min-h-5 text-center font-body text-sm text-ink-muted">
+                  {busy ? "Your partner is thinking of an opener…" : !stance ? "Pick a side to start" : ""}
+                </p>
+                <Button size="lg" variant="ghost" disabled={busy} onClick={() => setPracticeStage("topic")}>
+                  Back to topics
+                </Button>
+              </div>
+            </>
+          )}
+          {error && (
+            <p role="alert" className="text-center font-body text-sm text-danger">
+              {error}
+            </p>
+          )}
+        </div>
+        {overlays}
+      </PageShell>
+    );
+  }
+
+  const canContinue = isStepComplete(step, answers);
+  const stepTitle = step.kind === "diagnostic" ? "A quick check-in" : step.kind === "content" ? "The lesson" : "Reflect";
 
   return (
-    <div className="flex flex-col gap-5">
-      <LeaveBar onLeave={leave} hint="Finished steps are saved. You can pick this up later." />
-      <Companion variant="row" turkey={turkey} line={line} />
-      <StepView
-        step={step}
-        answers={answers}
-        onChange={setAnswers}
-        moduleTitle={moduleConfig.title}
-        moduleKey={moduleKey}
-        topicId={topicId}
-        onTopic={setTopicId}
-        stance={stance}
-        onStance={setStance}
-      />
-      <Button
-        disabled={!canContinue || busy}
-        loading={busy}
-        onClick={() => advance(sessionId, step, answerPayload(step, answers))}
-      >
-        {step.kind === "practice" ? "Start the conversation" : "Continue"}
-      </Button>
-      {error && <p className="text-center font-body text-sm text-plume-500">{error}</p>}
-      {overlays}
-    </div>
+    <PageShell width="narrow" eyebrow={moduleConfig.title} title={stepTitle} subtitle={savedHint} aside={leaveAside}>
+      <div className="flex flex-col gap-5">
+        <Companion variant="row" turkey={turkey} line={line} />
+        <StepView step={step} answers={answers} onChange={setAnswers} />
+        <Button
+          size="lg"
+          disabled={!canContinue || busy}
+          loading={busy}
+          onClick={() => advance(sessionId, step, answerPayload(step, answers))}
+        >
+          Continue
+        </Button>
+        {error && (
+          <p role="alert" className="text-center font-body text-sm text-danger">
+            {error}
+          </p>
+        )}
+        {overlays}
+      </div>
+    </PageShell>
   );
 }
 
@@ -689,22 +762,10 @@ function StepView({
   step,
   answers,
   onChange,
-  moduleTitle,
-  moduleKey,
-  topicId,
-  onTopic,
-  stance,
-  onStance,
 }: {
   step: ModuleStep;
   answers: Record<string, string>;
   onChange: (next: Record<string, string>) => void;
-  moduleTitle: string;
-  moduleKey: string;
-  topicId: string | null;
-  onTopic: (id: string) => void;
-  stance: Stance | null;
-  onStance: (s: Stance) => void;
 }) {
   if (step.kind === "diagnostic") {
     return (
@@ -713,25 +774,12 @@ function StepView({
           <div key={q.key}>
             <h2 className="mb-3 font-display text-base font-bold">{q.prompt}</h2>
             {q.type === "single-choice" && (
-              <div className="flex flex-col gap-2">
-                {q.options.map((opt) => {
-                  const selected = answers[q.key] === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => onChange({ ...answers, [q.key]: opt.value })}
-                      className={`rounded-xl border-2 px-4 py-3 text-left text-sm font-semibold transition-colors ${
-                        selected
-                          ? "border-primary bg-primary-soft text-gobbl-700"
-                          : "border-line bg-surface text-ink hover:border-primary/50"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
+              <RadioOptions
+                label={q.prompt}
+                value={answers[q.key]}
+                onChange={(v) => onChange({ ...answers, [q.key]: v })}
+                options={q.options.map((opt) => ({ value: opt.value, label: opt.label }))}
+              />
             )}
           </div>
         ))}
@@ -740,51 +788,29 @@ function StepView({
   }
 
   if (step.kind === "content") {
-    return (
-      <div className="flex flex-col gap-4">
-        {step.blocks.map((block, i) => (
-          <div key={i} className="rounded-2xl border border-line bg-surface p-4">
-            <h2 className="font-display text-base font-bold">{block.heading}</h2>
-            <p className="mt-1.5 whitespace-pre-line font-body text-sm text-ink-soft">{block.body}</p>
-          </div>
-        ))}
-      </div>
-    );
+    return <LessonBlocks blocks={step.blocks} />;
   }
 
-  if (step.kind === "practice") {
-    const topic = getTopic(topicId);
-    return (
-      <div className="flex flex-col gap-5">
-        <TopicPicker
-          topics={TOPICS}
-          suggestedTopicId={MODULE_TOPIC[moduleKey]}
-          suggestedLabel={moduleTitle}
-          value={topicId}
-          onChange={onTopic}
-        />
-        {topic && <StancePicker question={topic.description} value={stance} onChange={onStance} />}
-      </div>
-    );
-  }
-
-  // The quiz step is rendered by QuizStep, never through this view.
-  if (step.kind === "quiz") return null;
+  // The practice and quiz steps are rendered by the runner (pickers) and QuizStep, never through this view.
+  if (step.kind === "practice" || step.kind === "quiz") return null;
 
   // reflection
   const text = answers.text ?? "";
   return (
     <div className="flex flex-col gap-1">
-      <h2 className="mb-1 font-display text-base font-bold">{step.prompt}</h2>
+      <label htmlFor="reflection-text" className="mb-1 font-display text-base font-bold">
+        {step.prompt}
+      </label>
       <textarea
+        id="reflection-text"
         value={text}
         onChange={(e) => onChange({ ...answers, text: e.target.value.slice(0, step.maxLength) })}
         maxLength={step.maxLength}
         rows={4}
-        className="rounded-xl border-2 border-line bg-surface px-4 py-3 text-sm text-ink focus:border-primary focus:outline-none"
+        className="rounded-xl border-2 border-line bg-surface px-4 py-3 text-base text-ink focus:border-primary focus:outline-none sm:text-sm"
         placeholder="Type your answer…"
       />
-      <span className="text-right font-mono text-[10px] text-ink-muted">
+      <span className="text-right font-mono text-xs text-ink-muted">
         {text.length}/{step.maxLength}
       </span>
     </div>
@@ -800,23 +826,15 @@ function LeaveButton({ onLeave }: { onLeave: () => void }) {
   );
 }
 
-/** Top row of the intro and step screens: an optional hint on the left, "Leave" on the right. */
-function LeaveBar({ onLeave, hint }: { onLeave: () => void; hint?: string }) {
-  return (
-    <div className="-mt-1 flex items-center justify-between gap-3">
-      {hint ? <p className="font-body text-xs text-ink-muted">{hint}</p> : <span />}
-      <LeaveButton onLeave={onLeave} />
-    </div>
-  );
-}
-
 function NotFoundView() {
   return (
-    <div className="flex flex-col items-center gap-3 py-16 text-center">
-      <p className="font-body text-sm text-ink-soft">That lesson doesn&apos;t exist.</p>
-      <Link href="/flock">
-        <Button variant="outline">Back to my turkeys</Button>
-      </Link>
-    </div>
+    <PageShell width="narrow">
+      <div className="flex flex-col items-center gap-3 py-16 text-center">
+        <p className="font-body text-sm text-ink-soft">That lesson doesn&apos;t exist.</p>
+        <ButtonLink href="/flock" variant="outline">
+          Leave
+        </ButtonLink>
+      </div>
+    </PageShell>
   );
 }

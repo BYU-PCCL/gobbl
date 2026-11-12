@@ -3,24 +3,41 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { Card } from "@/components/ui/Card";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { PageShell } from "@/components/layout/PageShell";
 import { MyTurkey } from "@/components/turkey/MyTurkey";
 import { PartnerTurkey } from "@/components/turkey/PartnerTurkey";
 import { useFlock } from "@/components/turkey/useFlock";
 import { TopicPicker } from "@/components/conversation/TopicPicker";
 import { StancePicker } from "@/components/conversation/StancePicker";
-import { fetchJson } from "@/lib/fetchJson";
+import { fetchJson, TimeoutError } from "@/lib/fetchJson";
 import { parkLineup } from "@/lib/flock/parkTurkeys";
-import type { Persona, Tier } from "@/lib/personas/pool";
+import { activityCta, activityHref, lockedReason } from "@/lib/flock/home";
+import { getPersonaById, type Persona, type Tier } from "@/lib/personas/pool";
 import { DIFFICULTIES } from "@/lib/gamification";
 import { TOPICS, getTopic } from "@/lib/topics";
 import type { Stance } from "@/lib/conversation";
 
+const START_TIMEOUT_MS = 45_000;
+
+/**
+ * Where partners stand in the scene, as % of its width and height. Zigzag columns, so at
+ * ~350px wide no two turkey buttons (about 88 x 108px each) overlap and each keeps its own tap area.
+ */
+const SCENE_SPOTS: { x: number; y: number }[] = [
+  { x: 26, y: 13 },
+  { x: 74, y: 26 },
+  { x: 28, y: 42 },
+  { x: 72, y: 58 },
+  { x: 50, y: 84 },
+];
+
 export default function ParkPageRoute() {
   return (
-    <Suspense fallback={<ParkMessage text="Heading to the park..." />}>
+    <Suspense fallback={<LoadingState message="Heading to the park..." />}>
       <ParkPage />
     </Suspense>
   );
@@ -29,19 +46,24 @@ export default function ParkPageRoute() {
 function ParkPage() {
   const router = useRouter();
   const { status } = useSession();
-  const turkeyIdParam = useSearchParams().get("turkeyId");
+  const searchParams = useSearchParams();
+  const turkeyIdParam = searchParams.get("turkeyId");
   const { turkeys, current, egg, loading, error, reload } = useFlock();
 
-  // Who the user walked up to. null: still looking around the park.
-  const [partner, setPartner] = useState<Persona | null>(null);
+  // Who the user walked up to lives in the URL, so the "Back to the Park" link and the
+  // browser's back button both return to the park. null: still looking around.
+  const partner: Persona | null = getPersonaById(searchParams.get("partner"));
   const [step, setStep] = useState<"topic" | "stance">("topic");
   const [topicId, setTopicId] = useState<string | null>(null);
   const [stance, setStance] = useState<Stance | null>(null);
-  const [difficulty, setDifficulty] = useState<Tier>("Friendly Cluck");
+  const [lobbyDifficulty, setDifficulty] = useState<Tier>("Friendly Cluck");
   const [allowProfanity, setAllowProfanity] = useState(false);
   const [lastTopicId, setLastTopicId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+
+  // The partner's own tier wins, so a reload on a partner link still starts the right conversation.
+  const difficulty: Tier = partner?.tier ?? lobbyDifficulty;
 
   // The turkey you're here with: the one in the link, else the one selected on Home.
   const mine =
@@ -78,48 +100,57 @@ function ParkPage() {
   if (error) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-16 text-center">
-        <p className="font-body text-ink-soft">We could not load your flock: {error}</p>
+        <p className="font-body text-ink-soft">We could not load your flock.</p>
         <Button onClick={() => void reload()}>Try again</Button>
       </div>
     );
   }
-  if (loading || !mine) return <ParkMessage text="Heading to the park..." />;
+  if (loading || !mine) return <LoadingState message="Heading to the park..." />;
 
   const myName = mine.name ?? "Your turkey";
+  const parkHref = `/chat?turkeyId=${encodeURIComponent(mine.id)}`;
 
   if (!mine.unlocked.park) {
+    const lock = lockedReason("park", mine);
+    // lockedReason names the step that opens the Park: School if it is open, else Feed.
+    const unlockStep = lock?.step === "school" ? "school" : "feed";
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-12">
-        <Card className="flex w-full flex-col items-center gap-3 p-6 text-center">
+      <PageShell width="default" eyebrow="Park" title="The Park opens after School">
+        <Card className="mx-auto flex w-full max-w-md flex-col items-center gap-3 p-6 text-center">
           <MyTurkey turkey={mine} size={120} />
-          <h1 className="font-display text-2xl font-bold tracking-[-0.03em] text-ink">The Park opens after School</h1>
           <p className="font-body text-sm text-ink-soft">
-            {myName} has nothing to talk about yet. Feed, then School, then the Park.
+            {lock?.reason ?? `${myName} has nothing to talk about yet. Feed, then School, then the Park.`}
           </p>
-          <Button onClick={() => router.push("/home")}>Back to {myName}</Button>
+          <div className="flex w-full flex-col gap-2">
+            <ButtonLink href={activityHref(unlockStep, mine)}>{activityCta(unlockStep, mine.name)}</ButtonLink>
+            <ButtonLink href="/home" variant="ghost">
+              Back to {myName}
+            </ButtonLink>
+          </div>
         </Card>
-      </div>
+      </PageShell>
     );
   }
   const topic = getTopic(topicId) ?? null;
   const isFullGobble = difficulty === "Full Gobble";
 
   function walkUpTo(t: Persona) {
-    setPartner(t);
+    if (!mine) return;
     setStep("topic");
     setStance(null);
     setStartError(null);
+    router.push(`/chat?turkeyId=${encodeURIComponent(mine.id)}&partner=${encodeURIComponent(t.id)}`);
   }
 
   async function start() {
     if (!mine || !partner || !topic || !stance || starting) return;
     setStarting(true);
     setStartError(null);
-    let res: Response;
     try {
-      res = await fetch("/api/park/visit", {
+      const data = await fetchJson<{ id: string }>("/api/park/visit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        timeoutMs: START_TIMEOUT_MS,
         body: JSON.stringify({
           personaId: partner.id,
           turkeyId: mine.id,
@@ -130,69 +161,64 @@ function ParkPage() {
           allowProfanity: isFullGobble && allowProfanity,
         }),
       });
-    } catch {
-      setStartError("Couldn't reach the server. Check your connection and try again.");
+      router.push(`/chat/${data.id}?turkeyId=${encodeURIComponent(mine.id)}`);
+    } catch (e) {
+      if (e instanceof TimeoutError) {
+        setStartError(`${partner.initials} is taking too long to answer. Try again.`);
+      } else if (e instanceof TypeError) {
+        setStartError("We could not reach the server. Check your connection and try again.");
+      } else if (e instanceof Error && !/^Request failed/.test(e.message)) {
+        setStartError(e.message);
+      } else {
+        setStartError(`${partner.initials} couldn't chat right now. Try again.`);
+      }
       setStarting(false);
-      return;
     }
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setStartError(data.error || `${partner.initials} couldn't chat right now.`);
-      setStarting(false);
-      return;
-    }
-    router.push(`/chat/${data.id}?turkeyId=${encodeURIComponent(mine.id)}`);
   }
 
   // ── Looking around the park ──
   if (!partner) {
     return (
-      <div className="mx-auto max-w-xl space-y-4">
-        <div>
-          <h1 className="font-display text-display-lg text-ink">Park</h1>
-          <p className="font-body text-sm text-ink-soft">Who will {myName} talk to today?</p>
-        </div>
+      <PageShell width="default" eyebrow="Park" title={`Who will ${myName} talk to?`}>
+        <div className="space-y-4">
+          <div>
+            <p className="eyebrow mb-2">How hard should they push back?</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Difficulty">
+              {DIFFICULTIES.map((d) => (
+                <Chip key={d.key} selected={difficulty === d.key} onClick={() => setDifficulty(d.key)}>
+                  {d.label}
+                </Chip>
+              ))}
+            </div>
+            <p className="mt-2 font-body text-xs text-ink-soft">
+              {DIFFICULTIES.find((d) => d.key === difficulty)?.description}
+            </p>
+          </div>
 
-        <div>
-          <p className="eyebrow mb-2">How hard should they push back?</p>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Difficulty">
-            {DIFFICULTIES.map((d) => (
-              <Chip key={d.key} selected={difficulty === d.key} onClick={() => setDifficulty(d.key)}>
-                {d.label}
-              </Chip>
+          <div className="relative mx-auto aspect-[4/5] w-full overflow-hidden rounded-3xl border border-line bg-gradient-to-b from-surface-2 to-forest-soft sm:aspect-[5/4]">
+            <ParkScenery />
+            {lineup.map(({ persona: p }, i) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => walkUpTo(p)}
+                aria-label={`Talk to ${p.initials}`}
+                className="absolute flex min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-2xl p-1 transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none"
+                style={{ left: `${SCENE_SPOTS[i].x}%`, top: `${SCENE_SPOTS[i].y}%` }}
+              >
+                <PartnerTurkey personaId={p.id} initials={p.initials} size={80} />
+                <span className="-mt-1 rounded-full bg-surface px-2.5 py-0.5 font-body text-xs font-semibold text-ink shadow-soft">
+                  {p.initials}
+                </span>
+              </button>
             ))}
           </div>
-          <p className="mt-2 font-body text-xs text-ink-soft">
-            {DIFFICULTIES.find((d) => d.key === difficulty)?.description}
+
+          <p className="text-center font-body text-sm text-ink-soft">
+            Tap a turkey to say hi. You pick what to talk about.
           </p>
         </div>
-
-        <div
-          className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl border border-line sm:aspect-[5/4]"
-          style={{ background: "linear-gradient(180deg, #EDF4EE 0%, #D5DFD4 55%, #A8C0A6 100%)" }}
-        >
-          <ParkScenery />
-          {lineup.map(({ persona: p, x, y }) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => walkUpTo(p)}
-              aria-label={`Talk to ${p.initials}`}
-              className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-2xl p-1 transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-              style={{ left: `${x}%`, top: `${y}%` }}
-            >
-              <PartnerTurkey personaId={p.id} initials={p.initials} size={92} />
-              <span className="-mt-1 rounded-full bg-surface px-2.5 py-0.5 font-body text-xs font-semibold text-ink shadow-soft">
-                {p.initials}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <p className="text-center font-body text-sm text-ink-soft">
-          Tap a turkey to say hi. You pick what to talk about.
-        </p>
-      </div>
+      </PageShell>
     );
   }
 
@@ -203,55 +229,42 @@ function ParkPage() {
       role="switch"
       aria-checked={allowProfanity}
       onClick={() => setAllowProfanity((on) => !on)}
-      className="flex w-full items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3 text-left"
+      className="flex min-h-11 w-full items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3 text-left"
     >
       <div className="min-w-0 flex-1">
         <div className="font-body text-sm font-semibold text-ink">Allow profanity</div>
-        <div className="mt-0.5 font-body text-[11px] text-ink-soft">
+        <div className="mt-0.5 font-body text-xs text-ink-soft">
           {partner.initials} may curse when things get heated. No slurs, ever.
         </div>
       </div>
-      <span aria-hidden="true" className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${allowProfanity ? "bg-plume-500" : "bg-line"}`}>
-        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${allowProfanity ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+      <span aria-hidden="true" className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${allowProfanity ? "bg-primary" : "bg-line"}`}>
+        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-transform motion-reduce:transition-none ${allowProfanity ? "translate-x-[18px]" : "translate-x-0.5"}`} />
       </span>
     </button>
   ) : null;
 
+  const showStance = step === "stance" && topic;
+
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5 pb-8">
-      <div>
-        <p className="font-body text-sm font-semibold text-primary">Park</p>
-        <h1 className="mt-1 font-display text-[34px] font-bold leading-none tracking-[-0.035em] lg:text-[48px]">
-          {step === "topic" ? "Pick a topic." : "Where do you land?"}
-        </h1>
-      </div>
-
-      <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface px-3 py-2.5">
-        <PartnerTurkey personaId={partner.id} initials={partner.initials} size={56} />
-        <div className="min-w-0 flex-1">
-          <p className="font-body text-sm font-semibold text-ink">
-            {myName} walked over to {partner.initials}
-          </p>
-          <p className="font-body text-xs text-ink-soft">{partner.initials} takes the other side of whatever you choose.</p>
+    <PageShell
+      width="default"
+      eyebrow="Park"
+      title={showStance ? topic.title : "Pick a topic"}
+      subtitle={showStance ? topic.category : undefined}
+      back={{ href: parkHref, label: "Back to the Park" }}
+    >
+      <div className="flex flex-col gap-5 pb-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface px-3 py-2.5">
+          <PartnerTurkey personaId={partner.id} initials={partner.initials} size={56} />
+          <div className="min-w-0 flex-1">
+            <p className="font-body text-sm font-semibold text-ink">
+              {myName} walked over to {partner.initials}
+            </p>
+            <p className="font-body text-xs text-ink-soft">{partner.initials} takes the other side of whatever you choose.</p>
+          </div>
         </div>
-        <Button size="sm" variant="ghost" onClick={() => setPartner(null)} disabled={starting}>
-          Back to the park
-        </Button>
-      </div>
 
-      {step === "topic" && (
-        <>
-          {topic && (
-            <div className="sticky top-0 z-10 -mx-1 flex items-center gap-3 rounded-2xl border border-primary bg-surface px-4 py-2.5 shadow-soft">
-              <div className="min-w-0 flex-1">
-                <p className="eyebrow">Chosen</p>
-                <p className="truncate font-display text-sm font-bold">{topic.title}</p>
-              </div>
-              <Button size="sm" onClick={() => setStep("stance")}>
-                Next
-              </Button>
-            </div>
-          )}
+        {!showStance && (
           <TopicPicker
             topics={TOPICS}
             suggestedTopicId={lastTopicId}
@@ -262,39 +275,51 @@ function ParkPage() {
               setStance(null);
             }}
           />
-        </>
-      )}
+        )}
 
-      {step === "stance" && topic && (
-        <>
-          <div className="rounded-2xl border-2 border-primary bg-surface p-4">
-            <p className="eyebrow text-primary">{topic.category}</p>
-            <p className="mt-1 font-display text-lg font-bold tracking-[-0.02em]">{topic.title}</p>
+        {showStance && (
+          <>
+            <StancePicker question={topic.description} value={stance} onChange={setStance} />
+
+            {profanityToggle}
+
+            {startError && <p role="alert" className="text-center font-body text-sm text-danger">{startError}</p>}
+            {starting && (
+              <p role="status" className="text-center font-body text-sm text-ink-soft">
+                {partner.initials} is thinking of an opener...
+              </p>
+            )}
+
+            <div className="flex flex-col gap-2 sm:flex-row-reverse">
+              <Button size="lg" className="w-full shadow-lift sm:flex-1" onClick={start} disabled={!stance || starting} loading={starting}>
+                {startError ? "Try again" : `Talk with ${partner.initials}`}
+              </Button>
+              <Button size="lg" variant="ghost" className="w-full sm:w-auto" onClick={() => setStep("topic")} disabled={starting}>
+                Back to topics
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {!showStance && (
+        <div className="sticky bottom-0 z-10 -mx-1 mt-4 flex items-center gap-3 border-t border-line bg-bg px-1 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3">
+          <div className="min-w-0 flex-1">
+            {topic ? (
+              <>
+                <p className="eyebrow">Chosen</p>
+                <p className="truncate font-display text-sm font-bold">{topic.title}</p>
+              </>
+            ) : (
+              <p className="font-body text-sm text-ink-soft">Pick a topic</p>
+            )}
           </div>
-
-          <StancePicker question={topic.description} value={stance} onChange={setStance} />
-
-          {profanityToggle}
-
-          {startError && <p role="alert" className="text-center font-body text-sm text-plume-500">{startError}</p>}
-
-          <div className="flex flex-col gap-2 sm:flex-row-reverse">
-            <Button size="lg" className="w-full shadow-lift sm:flex-1" onClick={start} disabled={!stance || starting} loading={starting}>
-              Talk with {partner.initials}
-            </Button>
-            <Button size="lg" variant="ghost" className="w-full sm:w-auto" onClick={() => setStep("topic")} disabled={starting}>
-              Back to topics
-            </Button>
-          </div>
-        </>
+          <Button size="lg" onClick={() => setStep("stance")} disabled={!topic}>
+            Next
+          </Button>
+        </div>
       )}
-    </div>
-  );
-}
-
-function ParkMessage({ text }: { text: string }) {
-  return (
-    <div className="flex min-h-[60vh] items-center justify-center font-body text-ink-soft">{text}</div>
+    </PageShell>
   );
 }
 

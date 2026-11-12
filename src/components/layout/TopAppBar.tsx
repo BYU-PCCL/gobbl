@@ -23,19 +23,20 @@ export function TopAppBar({ user, turkey }: { user: UserSummary | null; turkey: 
             <MyTurkey turkey={turkey} size={28} crop="head" decorative />
           </div>
           <div className="leading-tight">
-            <div className="font-body text-sm font-semibold text-ink">Hey, {name || "friend"}</div>
-            {user && <div className="font-body text-xs text-ink-muted">Level {user.level}</div>}
+            <div className="max-w-[11rem] truncate font-body text-sm font-semibold text-ink">Hey, {name || "friend"}</div>
+            {/* Fixed height so the bar does not shift when the level arrives. */}
+            <div className="h-4 font-body text-xs text-ink-muted">{user && `Level ${user.level}`}</div>
           </div>
         </Link>
 
         <Link
           href="/shop"
-          aria-label={`${(user?.featherBalance ?? 0).toLocaleString()} feathers. Open the shop`}
-          className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 transition-colors hover:border-ink-muted"
+          aria-label={user ? `${user.featherBalance.toLocaleString()} feathers. Open the shop` : "Open the shop"}
+          className="relative flex min-w-[3.5rem] items-center justify-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] hover:border-ink-muted"
         >
           <Icon name="feather" size={14} />
           <span className="font-mono text-[13px] font-semibold text-ink num-tabular">
-            {(user?.featherBalance ?? 0).toLocaleString()}
+            {user ? user.featherBalance.toLocaleString() : <span className="inline-block w-3" />}
           </span>
         </Link>
       </div>

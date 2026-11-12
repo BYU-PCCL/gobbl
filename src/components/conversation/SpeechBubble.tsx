@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 
 /**
  * A speech bubble with a small tail pointing at its speaker. `side` is the side of the bubble
@@ -17,15 +17,19 @@ export interface SpeechBubbleProps {
   className?: string;
 }
 
-export function SpeechBubble({ children, tail, tone = "partner", maxHeightClass = "", live = false, label, className = "" }: SpeechBubbleProps) {
+export const SpeechBubble = forwardRef<HTMLDivElement, SpeechBubbleProps>(function SpeechBubble(
+  { children, tail, tone = "partner", maxHeightClass = "", live = false, label, className = "" },
+  ref,
+) {
   const bg = tone === "you" ? "bg-primary-soft border-primary/30" : "bg-surface border-line";
   return (
     <div className={`relative min-w-0 ${className}`}>
       <div
+        ref={ref}
         aria-live={live ? "polite" : undefined}
-        aria-label={label}
-        className={`overflow-y-auto rounded-2xl border px-3.5 py-2.5 font-body text-sm leading-6 text-ink shadow-soft ${bg} ${maxHeightClass}`}
+        className={`overflow-y-auto break-words rounded-2xl border px-3.5 py-2.5 font-body text-sm leading-6 text-ink shadow-soft ${bg} ${maxHeightClass}`}
       >
+        {label && <span className="sr-only">{label}: </span>}
         {children}
       </div>
       <span
@@ -36,4 +40,4 @@ export function SpeechBubble({ children, tail, tone = "partner", maxHeightClass 
       />
     </div>
   );
-}
+});

@@ -1,9 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { Input } from "@/components/ui/Input";
 import { Icon } from "@/components/ui/Icon";
 import { TurkeyCharacter } from "@/components/turkey/TurkeyCharacter";
@@ -32,10 +34,24 @@ const PROMISES = [
   },
 ];
 
-function LoadingTurkey() {
+function Wordmark() {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-bg">
-      <TurkeyCharacter stage={1} size={96} decorative />
+    <span className="flex items-center gap-2">
+      <TurkeyCharacter stage={5} size={28} crop="head" decorative />
+      <span className="font-display text-2xl font-bold tracking-[-0.04em]">Gobbl</span>
+    </span>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <div className="flex min-h-dvh flex-col bg-bg">
+      <header className="mx-auto flex w-full max-w-6xl items-center px-5 py-5 sm:px-8">
+        <Wordmark />
+      </header>
+      <main className="flex flex-1 items-center justify-center">
+        <LoadingState message="One moment..." />
+      </main>
     </div>
   );
 }
@@ -43,7 +59,7 @@ function LoadingTurkey() {
 /** useSearchParams needs a Suspense boundary, so the page body lives in LandingPage below. */
 export default function LandingPageRoute() {
   return (
-    <Suspense fallback={<LoadingTurkey />}>
+    <Suspense fallback={<LoadingScreen />}>
       <LandingPage />
     </Suspense>
   );
@@ -53,22 +69,40 @@ function LandingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   // Set when the app signed the user out itself because their account no longer exists.
-  const accountMissing =
-    useSearchParams().get(SIGN_OUT_REASON_PARAM) === ACCOUNT_MISSING_REASON;
-  const [mode, setMode] = useState<"landing" | "login" | "register">(
-    accountMissing ? "login" : "landing",
-  );
+  const params = useSearchParams();
+  const accountMissing = params.get(SIGN_OUT_REASON_PARAM) === ACCOUNT_MISSING_REASON;
+  // The URL drives the view so browser back returns to the landing page and each form is linkable.
+  const modeParam = params.get("mode");
+  const mode: "landing" | "login" | "register" =
+    modeParam === "login" || modeParam === "register"
+      ? modeParam
+      : accountMissing
+        ? "login"
+        : "landing";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // The one place that leaves this page once signed in (after sign-in, sign-up, or a return visit).
   useEffect(() => {
-    if (session) router.push("/home");
+    if (session) router.replace("/flock");
   }, [session, router]);
 
+  // Clear stale messages when the view changes.
+  const keepError = useRef(false);
+  useEffect(() => {
+    if (keepError.current) {
+      keepError.current = false;
+      return;
+    }
+    setError("");
+    setPasswordError("");
+  }, [mode]);
+
   if (status === "loading" || session) {
-    return <LoadingTurkey />;
+    return <LoadingScreen />;
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -76,17 +110,21 @@ function LandingPage() {
     setError("");
     setLoading(true);
     const res = await signIn("credentials", { username, password, redirect: false });
-    setLoading(false);
     if (res?.error) {
+      setLoading(false);
       setError("That username and password don't match. Check them and try again.");
-    } else {
-      router.push("/home");
     }
+    // On success the session effect above navigates; keep the button loading until then.
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setPasswordError("");
+    if (password.length < 6) {
+      setPasswordError("Use at least 6 characters.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/register", {
@@ -100,8 +138,15 @@ function LandingPage() {
         setLoading(false);
         return;
       }
-      await signIn("credentials", { username, password, redirect: false });
-      router.push("/home");
+      const signedIn = await signIn("credentials", { username, password, redirect: false });
+      if (signedIn?.error) {
+        keepError.current = true;
+        router.replace("/?mode=login");
+        setError("Your account was created. Sign in to continue.");
+        setLoading(false);
+      }
+      // On success the session effect above navigates.
+      return;
     } catch {
       setError("Couldn't reach the server. Check your connection and try again.");
     }
@@ -109,8 +154,7 @@ function LandingPage() {
   };
 
   const switchMode = (next: "landing" | "login" | "register") => {
-    setMode(next);
-    setError("");
+    router.push(next === "landing" ? "/" : `/?mode=${next}`);
   };
 
   if (mode !== "landing") {
@@ -120,25 +164,32 @@ function LandingPage() {
         <header className="mx-auto flex w-full max-w-6xl items-center px-5 py-5 sm:px-8">
           <button
             type="button"
+            aria-label="Gobbl home"
             onClick={() => switchMode("landing")}
-            className="flex items-center gap-2 rounded-xl"
+            className="rounded-xl"
           >
-            <TurkeyCharacter stage={5} size={28} crop="head" decorative />
-            <span className="font-display text-2xl font-bold tracking-[-0.04em]">Gobbl</span>
+            <Wordmark />
           </button>
         </header>
 
         <main className="flex flex-1 items-center justify-center px-5 pb-16 sm:px-8">
           <div className="w-full max-w-sm animate-fade-in">
+            <Link
+              href="/"
+              className="-ml-3 mb-4 inline-flex h-11 items-center gap-1.5 rounded-full px-3 font-body text-sm font-semibold text-ink-soft transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+            >
+              <Icon name="arrow-left" size={16} strokeWidth={2} />
+              Back
+            </Link>
             <div className="mb-8">
               <TurkeyCharacter stage={isLogin ? 5 : 1} size={isLogin ? 96 : 72} decorative />
-              <h1 className="mt-4 font-display text-[32px] font-bold leading-none tracking-[-0.03em]">
+              <h1 className="mt-4 font-display text-display-lg text-ink">
                 {isLogin ? "Welcome back." : "Create your account."}
               </h1>
               <p className="mt-2 font-body text-sm text-ink-soft">
                 {isLogin
                   ? "Sign in to pick up where you left off."
-                  : "You'll pick your first egg next."}
+                  : "A few quick questions, then you pick your first egg."}
               </p>
             </div>
 
@@ -152,7 +203,7 @@ function LandingPage() {
               </p>
             )}
 
-            <form onSubmit={isLogin ? handleLogin : handleRegister} className="space-y-4">
+            <form onSubmit={isLogin ? handleLogin : handleRegister} noValidate className="space-y-4">
               <Input
                 label="Username"
                 value={username}
@@ -169,9 +220,12 @@ function LandingPage() {
                 placeholder={isLogin ? "Your password" : "At least 6 characters"}
                 autoComplete={isLogin ? "current-password" : "new-password"}
                 required
+                minLength={isLogin ? undefined : 6}
+                hint={isLogin ? undefined : "Use at least 6 characters."}
+                error={passwordError || undefined}
               />
               {error && (
-                <p role="alert" className="font-body text-sm text-plume-500">
+                <p role="alert" className="font-body text-sm text-danger">
                   {error}
                 </p>
               )}
@@ -199,14 +253,11 @@ function LandingPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-bg">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
-        <div className="flex items-center gap-2">
-          <TurkeyCharacter stage={5} size={28} crop="head" decorative />
-          <span className="font-display text-2xl font-bold tracking-[-0.04em]">Gobbl</span>
-        </div>
+        <Wordmark />
         <button
           type="button"
           onClick={() => switchMode("login")}
-          className="rounded-full px-4 py-2 font-body text-sm font-semibold text-ink transition-colors hover:bg-surface-2"
+          className="inline-flex h-11 items-center rounded-full px-4 font-body text-sm font-semibold text-ink transition-colors hover:bg-surface-2"
         >
           Sign in
         </button>
@@ -215,7 +266,7 @@ function LandingPage() {
       <main className="flex-1">
         {/* Hero */}
         <section className="mx-auto w-full max-w-6xl px-5 pb-10 pt-10 sm:px-8 lg:pb-14 lg:pt-20">
-          <h1 className="font-display text-[56px] font-bold leading-[0.9] tracking-[-0.045em] text-ink sm:text-[84px] lg:text-[120px]">
+          <h1 className="break-words font-display text-display-2xl leading-[0.9] tracking-[-0.045em] text-ink sm:text-[84px] lg:text-[120px]">
             Talk turkey.
             <br />
             Build bridges.
@@ -236,7 +287,13 @@ function LandingPage() {
 
         {/* Growth line: the eight stages standing on one ground line */}
         <section aria-label="The eight turkey stages" className="border-b border-line">
-          <div className="mx-auto w-full max-w-6xl overflow-x-auto px-5 sm:px-8">
+          <div className="relative mx-auto w-full max-w-6xl">
+          <div
+            tabIndex={0}
+            role="group"
+            aria-label="The eight turkey stages, scroll sideways to see them all"
+            className="overflow-x-auto px-5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 sm:px-8"
+          >
             <ol className="flex min-w-max items-end gap-5 pt-6 sm:gap-8 lg:min-w-0 lg:justify-between lg:gap-0">
               {STAGES.map((stage) => (
                 <li key={stage} className="flex flex-col items-center">
@@ -247,6 +304,11 @@ function LandingPage() {
                 </li>
               ))}
             </ol>
+          </div>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-bg to-transparent lg:hidden"
+          />
           </div>
         </section>
 

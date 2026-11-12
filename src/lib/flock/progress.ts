@@ -19,3 +19,11 @@ export function nextStep(hatched: boolean, done: ActivityDone): "feed" | "school
   if (!done.school) return "school";
   return null;
 }
+
+/**
+ * What an activity's end screen should offer next. Finishing Feed opens School and finishing
+ * School opens the Park, so those lead on; after the Park the next thing is another chat.
+ */
+export function followUp(finished: "feed" | "school" | "park"): "school" | "park" {
+  return finished === "feed" ? "school" : "park";
+}

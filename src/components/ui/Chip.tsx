@@ -32,8 +32,9 @@ export function Chip({
     <button
       type="button"
       aria-pressed={selected}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 h-9
-        font-body text-[12px] font-semibold whitespace-nowrap
+      className={`relative inline-flex items-center gap-1.5 rounded-full border px-3.5 h-9
+        font-body text-[13px] font-semibold whitespace-nowrap
+        after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']
         transition-[background-color,color,border-color] duration-150
         active:scale-[0.97]
         ${selected

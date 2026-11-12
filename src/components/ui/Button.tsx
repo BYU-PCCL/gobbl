@@ -1,10 +1,14 @@
 "use client";
 
-import { ButtonHTMLAttributes, forwardRef } from "react";
+import { ButtonHTMLAttributes, forwardRef, type ComponentProps } from "react";
+import Link from "next/link";
+
+type Variant = "primary" | "secondary" | "ghost" | "outline" | "danger" | "dark";
+type Size = "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "outline" | "danger" | "dark";
-  size?: "sm" | "md" | "lg";
+  variant?: Variant;
+  size?: Size;
   loading?: boolean;
 }
 
@@ -24,10 +28,30 @@ const variants = {
 };
 
 const sizes = {
-  sm: "h-9  px-3.5 text-[13px] rounded-full",
+  // Drawn 36px tall; the ::after pads the tap area out to 44px without moving anything.
+  sm: "relative h-9 px-3.5 text-[13px] rounded-full after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']",
   md: "h-11 px-5   text-sm    rounded-full",
   lg: "h-12 px-6   text-base  rounded-full",
 };
+
+const BASE = `inline-flex items-center justify-center gap-2 font-body font-semibold
+  transition-[background-color,color,box-shadow,transform] duration-150
+  focus-visible:outline-none focus-visible:ring-4`;
+
+/**
+ * A link that looks like a Button. Use this for navigation instead of wrapping a
+ * Button in a Link, which nests a button inside an anchor.
+ */
+export function ButtonLink({
+  variant = "primary",
+  size = "md",
+  className = "",
+  ...props
+}: ComponentProps<typeof Link> & { variant?: Variant; size?: Size }) {
+  return (
+    <Link className={`${BASE} active:scale-[0.98] ${variants[variant]} ${sizes[size]} ${className}`} {...props} />
+  );
+}
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
@@ -39,11 +63,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         disabled={isDisabled}
-        className={`inline-flex items-center justify-center gap-2 font-body font-semibold
-          transition-[background-color,color,box-shadow,transform] duration-150
-          focus-visible:outline-none focus-visible:ring-4
+        className={`${BASE}
           disabled:opacity-50 disabled:cursor-not-allowed
-          ${!isDisabled && "active:scale-[0.98]"}
+          ${isDisabled ? "" : "active:scale-[0.98]"}
           ${variants[variant]} ${sizes[size]} ${className}`}
         {...props}
       >

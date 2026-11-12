@@ -34,10 +34,7 @@ export const viewport: Viewport = {
   // on-screen keyboard on Android, so a full-height chat column shrinks instead of being covered.
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FBF6EB" },
-    { media: "(prefers-color-scheme: dark)", color: "#1A1612" },
-  ],
+  themeColor: "#FBF6EB",
 };
 
 export const metadata: Metadata = {

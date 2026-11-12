@@ -7,29 +7,33 @@ import { MyTurkey } from "@/components/turkey/MyTurkey";
 import { useFlock } from "@/components/turkey/useFlock";
 import { LevelUpModal } from "@/components/gamification/LevelUpModal";
 import { BadgeGrid } from "@/components/chat/ScoreSummary";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { activityCta, activityHref } from "@/lib/flock/home";
+import { followUp } from "@/lib/flock/progress";
 
 export type ActivityKind = "feed" | "school" | "park";
 
 export interface ActivityResultsProps {
   kind: ActivityKind;
   rewards: ActivityRewards;
-  /** Overrides the heading. */
-  title?: string;
   /** Activity-specific extras, shown after the rewards and badges. */
   children?: ReactNode;
+  /** The way back to the turkey. Shown beside the next step, or alone when there is none. */
   onContinue: () => void;
   continueLabel: string;
+  /** true where nothing around this adds side padding (the full-screen conversation view). */
+  padded?: boolean;
 }
 
 /**
  * The one end screen for Feed, School and Park: the turkey, how it grew, what you earned
  * (feathers, XP, streak, badges), then whatever the activity adds. A level-up is shown first,
- * once, and only here.
+ * once, and only here. The main button leads on to what just opened (Feed to School, School to
+ * the Park, the Park to another chat); the way back to the turkey sits beside it.
  */
-export function ActivityResults({ kind, rewards, title, children, onContinue, continueLabel }: ActivityResultsProps) {
-  const { reload } = useFlock();
+export function ActivityResults({ kind, rewards, children, onContinue, continueLabel, padded = false }: ActivityResultsProps) {
+  const { reload, turkeys } = useFlock();
   const didLevelUp = rewards.newLevel > rewards.previousLevel;
   const [showLevelUp, setShowLevelUp] = useState(didLevelUp);
 
@@ -56,18 +60,29 @@ export function ActivityResults({ kind, rewards, title, children, onContinue, co
   const turkey = rewards.turkey;
   const name = turkey?.name ?? "Your turkey";
   const heading =
-    title ??
-    (kind === "feed" ? `${name} is fed.` : kind === "school" ? `${name} learned something.` : "Here is how it went.");
+    kind === "feed" ? `${name} is fed.` : kind === "school" ? `${name} learned something.` : "Here is how it went.";
+
+  // The flock was just reloaded, so this is the turkey as it stands after the activity.
+  const fresh = turkeys.find((t) => t.id === turkey?.id) ?? null;
+  const nextKind = followUp(kind);
+  const next =
+    fresh && fresh.hatched && fresh.unlocked[nextKind]
+      ? {
+          href: activityHref(nextKind, fresh),
+          label: kind === "park" ? "Talk to someone else" : activityCta(nextKind, fresh.name),
+          note: kind === "feed" ? "School is open now." : kind === "school" ? "The Park is open now." : null,
+        }
+      : null;
 
   const grew = turkey !== null && rewards.previousStage !== null && turkey.stage > rewards.previousStage;
   const progress = turkey ? stageProgress(turkey.activityCount, turkey.hatched) : null;
   const remaining = progress && progress.nextStage !== null ? Math.max(0, progress.needed - progress.done) : 0;
 
   return (
-    <div className="mx-auto max-w-3xl animate-fade-in px-5 py-8 motion-reduce:animate-none sm:px-8">
+    <div className={`mx-auto max-w-3xl animate-fade-in motion-reduce:animate-none ${padded ? "px-5 pt-8 sm:px-8" : "pt-2"}`}>
       <div className="flex flex-col items-center text-center">
         <MyTurkey turkey={turkey} size={150} inScene reaction="cheer" />
-        <h2 className="mt-4 font-display text-[28px] font-bold leading-[1.05] tracking-[-0.03em]">{heading}</h2>
+        <h1 className="mt-4 font-display text-display-md text-ink">{heading}</h1>
 
         {grew && turkey ? (
           <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-ochre-soft px-3.5 py-1.5 font-body text-sm font-bold text-ink">
@@ -101,7 +116,7 @@ export function ActivityResults({ kind, rewards, title, children, onContinue, co
       </div>
 
       <div className="mt-6 flex flex-wrap items-stretch justify-center gap-3">
-        <RewardTile icon="feather" value={`+${rewards.feathers}`} label="Feathers" tone="text-golden-700" />
+        <RewardTile icon="feather" value={`+${rewards.feathers}`} label="Feathers" tone="text-ink" />
         {rewards.xp > 0 && <RewardTile icon="xp" value={`+${rewards.xp}`} label="XP" tone="text-primary" />}
         <RewardTile
           icon="streak"
@@ -115,10 +130,25 @@ export function ActivityResults({ kind, rewards, title, children, onContinue, co
 
       {children && <div className="mt-8">{children}</div>}
 
-      <div className="mt-10 flex justify-center">
-        <Button size="lg" onClick={onContinue} className="w-full sm:w-auto">
-          {continueLabel}
-        </Button>
+      {/* Stays in reach however long the review above is. */}
+      <div className="sticky bottom-0 z-10 -mx-1 mt-10 bg-gradient-to-t from-bg from-70% to-bg/0 px-1 pb-[max(env(safe-area-inset-bottom),1rem)] pt-6">
+        {next?.note && <p className="mb-2 text-center font-body text-sm font-semibold text-forest-fg">{next.note}</p>}
+        <div className="flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
+          {next ? (
+            <>
+              <ButtonLink href={next.href} size="lg">
+                {next.label}
+              </ButtonLink>
+              <Button size="lg" variant="outline" onClick={onContinue}>
+                {continueLabel}
+              </Button>
+            </>
+          ) : (
+            <Button size="lg" onClick={onContinue} className="w-full sm:w-auto">
+              {continueLabel}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

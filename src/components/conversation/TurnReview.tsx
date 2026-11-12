@@ -24,6 +24,7 @@ export function TurnReview({ debateId, personaInitials }: { debateId: string; pe
   const [analysis, setAnalysis] = useState<TurnFeedback[] | null>(null);
   const [analyzing, setAnalyzing] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const analyze = useCallback(async () => {
     setAnalyzing(true);
@@ -32,32 +33,37 @@ export function TurnReview({ debateId, personaInitials }: { debateId: string; pe
       const res = await fetch(`/api/debates/${debateId}/analyze`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error || "We couldn't write up the review just now.");
+        // The API's own message can mention a "debate"; always say "conversation" here.
+        setError("We could not write up the review for this conversation just now.");
         return;
       }
       setAnalysis(data.analysis ?? []);
     } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+      setError("We could not reach the server. Check your connection and try again.");
     } finally {
       setAnalyzing(false);
     }
   }, [debateId]);
 
+  const loadTranscript = useCallback(async () => {
+    setLoadFailed(false);
+    try {
+      const r = await fetch(`/api/debates?id=${encodeURIComponent(debateId)}`);
+      if (!r.ok) throw new Error("load failed");
+      const d = await r.json();
+      setMessages(
+        ((d.messages ?? []) as ReviewMsg[]).filter((m) => m.role !== "user" || m.content.trim() !== ""),
+      );
+      if (d.personaInitials && !personaInitials) setInitials(d.personaInitials);
+    } catch {
+      setLoadFailed(true);
+    }
+  }, [debateId, personaInitials]);
+
   useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/debates?id=${encodeURIComponent(debateId)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (cancelled || !d) return;
-        setMessages(
-          (d.messages as ReviewMsg[]).filter((m) => m.role !== "user" || m.content.trim() !== ""),
-        );
-        if (d.personaInitials && !personaInitials) setInitials(d.personaInitials);
-      })
-      .catch(() => {});
+    void loadTranscript();
     void analyze();
-    return () => { cancelled = true; };
-  }, [debateId, analyze]);
+  }, [loadTranscript, analyze]);
 
   let turn = 0;
   return (
@@ -67,7 +73,7 @@ export function TurnReview({ debateId, personaInitials }: { debateId: string; pe
 
       {error && (
         <div role="alert" className="mt-4 flex flex-col items-start gap-2 rounded-2xl border border-line bg-surface p-4">
-          <p className="font-body text-sm text-plume-500">{error}</p>
+          <p className="font-body text-sm text-danger">{error}</p>
           <Button size="sm" variant="outline" onClick={() => void analyze()} disabled={analyzing} loading={analyzing}>
             Try again
           </Button>
@@ -75,7 +81,15 @@ export function TurnReview({ debateId, personaInitials }: { debateId: string; pe
       )}
 
       <div className="mt-4 space-y-3">
-        {messages === null && (
+        {loadFailed && messages === null && (
+          <div role="alert" className="flex flex-col items-start gap-2 rounded-2xl border border-line bg-surface p-4">
+            <p className="font-body text-sm text-danger">We could not load the review.</p>
+            <Button size="sm" variant="outline" onClick={() => { void loadTranscript(); void analyze(); }}>
+              Try again
+            </Button>
+          </div>
+        )}
+        {messages === null && !loadFailed && (
           <div className="space-y-3" aria-busy="true">
             {[0, 1, 2].map((i) => (
               <div key={i} className="h-14 animate-pulse rounded-2xl bg-surface-2 motion-reduce:animate-none" />
@@ -89,7 +103,7 @@ export function TurnReview({ debateId, personaInitials }: { debateId: string; pe
           const loadingNote = isUser && analyzing && !analysis;
           return (
             <div key={i} className={isUser ? "flex flex-col items-end" : "flex flex-col items-start"}>
-              <p className="mb-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">
+              <p className="mb-0.5 font-mono text-xs uppercase tracking-[0.08em] text-ink-muted">
                 {isUser ? "You" : initials}
               </p>
               <div
@@ -104,11 +118,11 @@ export function TurnReview({ debateId, personaInitials }: { debateId: string; pe
               )}
               {fb && (
                 <div className="mt-1.5 max-w-[88%] space-y-1.5">
-                  <p className="rounded-2xl border border-line bg-forest-soft px-3.5 py-2 font-body text-xs text-forest-fg">
+                  <p className="rounded-2xl border border-line bg-forest-soft px-3.5 py-2 font-body text-sm text-forest-fg">
                     <span className="font-bold">Nice: </span>
                     {fb.wellDone}
                   </p>
-                  <p className="rounded-2xl border border-line bg-ochre-soft px-3.5 py-2 font-body text-xs text-ink">
+                  <p className="rounded-2xl border border-line bg-ochre-soft px-3.5 py-2 font-body text-sm text-ink">
                     <span className="font-bold">Try: </span>
                     {fb.tryInstead}
                   </p>

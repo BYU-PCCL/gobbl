@@ -93,6 +93,11 @@ const config: Config = {
         "forest-soft": "rgb(var(--forest-soft, 213 223 212) / <alpha-value>)",
         ochre:         "rgb(var(--ochre) / <alpha-value>)",
         "ochre-soft":  "rgb(var(--ochre-soft, 251 233 196) / <alpha-value>)",
+        danger:        "rgb(var(--danger) / <alpha-value>)",
+        "coop-wall":   "rgb(var(--coop-wall) / <alpha-value>)",
+        "coop-plank":  "rgb(var(--coop-plank) / <alpha-value>)",
+        "coop-shade":  "rgb(var(--coop-shade) / <alpha-value>)",
+        "coop-straw":  "rgb(var(--coop-straw) / <alpha-value>)",
       },
       spacing: {
         unit: "4px",
@@ -145,6 +150,10 @@ const config: Config = {
         gobble:         "gobble 0.3s ease-in-out",
         float:          "float 3s ease-in-out infinite",
         wiggle:         "wiggle 1s ease-in-out infinite",
+        // egg hatch (EggHatch): one-shot rock per tap, shell lifts away, chick rises
+        "egg-rock":     "eggRock 0.5s ease-out",
+        "shell-lift":   "shellLift 0.75s cubic-bezier(0.3,0.7,0.4,1) forwards",
+        "chick-rise":   "chickRise 0.9s cubic-bezier(0.34,1.3,0.64,1) 0.25s both",
         // new
         "fade-in":      "fadeIn 0.4s ease-out forwards",
         "slide-up":     "slideUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards",
@@ -179,6 +188,24 @@ const config: Config = {
           "0%, 100%": { transform: "rotate(0deg)"  },
           "25%":      { transform: "rotate(-3deg)" },
           "75%":      { transform: "rotate(3deg)"  },
+        },
+        eggRock: {
+          "0%":   { transform: "rotate(0deg)" },
+          "20%":  { transform: "rotate(calc(var(--rock, 4deg) * -1))" },
+          "45%":  { transform: "rotate(var(--rock, 4deg))" },
+          "70%":  { transform: "rotate(calc(var(--rock, 4deg) * -0.5))" },
+          "100%": { transform: "rotate(0deg)" },
+        },
+        shellLift: {
+          "0%":   { transform: "translateY(var(--sep, 0px)) rotate(0deg)", opacity: "1" },
+          "100%": { transform: "translateY(-45%) translateX(14%) rotate(-28deg)", opacity: "0" },
+        },
+        chickRise: {
+          "0%":   { transform: "translateY(32%)", opacity: "0" },
+          "15%":  { opacity: "1" },
+          "65%":  { transform: "translateY(-7%)", opacity: "1" },
+          "82%":  { transform: "translateY(2%)", opacity: "1" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
         },
         fadeIn: {
           "0%":   { opacity: "0" },

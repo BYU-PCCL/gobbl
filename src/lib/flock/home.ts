@@ -64,3 +64,36 @@ export function activityNavHref(
 ): string {
   return current ? activityHref(activity, current) : "/hatch";
 }
+
+/** Button label for starting an activity with a turkey. */
+export function activityCta(activity: HomeActivity, name: string | null): string {
+  const n = name?.trim() || "your turkey";
+  switch (activity) {
+    case "feed":
+      return `Feed ${n}`;
+    case "school":
+      return `Take ${n} to School`;
+    case "park":
+      return `Take ${n} to the Park`;
+  }
+}
+
+/** Why an activity is shut for a turkey and which step opens it; null when it is open. */
+export function lockedReason(
+  activity: HomeActivity,
+  t: { name: string | null; hatched: boolean; unlocked: { school: boolean; park: boolean } },
+): { reason: string; step: HomeActivity } | null {
+  const n = t.name?.trim() || "your turkey";
+  if (!t.hatched) {
+    return activity === "feed" ? null : { reason: "Your egg has to hatch first. Its first lesson does that.", step: "feed" };
+  }
+  if (activity === "school" && !t.unlocked.school) {
+    return { reason: `${n} needs a lesson before School. Feed ${n} first.`, step: "feed" };
+  }
+  if (activity === "park" && !t.unlocked.park) {
+    return t.unlocked.school
+      ? { reason: `${n} has nothing to talk about yet. Take ${n} to School first.`, step: "school" }
+      : { reason: `The Park opens after Feed and School. Feed ${n} first.`, step: "feed" };
+  }
+  return null;
+}

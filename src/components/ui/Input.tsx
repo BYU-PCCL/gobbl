@@ -1,6 +1,6 @@
 "use client";
 
-import { InputHTMLAttributes, forwardRef } from "react";
+import { InputHTMLAttributes, forwardRef, useId } from "react";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -11,11 +11,14 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, hint, error, leadingIcon, trailingIcon, className = "", ...props }, ref) => {
+  ({ label, hint, error, leadingIcon, trailingIcon, className = "", id, ...props }, ref) => {
+    const autoId = useId();
+    const inputId = id ?? autoId;
+    const noteId = hint || error ? `${inputId}-note` : undefined;
     return (
       <div className="space-y-1.5">
         {label && (
-          <label className="block font-body text-sm font-medium text-ink">
+          <label htmlFor={inputId} className="block font-body text-sm font-medium text-ink">
             {label}
           </label>
         )}
@@ -24,7 +27,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             transition-[border-color,box-shadow] duration-150
             focus-within:ring-4
             ${error
-              ? "border-plume-500 focus-within:border-plume-500 focus-within:ring-plume-500/20"
+              ? "border-danger focus-within:border-danger focus-within:ring-danger/20"
               : "border-line focus-within:border-primary focus-within:ring-primary/20"}
             dark:bg-roost-800 dark:border-roost-700`}
         >
@@ -35,7 +38,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           )}
           <input
             ref={ref}
-            className={`w-full bg-transparent px-4 py-3 font-body text-sm text-ink
+            id={inputId}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={noteId}
+            className={`w-full bg-transparent px-4 py-3 font-body text-base text-ink sm:text-sm
               placeholder:text-ink-muted focus:outline-none
               ${className}`}
             {...props}
@@ -47,10 +53,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
         {hint && !error && (
-          <p className="font-body text-xs text-ink-soft">{hint}</p>
+          <p id={noteId} className="font-body text-xs text-ink-soft">{hint}</p>
         )}
         {error && (
-          <p className="font-body text-xs text-plume-500">{error}</p>
+          <p id={noteId} role="alert" className="font-body text-xs text-danger">{error}</p>
         )}
       </div>
     );

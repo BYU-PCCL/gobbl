@@ -2,7 +2,11 @@
 
 import { useEffect } from "react";
 
-/** Small status banner that hides itself after ~3 s. A new message restarts the timer. */
+/**
+ * Small status banner that hides itself after ~3 s. A new message restarts the timer.
+ * The role="status" container stays mounted so screen readers announce each change of its text;
+ * only the visible banner appears and disappears.
+ */
 export function InlineToast({ message, onHide }: { message: string | null; onHide: () => void }) {
   useEffect(() => {
     if (!message) return;
@@ -10,11 +14,15 @@ export function InlineToast({ message, onHide }: { message: string | null; onHid
     return () => clearTimeout(t);
   }, [message, onHide]);
 
-  if (!message) return null;
   return (
     <div
       role="status"
-      className="pointer-events-none fixed inset-x-4 top-[max(env(safe-area-inset-top),1rem)] z-[70] mx-auto max-w-md rounded-2xl bg-ink px-4 py-3 text-center font-body text-sm font-semibold text-bg shadow-lg"
+      aria-live="polite"
+      className={
+        message
+          ? "pointer-events-none fixed inset-x-4 top-[max(env(safe-area-inset-top),1rem)] z-[70] mx-auto max-w-md rounded-2xl bg-ink px-4 py-3 text-center font-body text-sm font-semibold text-bg shadow-lg"
+          : "sr-only"
+      }
     >
       {message}
     </div>

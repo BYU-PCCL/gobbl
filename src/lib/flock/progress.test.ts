@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextStep, unlockedFor } from "./progress";
+import { followUp, nextStep, unlockedFor } from "./progress";
 
 describe("activity order", () => {
   it("keeps School and Park shut for an egg", () => {
@@ -18,5 +18,10 @@ describe("activity order", () => {
     expect(nextStep(true, { feed: false, school: false })).toBe("feed");
     expect(nextStep(true, { feed: true, school: false })).toBe("school");
     expect(nextStep(true, { feed: true, school: true })).toBeNull();
+  });
+  it("leads on to the activity that just opened", () => {
+    expect(followUp("feed")).toBe("school");
+    expect(followUp("school")).toBe("park");
+    expect(followUp("park")).toBe("park");
   });
 });

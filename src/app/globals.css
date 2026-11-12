@@ -18,6 +18,12 @@
     --forest-soft:  213 223 212;
     --ochre:        228 165  71;
     --ochre-soft:   251 233 196;
+    --danger:       122  41  22;   /* error text and borders */
+    /* The coop on the Flock page */
+    --coop-wall:    214 178 128;
+    --coop-plank:   190 150 100;
+    --coop-shade:   122  84  48;
+    --coop-straw:   240 208 130;
   }
   .dark {
     --bg:            26  22  18;
@@ -33,6 +39,11 @@
     --forest-soft:   34  62  47;
     --ochre:        240 181  71;
     --ochre-soft:    66  50  24;
+    --danger:       240 128 100;
+    --coop-wall:     84  62  40;
+    --coop-plank:    66  48  30;
+    --coop-shade:    38  28  18;
+    --coop-straw:   150 118  60;
   }
 
   body {
