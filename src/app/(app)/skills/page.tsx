@@ -131,6 +131,7 @@ export default function SkillsPage() {
       {active && (
         <Link
           href={`/skills/${active.key}`}
+          data-track={`module-open:${active.key}`}
           className="relative block overflow-hidden rounded-3xl bg-ink p-5 text-bg lg:p-8"
         >
           <div className="pointer-events-none absolute -bottom-7 -right-7 opacity-15">
@@ -168,6 +169,7 @@ export default function SkillsPage() {
             <Link
               key={m.key}
               href={`/skills/${m.key}`}
+              data-track={`module-open:${m.key}`}
               className="rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-ink-muted lg:p-5"
             >
               <div className="flex items-center gap-3.5">

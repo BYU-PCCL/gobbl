@@ -1,13 +1,23 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { isTestMode, parseTesterId, TESTER_ID_HELP } from "@/lib/testMode";
 
 export async function POST(req: Request) {
   try {
-    const { username, password } = await req.json();
+    const body = await req.json();
+    const password = body.password;
+    let username = body.username;
 
     if (!username || !password) {
       return NextResponse.json({ error: "Username and password are required" }, { status: 400 });
+    }
+    if (isTestMode()) {
+      // On the tester deployment the username is the tester ID, so no names are stored.
+      username = parseTesterId(username);
+      if (!username) {
+        return NextResponse.json({ error: TESTER_ID_HELP }, { status: 400 });
+      }
     }
     if (username.length < 3 || username.length > 20) {
       return NextResponse.json({ error: "Username must be 3-20 characters" }, { status: 400 });

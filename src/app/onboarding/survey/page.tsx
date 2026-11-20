@@ -156,6 +156,7 @@ function QuestionInput({
             <button
               key={opt.value}
               type="button"
+              data-track={`survey:${question.key}:${opt.value}`}
               onClick={() => onChange(opt.value)}
               className={`${OPTION_CLASS} ${selected ? OPTION_SELECTED : OPTION_IDLE}`}
             >
@@ -177,6 +178,7 @@ function QuestionInput({
             <button
               key={opt.value}
               type="button"
+              data-track={`survey:${question.key}:${opt.value}`}
               aria-pressed={selected}
               disabled={!selected && atCap}
               onClick={() =>

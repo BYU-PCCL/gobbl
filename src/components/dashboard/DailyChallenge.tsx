@@ -62,6 +62,7 @@ export function DailyChallenge({ topic, completed = false, className = "" }: Dai
 
             <Link
               href={`/chat/setup?daily=true&topic=${topic.id}`}
+              data-track="daily-start"
               className="mt-4 inline-flex items-center gap-2 rounded-full bg-ochre px-5 py-3 font-body text-sm font-bold text-ink transition-transform active:scale-[0.98]"
             >
               Start practice

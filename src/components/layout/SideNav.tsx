@@ -35,6 +35,7 @@ export function SideNav({ user }: { user: UserSummary | null }) {
       <div className="mt-auto flex flex-col gap-2">
         <Link
           href="/shop"
+          data-track="feathers-shop"
           className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors hover:bg-surface"
         >
           <Icon name="feather" size={18} />
@@ -45,6 +46,7 @@ export function SideNav({ user }: { user: UserSummary | null }) {
         </Link>
         <Link
           href="/profile"
+          data-track="profile"
           className="flex items-center gap-3 rounded-2xl border border-line bg-surface px-3 py-2.5 transition-colors hover:border-ink-muted"
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary font-display text-sm font-bold text-white">
@@ -68,6 +70,7 @@ function SideNavLink({ item, active }: { item: NavItem; active: boolean }) {
   return (
     <Link
       href={item.href}
+      data-track={`nav:${item.label}`}
       aria-current={active ? "page" : undefined}
       className={`flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-[15px] font-semibold transition-colors ${
         active ? "bg-primary-soft text-primary" : "text-ink-soft hover:bg-surface hover:text-ink"

@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
+import { isTestMode, parseTesterId } from "./testMode";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -14,9 +15,11 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { username: credentials.username },
-        });
+        // Test mode stores usernames as canonical tester IDs, so "p14" must find "P014".
+        const username = isTestMode()
+          ? parseTesterId(credentials.username) ?? credentials.username
+          : credentials.username;
+        const user = await prisma.user.findUnique({ where: { username } });
         if (!user) return null;
 
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);

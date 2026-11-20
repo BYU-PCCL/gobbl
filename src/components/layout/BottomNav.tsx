@@ -24,6 +24,7 @@ export function BottomNav() {
             <Link
               key={tab.href}
               href={tab.href}
+              data-track={`nav:${tab.label}`}
               aria-current={active ? "page" : undefined}
               className={`flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 transition-colors ${
                 active ? "text-primary" : "text-ink-muted hover:text-ink-soft"

@@ -203,6 +203,7 @@ export default function DashboardPage() {
               <Link
                 key={debate.id}
                 href={`/chat/${debate.id}`}
+                data-track="recent-conversation"
                 className="flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 transition-colors hover:border-ink-muted"
               >
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft">

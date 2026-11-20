@@ -481,6 +481,7 @@ function StepView({
                     <button
                       key={opt.value}
                       type="button"
+                      data-track={`module-answer:${q.key}:${opt.value}`}
                       onClick={() => onChange({ ...answers, [q.key]: opt.value })}
                       className={`rounded-xl border-2 px-4 py-3 text-left text-sm font-semibold transition-colors ${
                         selected

@@ -9,8 +9,12 @@ import { Icon } from "@/components/ui/Icon";
 import { FlatTurkey, FlatTurkeyGlyph, TURKEY_STAGE_LABELS, type TurkeyStage } from "@/components/gamification/FlatTurkey";
 import { ACCOUNT_MISSING_REASON, SIGN_OUT_REASON_PARAM } from "@/lib/signOutReasons";
 import { INTRO_POINTS } from "@/lib/onboarding/intro";
+import { isTestMode, TESTER_ID_HELP } from "@/lib/testMode";
 
 const STAGES: TurkeyStage[] = [1, 2, 3, 4, 5, 6, 7, 8];
+
+/** Tester deployment: the username is the tester ID from the participant's sheet. */
+const TEST_MODE = isTestMode();
 
 /** Mirrors the server rule in src/app/api/register/route.ts. */
 const MIN_PASSWORD_LENGTH = 6;
@@ -151,7 +155,8 @@ function LandingPage() {
                 label="Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder={isLogin ? "Your username" : "Pick a name for your turkey"}
+                placeholder={TEST_MODE ? "P014" : isLogin ? "Your username" : "Pick a name for your turkey"}
+                hint={TEST_MODE ? TESTER_ID_HELP : undefined}
                 autoComplete="username"
                 required
               />

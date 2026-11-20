@@ -95,3 +95,13 @@ If a custom step isn't enough, you can add a whole new step kind. (This is how t
 - you will need to add to skills/[key]/page.tsx - use StepView to render the new kind, use isStepComplete to decide when Continue is enabled, and answerPayload to decide what is sent to the server
 
 New kinds don't need a Prisma migration because you can add to stepResponses[step.id] pretty much anything, keyed by step id
+## Running a focus group on the tester version
+
+The `tester` branch's preview deployment is the same app as `main` with test mode on (`NEXT_PUBLIC_TEST_MODE=1` in Vercel, scoped to that branch) and its own Supabase database. In test mode the app logs every page view and tap with a timestamp, and shows a small "Test mode" tag at the top. The public site never has the setting, so it never logs.
+
+- **Tester IDs.** Each participant's sheet has a unique ID: P plus a number (P014). They sign up with that as their username; nothing else is accepted, and `p14` is stored as `P014`. An ID can only be used once until the tester database is wiped.
+- **What is logged.** Page views, taps on buttons and links (their label or a `data-track` name), and the device type and screen size once per visit. Never anything typed into a text box.
+- **Naming a control.** If a button's label is unclear in the export, add `data-track="some-name"` to it. No other wiring is needed.
+- **Export.** Supabase → the tester project → Table Editor → `tester_timeline` → filter `tester_id` → Export to CSV. The view merges taps and page views with conversation, message-time, score and module rows in time order.
+- **After a schema change.** If the tester build fails saying a column is used by a view, drop `tester_timeline`, redeploy, then rerun `prisma/tester-timeline.sql` against the tester database.
+- **Wiping between rounds.** With the tester database's URLs in `.env.tester.local`: `npx dotenv -e .env.tester.local -- npx prisma db push --force-reset`, then rerun `prisma/supabase-rls.sql` and `prisma/tester-timeline.sql`. Check twice that the URL is the tester project and not production.

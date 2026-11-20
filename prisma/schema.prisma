@@ -131,3 +131,26 @@ model PersonaRating {
 
   @@unique([userId, debateId])
 }
+
+/// Tap and page-view log for the tester deployment (see src/lib/testMode.ts). Only written
+/// when test mode is on; the public app never inserts here. Never holds typed text.
+model TestEvent {
+  id         String   @id @default(cuid())
+  /// "P014"-style ID from the signed-in username; null until the visit signs in.
+  testerId   String?
+  /// New per browser visit; ties pre-sign-in events to the tester once they sign in.
+  sessionId  String
+  /// session_start | page_view | tap
+  event      String
+  route      String
+  /// Button label or data-track name; null for page views.
+  target     String?
+  /// Device and screen on session_start; element kind on taps.
+  detail     Json?
+  clientTime DateTime
+  serverTime DateTime @default(now())
+
+  @@index([testerId])
+  @@index([sessionId])
+  @@map("test_events")
+}

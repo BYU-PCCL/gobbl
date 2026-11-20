@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/ui/Providers";
+import { TestTracker } from "@/components/testing/TestTracker";
+import { isTestMode } from "@/lib/testMode";
 import "./globals.css";
 
 // Display — Bricolage Grotesque (variable, bold, characterful)
@@ -63,7 +65,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${bricolage.variable} ${dmSans.variable} ${jetbrains.variable}`}
     >
       <body className="min-h-screen antialiased font-body bg-bg text-ink">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          {/* Tester deployment only; renders nothing and loads no tracking on the public app. */}
+          {isTestMode() && <TestTracker />}
+        </Providers>
       </body>
     </html>
   );

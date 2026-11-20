@@ -191,6 +191,7 @@ function SetupContent() {
           <>
             <button
               type="button"
+              data-track="topic-picker"
               onClick={() => setTopicDropdownOpen((open) => !open)}
               aria-expanded={topicDropdownOpen}
               className={`flex w-full items-center justify-between gap-3 rounded-2xl border-2 bg-surface p-4 text-left transition-colors ${
@@ -241,6 +242,7 @@ function SetupContent() {
                     <button
                       key={t.id}
                       type="button"
+                      data-track={`topic:${t.id}`}
                       onClick={() => {
                         setSelectedTopicId(t.id);
                         setTopicDropdownOpen(false);
@@ -304,6 +306,7 @@ function SetupContent() {
               <button
                 key={d.key}
                 type="button"
+                data-track={`tier:${d.key}`}
                 onClick={() => setSelectedDifficulty(d.key)}
                 className={`relative flex items-center gap-3.5 rounded-2xl border-2 bg-surface p-3.5 text-left transition-colors ${
                   selected ? TONE_BORDER[meta.tone] : "border-line hover:border-ink-muted"
@@ -349,6 +352,7 @@ function SetupContent() {
           <button
             type="button"
             role="switch"
+            data-track="allow-profanity"
             aria-checked={allowProfanity}
             onClick={() => setAllowProfanity((on) => !on)}
             className="mt-2.5 flex w-full items-center gap-3 rounded-2xl border border-line bg-surface px-3.5 py-3 text-left transition-colors hover:border-ink-muted"
@@ -384,6 +388,7 @@ function SetupContent() {
               <button
                 key={m.key}
                 type="button"
+                data-track={`mode:${m.key}`}
                 disabled={m.disabled}
                 onClick={() => setMode(m.key)}
                 className={`relative flex flex-1 flex-col items-center gap-1 rounded-2xl border-2 bg-surface py-3 text-center transition-colors ${
