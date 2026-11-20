@@ -175,7 +175,7 @@ export default function DashboardPage() {
           tone="primary"
         />
         <StatsCard
-          label="Debates"
+          label="Conversations"
           value={userData.recentDebates.length}
           unit="total"
           tone="ochre"

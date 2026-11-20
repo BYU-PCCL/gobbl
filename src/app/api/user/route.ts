@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getLevelInfo } from "@/lib/gamification";
 import { parseEquippedCosmetics } from "@/lib/shop";
-import { getUserBelief } from "@/lib/prompts/userBelief";
+import { getUserBelief, getUserTopIssues } from "@/lib/prompts/userBelief";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -62,6 +62,7 @@ export async function GET() {
     dailyCompleted: !!dailyDebateToday,
     badges: user.badges.map((b) => b.badgeKey),
     beliefKey: getUserBelief(user.surveyResponses),
+    topIssues: getUserTopIssues(user.surveyResponses),
     recentDebates: user.debates.map((d) => ({
       id: d.id,
       topic: d.topic,

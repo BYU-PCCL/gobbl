@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     // Without this, a failure here (e.g. the Grok call for the opening message) bubbles
     // up as Next's generic unhandled-error response instead of the JSON the client reads
     // `data.error` from.
-    return NextResponse.json({ error: "Couldn't start the debate — please try again" }, { status: 502 });
+    return NextResponse.json({ error: "Couldn't start the conversation — please try again" }, { status: 502 });
   }
 }
 
@@ -66,7 +66,7 @@ export async function GET(req: Request) {
       include: { messages: { orderBy: { createdAt: "asc" } } },
     });
     if (!debate) {
-      return NextResponse.json({ error: "Debate not found" }, { status: 404 });
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
     const persona = getPersonaById(debate.personaId);
     return NextResponse.json({

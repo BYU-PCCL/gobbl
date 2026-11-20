@@ -8,28 +8,17 @@ import { Input } from "@/components/ui/Input";
 import { Icon } from "@/components/ui/Icon";
 import { FlatTurkey, FlatTurkeyGlyph, TURKEY_STAGE_LABELS, type TurkeyStage } from "@/components/gamification/FlatTurkey";
 import { ACCOUNT_MISSING_REASON, SIGN_OUT_REASON_PARAM } from "@/lib/signOutReasons";
+import { INTRO_POINTS } from "@/lib/onboarding/intro";
 
 const STAGES: TurkeyStage[] = [1, 2, 3, 4, 5, 6, 7, 8];
+
+/** Mirrors the server rule in src/app/api/register/route.ts. */
+const MIN_PASSWORD_LENGTH = 6;
 
 /** Each stage stands a little taller than the last, so the row reads as growth. */
 function stageSize(stage: number) {
   return 44 + (stage - 1) * 14;
 }
-
-const PROMISES = [
-  {
-    title: "Talk with someone who disagrees",
-    body: "Your AI partner holds the opposite view on the topic you pick, and pushes back as hard as you choose.",
-  },
-  {
-    title: "Get scored on civility, not winning",
-    body: "Every message is scored for tone, evidence, empathy, constructive framing and listening.",
-  },
-  {
-    title: "Grow your turkey",
-    body: "XP from good conversations evolves your turkey through eight stages. Feathers buy it an outfit.",
-  },
-];
 
 function LoadingTurkey() {
   return (
@@ -59,6 +48,7 @@ function LandingPage() {
   );
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -86,6 +76,11 @@ function LandingPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    // Same rule as /api/register; checking here saves a round trip and shows the message instantly.
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/register", {
@@ -162,12 +157,25 @@ function LandingPage() {
               />
               <Input
                 label="Password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={isLogin ? "Your password" : "At least 6 characters"}
+                placeholder={isLogin ? "Your password" : `At least ${MIN_PASSWORD_LENGTH} characters`}
+                hint={isLogin ? undefined : `At least ${MIN_PASSWORD_LENGTH} characters. Letters, numbers, anything goes.`}
                 autoComplete={isLogin ? "current-password" : "new-password"}
                 required
+                trailingAction={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((on) => !on)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-2 hover:text-ink"
+                  >
+                    {/* The icon shows the current state: open eye = password visible. */}
+                    <Icon name={showPassword ? "eye" : "eye-off"} size={18} />
+                  </button>
+                }
               />
               {error && (
                 <p role="alert" className="font-body text-sm text-plume-500">
@@ -202,13 +210,9 @@ function LandingPage() {
           <FlatTurkeyGlyph size={28} />
           <span className="font-display text-2xl font-bold tracking-[-0.04em]">Gobbl</span>
         </div>
-        <button
-          type="button"
-          onClick={() => switchMode("login")}
-          className="rounded-full px-4 py-2 font-body text-sm font-semibold text-ink transition-colors hover:bg-surface-2"
-        >
+        <Button variant="secondary" size="md" onClick={() => switchMode("login")}>
           Sign in
-        </button>
+        </Button>
       </header>
 
       <main className="flex-1">
@@ -251,7 +255,7 @@ function LandingPage() {
 
         {/* What you do here */}
         <section className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-12 sm:px-8 md:grid-cols-3 lg:py-16">
-          {PROMISES.map((p) => (
+          {INTRO_POINTS.map((p) => (
             <div key={p.title}>
               <h2 className="font-display text-xl font-bold tracking-[-0.02em]">{p.title}</h2>
               <p className="mt-2 max-w-sm font-body text-sm leading-relaxed text-ink-soft">{p.body}</p>

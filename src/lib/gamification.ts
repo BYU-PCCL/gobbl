@@ -6,14 +6,14 @@ export interface LevelDef {
 }
 
 export const LEVELS: LevelDef[] = [
-  { level: 1, name: "Egg", xpRequired: 0, description: "Every great debater starts somewhere" },
+  { level: 1, name: "Egg", xpRequired: 0, description: "Every good conversation starts somewhere" },
   { level: 2, name: "Hatchling", xpRequired: 200, description: "You've cracked the shell!" },
   { level: 3, name: "Poult", xpRequired: 500, description: "Finding your voice" },
   { level: 4, name: "Youngster", xpRequired: 1000, description: "Starting to strut" },
   { level: 5, name: "Tom", xpRequired: 2000, description: "A real contender" },
   { level: 6, name: "Gobbler", xpRequired: 4000, description: "Your voice carries weight" },
   { level: 7, name: "Grand Gobbler", xpRequired: 7000, description: "A force for good discourse" },
-  { level: 8, name: "Thunderbird", xpRequired: 11000, description: "Legendary civil debater" },
+  { level: 8, name: "Thunderbird", xpRequired: 11000, description: "Legendary civil conversationalist" },
 ];
 
 export interface BadgeDefinition {
@@ -26,17 +26,17 @@ export const BADGES: BadgeDefinition[] = [
   {
     key: "first-gobble",
     name: "First Gobble",
-    description: "Complete your first debate",
+    description: "Complete your first conversation",
   },
   {
     key: "free-range",
     name: "Free Range",
-    description: "Score 7+ civility in 3 debates",
+    description: "Score 7+ civility in 3 conversations",
   },
   {
     key: "warm-nest",
     name: "Warm Nest",
-    description: "Score 9+ on mutual exchange & listening (in a debate)",
+    description: "Score 9+ on mutual exchange & listening (in a conversation)",
   },
   {
     key: "migration-streak",
@@ -46,7 +46,7 @@ export const BADGES: BadgeDefinition[] = [
   {
     key: "flock-leader",
     name: "Flock Leader",
-    description: "Complete 10 Full Gobble debates",
+    description: "Complete 10 Jerky Turkey conversations",
   },
   {
     key: "golden-drumstick",
@@ -56,7 +56,7 @@ export const BADGES: BadgeDefinition[] = [
   {
     key: "sharp-beak",
     name: "Sharp Beak",
-    description: "Score 9+ on reason & expression (in a debate)",
+    description: "Score 9+ on reason & expression (in a conversation)",
   },
   {
     key: "roosting-ritual",
@@ -82,20 +82,34 @@ export function getLevelInfo(xp: number) {
   };
 }
 
+/**
+ * The conversation tiers, in order. This is the single source for tier keys: the persona
+ * pool's `Tier` type and `isTier` derive from it. `maxTurns` is the number of user turns
+ * before the conversation wraps up. It is shorter for Jerky Turkey, where leaving an
+ * unreasonable conversation gracefully is part of the exercise.
+ */
 export const DIFFICULTIES = [
-  { key: "Friendly Cluck", label: "Friendly Cluck", multiplier: 1.0, description: "Warm and encouraging" },
-  { key: "Spirited Strut", label: "Spirited Strut", multiplier: 1.25, description: "Pushes back firmly" },
-  { key: "Full Gobble", label: "Full Gobble", multiplier: 1.5, description: "Maximum challenge (1.5× XP & feathers)" },
+  { key: "Friendly Cluck", label: "Friendly Cluck", multiplier: 1.0, maxTurns: 8, description: "Warm and encouraging" },
+  { key: "Spirited Strut", label: "Spirited Strut", multiplier: 1.25, maxTurns: 8, description: "Pushes back firmly" },
+  { key: "Full Gobble", label: "Full Gobble", multiplier: 1.5, maxTurns: 8, description: "Sharp, well-argued, won't budge (1.5× XP & feathers)" },
+  { key: "Jerky Turkey", label: "Jerky Turkey", multiplier: 2.0, maxTurns: 5, description: "Rude, dismissive, unfair. Practice staying calm (2× XP & feathers)" },
 ] as const;
 
-const DIFFICULTY_MULTIPLIER: Record<string, number> = {
-  "Friendly Cluck": 1.0,
-  "Spirited Strut": 1.25,
-  "Full Gobble": 1.5,
-  "Friendly": 1.0,
-  "Challenging": 1.25,
-  "Devil's Advocate": 1.5,
-};
+export type DifficultyKey = (typeof DIFFICULTIES)[number]["key"];
+
+/** The top tier: the one the Flock Leader badge counts. */
+export const TOP_TIER: DifficultyKey = "Jerky Turkey";
+
+const DEFAULT_MAX_TURNS = 8;
+
+/** User turns before a conversation wraps up; unknown or legacy difficulty strings get the default. */
+export function getMaxTurns(difficulty: string): number {
+  return DIFFICULTIES.find((d) => d.key === difficulty)?.maxTurns ?? DEFAULT_MAX_TURNS;
+}
+
+const DIFFICULTY_MULTIPLIER: Record<string, number> = Object.fromEntries(
+  DIFFICULTIES.map((d) => [d.key, d.multiplier])
+);
 
 /**
  * Progression XP — driven by civility, difficulty, daily challenge, and streak.
@@ -138,7 +152,8 @@ export function calculateFeathers(
 export interface UserStats {
   totalDebates: number;
   civilDebates: number;
-  devilsAdvocateCount: number;
+  /** Completed conversations in the top tier (see TOP_TIER). */
+  topTierCount: number;
   dailyChallengeCount: number;
   maxMutualExchange: number;
   maxSelfExpressionReason: number;
@@ -154,7 +169,7 @@ export function checkNewBadges(stats: UserStats, existingBadges: string[]): stri
     ["free-range", stats.civilDebates >= 3],
     ["warm-nest", stats.maxMutualExchange >= 9],
     ["migration-streak", stats.currentStreak >= 7],
-    ["flock-leader", stats.devilsAdvocateCount >= 10],
+    ["flock-leader", stats.topTierCount >= 10],
     ["golden-drumstick", stats.level >= 5],
     ["sharp-beak", stats.maxSelfExpressionReason >= 9],
     ["roosting-ritual", stats.dailyChallengeCount >= 30],

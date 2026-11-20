@@ -17,7 +17,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     include: { messages: { orderBy: { createdAt: "asc" } } },
   });
   if (!debate) {
-    return NextResponse.json({ error: "Debate not found" }, { status: 404 });
+    return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
   if (!debate.completed) {
     return NextResponse.json({ error: "Finish the conversation before analyzing it" }, { status: 409 });

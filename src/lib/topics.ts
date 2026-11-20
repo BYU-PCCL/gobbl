@@ -17,6 +17,29 @@ export const CATEGORIES = [
   "Civil Rights",
 ] as const;
 
+/**
+ * Onboarding survey issue values (src/lib/survey/questions.ts) → topic category.
+ * foreign_policy has no topics yet, and Technology has no matching survey issue.
+ */
+export const ISSUE_TO_CATEGORY: Record<string, (typeof CATEGORIES)[number]> = {
+  civil_rights: "Civil Rights",
+  climate_environment: "Climate",
+  crime_safety: "Justice",
+  economy_jobs: "Economy",
+  education: "Education",
+  healthcare: "Healthcare",
+  immigration: "Immigration",
+};
+
+/** Splits topics into the ones matching the user's picked issues and the rest, keeping list order. */
+export function splitTopicsByIssues(issues: string[]): { yours: Topic[]; others: Topic[] } {
+  const categories = new Set<string>(issues.map((i) => ISSUE_TO_CATEGORY[i]).filter(Boolean));
+  return {
+    yours: TOPICS.filter((t) => categories.has(t.category)),
+    others: TOPICS.filter((t) => !categories.has(t.category)),
+  };
+}
+
 export const TOPICS: Topic[] = [
   {
     id: "min-wage",

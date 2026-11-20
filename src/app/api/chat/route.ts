@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getAIResponse, scoreCivility, scoreConversationHolistic, ChatMessage } from "@/lib/ai";
-import { calculateXP, calculateFeathers, getLevelInfo, checkNewBadges } from "@/lib/gamification";
+import { calculateXP, calculateFeathers, getLevelInfo, checkNewBadges, getMaxTurns, TOP_TIER } from "@/lib/gamification";
 import { parseEquippedCosmetics } from "@/lib/shop";
 import { fallbackHolisticFromUserMessages, parseStoredDimensions } from "@/lib/civility";
 import { getPersonaById, pickPersona, isTier } from "@/lib/personas/pool";
@@ -29,12 +29,12 @@ export async function POST(req: Request) {
   });
 
   if (!debate) {
-    return NextResponse.json({ error: "Debate not found" }, { status: 404 });
+    return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
 
   // Without this, re-posting "finish" re-awards XP/feathers every time.
   if (debate.completed) {
-    return NextResponse.json({ error: "This debate is already finished" }, { status: 409 });
+    return NextResponse.json({ error: "This conversation is already finished" }, { status: 409 });
   }
 
   // "Wrap up" carries no new message. Don't record a blank one — it would be scored,
@@ -50,6 +50,12 @@ export async function POST(req: Request) {
 
   const historyWithUser: ChatMessage[] = [...conversationHistory, { role: "user", content: message }];
 
+  // The turn limit is per tier. The client stops sending at the limit; this holds it for
+  // anyone posting directly, by scoring the extra message and wrapping up instead of replying.
+  const maxTurns = getMaxTurns(debate.difficulty);
+  const priorUserTurns = debate.messages.filter((m) => m.role === "user").length;
+  const mustFinish = finish === true || priorUserTurns >= maxTurns;
+
   const persona =
     getPersonaById(debate.personaId) ??
     pickPersona(isTier(debate.difficulty) ? debate.difficulty : "Friendly Cluck");
@@ -58,7 +64,7 @@ export async function POST(req: Request) {
   // so run them concurrently instead of making the user wait for both back to back.
   const [civilityResult, aiResponse] = await Promise.all([
     scoreCivility(message, conversationHistory),
-    finish ? null : getAIResponse(historyWithUser, debate.topic, persona, {
+    mustFinish ? null : getAIResponse(historyWithUser, debate.topic, persona, {
           allowProfanity: debate.allowProfanity,
           moduleKey: debate.trainingMode,
         }),
@@ -71,10 +77,11 @@ export async function POST(req: Request) {
       content: message,
       civilityScore: civilityResult.overall,
       dimensions: JSON.stringify(civilityResult.dimensions),
+      feedback: civilityResult.feedback,
     },
   });
 
-  if (finish || aiResponse === null) {
+  if (mustFinish || aiResponse === null) {
     return await finishDebate(userId, debateId, civilityResult.overall);
   }
 
@@ -92,20 +99,19 @@ export async function POST(req: Request) {
           data: {
             civilityScore: partnerCivility.overall,
             dimensions: JSON.stringify(partnerCivility.dimensions),
+            feedback: partnerCivility.feedback,
           },
         })
       )
       .catch((err) => console.error("[chat] partner scoring failed", err))
   );
 
-  const userMsgCount = debate.messages.filter((m) => m.role === "user").length + 1;
-
   return NextResponse.json({
     aiResponse,
     aiCivility: null,
     civility: civilityResult,
-    turnNumber: userMsgCount,
-    maxTurns: 8,
+    turnNumber: priorUserTurns + 1,
+    maxTurns,
   });
 }
 
@@ -116,13 +122,14 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
   });
 
   if (!debate) {
-    return NextResponse.json({ error: "Debate not found" }, { status: 404 });
+    return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
 
   const userMessages = debate.messages.filter((m) => m.role === "user");
   const transcript = debate.messages.map((m) => `${m.role}: ${m.content}`).join("\n\n");
 
-  let holisticResult = await scoreConversationHolistic(transcript);
+  const modelResult = userMessages.length > 0 ? await scoreConversationHolistic(transcript) : null;
+  let holisticResult = modelResult;
   if (!holisticResult) {
     holisticResult = fallbackHolisticFromUserMessages(
       userMessages.map((m) => ({ civilityScore: m.civilityScore, dimensions: m.dimensions }))
@@ -133,6 +140,8 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
       { civilityScore: lastScore, dimensions: null },
     ]);
   }
+  // The fallback's feedback strings describe the fallback itself; only the model's is worth showing.
+  const feedback = modelResult?.feedback ?? null;
 
   const overallScore = holisticResult.overall;
 
@@ -192,8 +201,8 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
   const stats = {
     totalDebates: completedDebates.length + 1,
     civilDebates: completedDebates.filter((d) => (d.overallScore || 0) >= 7).length + (overallScore >= 7 ? 1 : 0),
-    devilsAdvocateCount: completedDebates.filter((d) => d.difficulty === "Devil's Advocate").length +
-      (debate.difficulty === "Devil's Advocate" ? 1 : 0),
+    topTierCount: completedDebates.filter((d) => d.difficulty === TOP_TIER).length +
+      (debate.difficulty === TOP_TIER ? 1 : 0),
     dailyChallengeCount: completedDebates.filter((d) => d.isDaily).length + (debate.isDaily ? 1 : 0),
     maxMutualExchange,
     maxSelfExpressionReason,
@@ -210,6 +219,7 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
       data: {
         completed: true,
         overallScore: overallScore,
+        feedback,
         xpEarned: xpResult.total,
         feathersEarned: featherResult.total,
         completedAt: new Date(),
@@ -245,6 +255,7 @@ async function finishDebate(userId: string, debateId: string, lastScore: number)
     finished: true,
     overallScore,
     dimensions: dimensionsOut,
+    feedback,
     xp: xpResult,
     feathers: featherResult,
     previousLevel: user.level,

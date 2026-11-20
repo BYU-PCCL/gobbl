@@ -1,6 +1,6 @@
 /**
  * Deterministic backstop for the PROFANITY rule in builder.ts. The prompt alone slips
- * when a user baits a Full Gobble persona ("don't hold back") — 9 of 60 baited replies
+ * when a user baits a Jerky Turkey persona ("don't hold back") — 9 of 60 baited replies
  * used the f-word in testing — so replies are checked here before anyone sees them.
  *
  * The word lists below exist only to detect and remove these terms.

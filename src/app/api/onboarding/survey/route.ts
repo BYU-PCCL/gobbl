@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { SURVEY_QUESTIONS, isAnswerValid } from "@/lib/survey/questions";
+import { SURVEY_QUESTIONS, isAnswerValid, type SurveyAnswer } from "@/lib/survey/questions";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { responses?: Record<string, string> };
+  let body: { responses?: Record<string, SurveyAnswer> };
   try {
     body = await req.json();
   } catch {

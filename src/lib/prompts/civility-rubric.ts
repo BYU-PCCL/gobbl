@@ -58,7 +58,7 @@ export const CIVILITY_PARTNER_MESSAGE_SYSTEM = CIVILITY_MESSAGE_SYSTEM.replace(
 );
 
 /** Whole-conversation scoring: closure, arc, and all four metrics across the full thread. */
-export const CIVILITY_HOLISTIC_SYSTEM = `You are the civility scorer for Gobbl. Read the FULL conversation between USER and ASSISTANT (Robert). Score the USER's overall performance across the entire thread (1–10 each).
+export const CIVILITY_HOLISTIC_SYSTEM = `You are the civility scorer for Gobbl. Read the FULL conversation between USER and ASSISTANT (the AI partner). Score the USER's overall performance across the entire thread (1–10 each).
 
 ## 1. participation
 Scoring Guidelines

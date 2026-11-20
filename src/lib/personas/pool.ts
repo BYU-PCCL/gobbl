@@ -1,8 +1,9 @@
 import { BeliefKey } from "@/lib/prompts/beliefs";
 import { flipBelief } from "@/lib/prompts/flipBelief";
 import { ParameterName, ParameterLevel } from "@/lib/prompts/parameters";
+import { DIFFICULTIES, type DifficultyKey } from "@/lib/gamification";
 
-export type Tier = "Friendly Cluck" | "Spirited Strut" | "Full Gobble";
+export type Tier = DifficultyKey;
 
 export interface Persona {
   id: string;
@@ -38,7 +39,19 @@ const TIER_RANGES: Record<Tier, Record<ParameterName, ParamRange>> = {
     expression:         [2, 5],
     reason_giving:      [2, 5],
   },
+  // Hard but fair: engages the substance, argues well, and can't be moved, without the
+  // hostility. The "angry comments section" partner is Jerky Turkey below.
   "Full Gobble": {
+    abrasiveness:       [2, 3],
+    listening:          [3, 5],
+    persuadability:     [1, 2],
+    self_interrogation: [2, 3],
+    disagreement:       [4, 5],
+    participation:      [3, 5],
+    expression:         [3, 5],
+    reason_giving:      [4, 5],
+  },
+  "Jerky Turkey": {
     abrasiveness:       [4, 5],
     listening:          [1, 2],
     persuadability:     [1, 2],
@@ -140,11 +153,54 @@ export const PERSONAS: Persona[] = [
     params: { participation: 5, expression: 5, reason_giving: 2, listening: 3, self_interrogation: 2, disagreement: 4, abrasiveness: 3, persuadability: 2 },
   },
 
-  // --- Full Gobble (5) ---
+  // --- Full Gobble (5) --- hard but fair
+  {
+    id: "fg-kw",
+    initials: "K.W.",
+    tier: "Full Gobble",
+    beliefKey: "right",
+    backstory: "[PLACEHOLDER] Reads policy coverage closely, argues point by point, expects the same back. Firm but never personal.",
+    params: { participation: 5, expression: 4, reason_giving: 5, listening: 4, self_interrogation: 2, disagreement: 5, abrasiveness: 2, persuadability: 1 },
+  },
+  {
+    id: "fg-lr",
+    initials: "L.R.",
+    tier: "Full Gobble",
+    beliefKey: "left",
+    backstory: "[PLACEHOLDER] Organizer type. Quick with examples and numbers, answers questions head-on, then presses the weak spot in yours.",
+    params: { participation: 4, expression: 5, reason_giving: 5, listening: 3, self_interrogation: 3, disagreement: 4, abrasiveness: 3, persuadability: 2 },
+  },
+  {
+    id: "fg-hd",
+    initials: "H.D.",
+    tier: "Full Gobble",
+    beliefKey: "lean-right",
+    backstory: "[PLACEHOLDER] Calm and clipped. Listens carefully, concedes nothing that matters, asks for evidence every time.",
+    params: { participation: 3, expression: 3, reason_giving: 4, listening: 5, self_interrogation: 2, disagreement: 4, abrasiveness: 2, persuadability: 1 },
+  },
+  {
+    id: "fg-gf",
+    initials: "G.F.",
+    tier: "Full Gobble",
+    beliefKey: "lean-left",
+    backstory: "[PLACEHOLDER] Former debate-club kid. Structured, a little blunt, enjoys the back-and-forth; will give up a small point to win a bigger one.",
+    params: { participation: 5, expression: 5, reason_giving: 5, listening: 4, self_interrogation: 3, disagreement: 5, abrasiveness: 3, persuadability: 2 },
+  },
+  {
+    id: "fg-vo",
+    initials: "V.O.",
+    tier: "Full Gobble",
+    beliefKey: "right",
+    backstory: "[PLACEHOLDER] Small-business owner, speaks from experience more than articles. Direct, impatient with vagueness, unmovable on core beliefs.",
+    params: { participation: 4, expression: 4, reason_giving: 4, listening: 3, self_interrogation: 2, disagreement: 4, abrasiveness: 3, persuadability: 1 },
+  },
+
+  // --- Jerky Turkey (5) --- the unreasonable partner. Ids keep the original "hard-" prefix
+  // because they're stored on existing Debate rows.
   {
     id: "hard-dm",
     initials: "D.M.",
-    tier: "Full Gobble",
+    tier: "Jerky Turkey",
     beliefKey: "right",
     backstory: "[PLACEHOLDER] Hard-line, assumes bad faith quickly, uses ridicule. Will not yield ground.",
     params: { participation: 5, expression: 5, reason_giving: 3, listening: 1, self_interrogation: 1, disagreement: 5, abrasiveness: 5, persuadability: 1 },
@@ -152,7 +208,7 @@ export const PERSONAS: Persona[] = [
   {
     id: "hard-na",
     initials: "N.A.",
-    tier: "Full Gobble",
+    tier: "Jerky Turkey",
     beliefKey: "left",
     backstory: "[PLACEHOLDER] Aggressive but technically literate — strings together coherent arguments while being abrasive.",
     params: { participation: 4, expression: 4, reason_giving: 4, listening: 2, self_interrogation: 2, disagreement: 4, abrasiveness: 4, persuadability: 2 },
@@ -160,7 +216,7 @@ export const PERSONAS: Persona[] = [
   {
     id: "hard-sb",
     initials: "S.B.",
-    tier: "Full Gobble",
+    tier: "Jerky Turkey",
     beliefKey: "right",
     backstory: "[PLACEHOLDER] Dismissive, won't engage with specifics, sneers at the question. Refuses to elaborate.",
     params: { participation: 2, expression: 2, reason_giving: 2, listening: 1, self_interrogation: 1, disagreement: 5, abrasiveness: 5, persuadability: 1 },
@@ -168,7 +224,7 @@ export const PERSONAS: Persona[] = [
   {
     id: "hard-cv",
     initials: "C.V.",
-    tier: "Full Gobble",
+    tier: "Jerky Turkey",
     beliefKey: "left",
     backstory: "[PLACEHOLDER] Steamroller — talks over the user, lots of words, lots of reasons, zero willingness to update.",
     params: { participation: 5, expression: 5, reason_giving: 5, listening: 2, self_interrogation: 2, disagreement: 4, abrasiveness: 4, persuadability: 1 },
@@ -176,7 +232,7 @@ export const PERSONAS: Persona[] = [
   {
     id: "hard-mp",
     initials: "M.P.",
-    tier: "Full Gobble",
+    tier: "Jerky Turkey",
     beliefKey: "lean-right",
     backstory: "[PLACEHOLDER] Confrontational from message one, mixes sarcasm with detailed grievances. Mid-volume but biting.",
     params: { participation: 3, expression: 4, reason_giving: 4, listening: 2, self_interrogation: 1, disagreement: 5, abrasiveness: 5, persuadability: 2 },
@@ -190,11 +246,7 @@ function inRange(value: ParameterLevel, [lo, hi]: ParamRange): boolean {
 function validatePool(): void {
   const seenIds = new Set<string>();
   const seenInitials = new Set<string>();
-  const tierCounts: Record<Tier, number> = {
-    "Friendly Cluck": 0,
-    "Spirited Strut": 0,
-    "Full Gobble": 0,
-  };
+  const tierCounts = Object.fromEntries(DIFFICULTIES.map((d) => [d.key, 0])) as Record<Tier, number>;
 
   for (const p of PERSONAS) {
     if (seenIds.has(p.id)) {
@@ -275,5 +327,5 @@ export function getPersonaById(id: string | null | undefined): Persona | null {
 }
 
 export function isTier(value: string): value is Tier {
-  return value === "Friendly Cluck" || value === "Spirited Strut" || value === "Full Gobble";
+  return DIFFICULTIES.some((d) => d.key === value);
 }

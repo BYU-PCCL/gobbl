@@ -8,7 +8,7 @@ import { fetchJson } from "@/lib/fetchJson";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
-import { TOPICS, getDailyTopic, formatTopicForDebate, type Topic } from "@/lib/topics";
+import { TOPICS, getDailyTopic, formatTopicForDebate, splitTopicsByIssues, type Topic } from "@/lib/topics";
 import { DIFFICULTIES } from "@/lib/gamification";
 import { describeFlip } from "@/lib/prompts/flipBelief";
 import { parseBeliefKey, type BeliefKey } from "@/lib/prompts/beliefs";
@@ -24,6 +24,7 @@ const DIFFICULTY_META: Record<string, { stage: number; tone: "forest" | "primary
   "Friendly Cluck": { stage: 3, tone: "forest",  xp: 60  },
   "Spirited Strut": { stage: 5, tone: "primary", xp: 120 },
   "Full Gobble":    { stage: 7, tone: "rust",    xp: 200 },
+  "Jerky Turkey":   { stage: 8, tone: "rust",    xp: 260 },
 };
 
 const TONE_BG: Record<string, string> = {
@@ -58,10 +59,17 @@ function SetupContent() {
   const [partner, setPartner] = useState<{ id: string; initials: string; beliefKey: BeliefKey } | null>(null);
   const [mode, setMode] = useState<"text" | "audio" | "video">("text");
   const [allowProfanity, setAllowProfanity] = useState(false);
-  const isFullGobble = selectedDifficulty === "Full Gobble";
+  const isJerkyTurkey = selectedDifficulty === "Jerky Turkey";
   const [loading, setLoading] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [topicDropdownOpen, setTopicDropdownOpen] = useState(false);
+  // Issues the user picked in onboarding; their topics are listed first in the dropdown.
+  const [topIssues, setTopIssues] = useState<string[]>([]);
+  const { yours: yourTopics, others: otherTopics } = splitTopicsByIssues(topIssues);
+  const topicGroups = [
+    { label: yourTopics.length ? "Your issues" : null, topics: yourTopics },
+    { label: yourTopics.length ? "More topics" : null, topics: otherTopics },
+  ].filter((g) => g.topics.length > 0);
 
   const topic: Topic | null = (() => {
     if (isDaily) return getDailyTopic();
@@ -73,8 +81,11 @@ function SetupContent() {
     if (status === "unauthenticated") { router.push("/"); return; }
     if (status === "authenticated") {
       // Non-critical: on failure the setup screen just keeps its default belief.
-      fetchJson<{ beliefKey: string | null }>("/api/user")
-        .then((data) => setUserBelief(parseBeliefKey(data.beliefKey)))
+      fetchJson<{ beliefKey: string | null; topIssues?: string[] }>("/api/user")
+        .then((data) => {
+          setUserBelief(parseBeliefKey(data.beliefKey));
+          setTopIssues(Array.isArray(data.topIssues) ? data.topIssues : []);
+        })
         .catch(() => {});
     }
   }, [status, router]);
@@ -119,8 +130,8 @@ function SetupContent() {
           difficulty: selectedDifficulty,
           personaId: partner?.id,
           isDaily,
-          // The toggle's state survives switching tiers, so only send it for Full Gobble.
-          allowProfanity: isFullGobble && allowProfanity,
+          // The toggle's state survives switching tiers, so only send it for Jerky Turkey.
+          allowProfanity: isJerkyTurkey && allowProfanity,
         }),
       });
     } catch {
@@ -147,12 +158,12 @@ function SetupContent() {
   return (
     <div className="flex flex-col gap-5 pb-8 lg:gap-8">
       <p className="font-body text-sm font-semibold text-primary">
-        {isDaily ? "Daily Gobble" : "New debate"}
+        {isDaily ? "Daily Gobble" : "New conversation"}
       </p>
 
       <div>
         <h1 className="font-display text-[38px] font-bold leading-none tracking-[-0.035em] lg:text-[56px]">
-          Set up your debate.
+          Set up your conversation.
         </h1>
         <p className="mt-2 font-body text-sm text-ink-soft lg:mt-3 lg:text-base">
           Pick a topic and how hard you want {partner?.initials ?? "your partner"} to push back.
@@ -217,7 +228,14 @@ function SetupContent() {
 
             {topicDropdownOpen && (
               <div className="mt-2 max-h-72 overflow-y-auto rounded-2xl lg:max-h-[26rem] border border-line bg-surface">
-                {TOPICS.map((t, i) => {
+                {topicGroups.map((group) => (
+                  <div key={group.label ?? "all"} className="border-b border-line last:border-b-0">
+                    {group.label && (
+                      <div className="bg-bg px-3.5 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+                        {group.label}
+                      </div>
+                    )}
+                    {group.topics.map((t, i) => {
                   const selected = selectedTopicId === t.id;
                   return (
                     <button
@@ -228,7 +246,7 @@ function SetupContent() {
                         setTopicDropdownOpen(false);
                       }}
                       className={`flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors ${
-                        i < TOPICS.length - 1 ? "border-b border-line" : ""
+                        i < group.topics.length - 1 ? "border-b border-line" : ""
                       } ${selected ? "bg-primary-soft" : "hover:bg-bg"}`}
                     >
                       <div className="min-w-0 flex-1">
@@ -246,14 +264,16 @@ function SetupContent() {
                       )}
                     </button>
                   );
-                })}
+                    })}
+                  </div>
+                ))}
               </div>
             )}
           </>
         )}
       </section>
 
-      {/* Robert auto-flip note */}
+      {/* Partner auto-flip note */}
       <div className="flex items-center gap-3 rounded-2xl border border-forest-300/40 bg-forest-100 px-3.5 py-3">
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-forest-500 text-white">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -314,7 +334,18 @@ function SetupContent() {
           })}
         </div>
 
-        {isFullGobble && (
+        {isJerkyTurkey && (
+          <div className="mt-2.5 rounded-2xl border border-plume-500/40 bg-plume-100 px-3.5 py-3">
+            <div className="font-body text-xs font-bold text-plume-500">Why this mode exists</div>
+            <p className="mt-1 font-body text-[12px] leading-relaxed text-ink-soft">
+              Part of being open to political conversation is knowing how to respond when someone
+              is unreasonable or rude. {partner?.initials ?? "This partner"} will be. Your job is to
+              stay civil, not to win, and it&apos;s fine to wrap up early. Five rounds instead of eight.
+            </p>
+          </div>
+        )}
+
+        {isJerkyTurkey && (
           <button
             type="button"
             role="switch"
@@ -382,7 +413,7 @@ function SetupContent() {
         disabled={!topic || loading}
         loading={loading}
       >
-        {topic ? "Start the debate" : "Pick a topic to continue"}
+        {topic ? "Start the conversation" : "Pick a topic to continue"}
       </Button>
       </div>
       </div>

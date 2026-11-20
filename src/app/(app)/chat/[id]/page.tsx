@@ -12,6 +12,7 @@ import { MessageBubble } from "@/components/chat/MessageBubble";
 import { FlatTurkey, FlatTurkeyGlyph } from "@/components/gamification/FlatTurkey";
 import { Button } from "@/components/ui/Button";
 import { IDEOLOGY_OPTIONS } from "@/lib/prompts/beliefs";
+import { getMaxTurns } from "@/lib/gamification";
 
 interface TurnFeedback {
   turn: number;
@@ -29,7 +30,13 @@ interface DebateData {
   completed: boolean;
   overallScore: number | null;
   analysis: TurnFeedback[] | null;
-  messages: { id: string; role: string; content: string; civilityScore: number | null }[];
+  messages: {
+    id: string;
+    role: string;
+    content: string;
+    civilityScore: number | null;
+    feedback: string | null;
+  }[];
 }
 
 export default function DebatePage() {
@@ -99,6 +106,7 @@ export default function DebatePage() {
       role: m.role as "user" | "assistant",
       content: m.content,
       civilityScore: m.civilityScore,
+      feedback: m.feedback,
     }));
 
   const ideologyLabel =
@@ -133,7 +141,7 @@ export default function DebatePage() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="font-body text-sm font-bold">{debate.personaInitials ?? "Robert"}</span>
+            <span className="font-body text-sm font-bold">{debate.personaInitials ?? "Partner"}</span>
             <span className="h-1 w-1 rounded-full bg-ink-muted" />
             <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-muted">
               {ideologyLabel}
@@ -161,6 +169,12 @@ export default function DebatePage() {
           {debate.topic}
         </span>
       </div>
+
+      {debate.difficulty === "Jerky Turkey" && !debate.completed && (
+        <p className="mt-2 font-body text-[11px] text-ink-soft">
+          Staying calm is the exercise. Wrap up whenever you&apos;ve had enough.
+        </p>
+      )}
 
       {/* Live civility meter */}
       {liveCivility != null && (
@@ -212,7 +226,12 @@ export default function DebatePage() {
             const feedback = msg.role === "user" ? analysis?.find((a) => a.turn === turn) : undefined;
             return (
               <div key={i}>
-                <MessageBubble role={msg.role} content={msg.content} civilityScore={msg.civilityScore} />
+                <MessageBubble
+                  role={msg.role}
+                  content={msg.content}
+                  civilityScore={msg.civilityScore}
+                  feedback={msg.feedback}
+                />
                 {feedback && (
                   <div className="mt-1.5 ml-auto max-w-[78%] space-y-1 rounded-2xl border border-forest-300/40 bg-forest-100 px-3.5 py-2.5 font-body text-xs text-forest-700">
                     <p>
@@ -241,7 +260,7 @@ export default function DebatePage() {
         <ChatInterface
           debateId={debate.id}
           initialMessages={initialMessages}
-          maxTurns={8}
+          maxTurns={getMaxTurns(debate.difficulty)}
           onFinish={(r) => setResult(r)}
         />
       </div>

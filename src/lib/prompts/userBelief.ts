@@ -22,3 +22,16 @@ export function getUserBelief(surveyResponses: unknown): BeliefKey | null {
   if (typeof raw !== "string") return null;
   return SURVEY_TO_BELIEF[raw] ?? null;
 }
+
+/**
+ * The issues the user said matter most. Reads the multi-select `top_issues` answer and
+ * falls back to the older single-select `top_issue` so earlier accounts still get a result.
+ */
+export function getUserTopIssues(surveyResponses: unknown): string[] {
+  if (!surveyResponses || typeof surveyResponses !== "object") return [];
+  const responses = surveyResponses as Record<string, unknown>;
+  if (Array.isArray(responses.top_issues)) {
+    return responses.top_issues.filter((v): v is string => typeof v === "string");
+  }
+  return typeof responses.top_issue === "string" ? [responses.top_issue] : [];
+}

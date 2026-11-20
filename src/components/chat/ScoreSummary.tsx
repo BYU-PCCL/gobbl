@@ -193,6 +193,16 @@ export function ScoreSummary({ result }: ScoreSummaryProps) {
               Evolved to {newLevelName}
             </div>
           )}
+          {result.feedback && (
+            <figure className="mt-5 max-w-xl rounded-2xl border border-line bg-surface px-4 py-3 text-left">
+              <figcaption className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-muted">
+                What the scorer noticed
+              </figcaption>
+              <blockquote className="mt-1 font-body text-sm leading-relaxed text-ink">
+                {result.feedback}
+              </blockquote>
+            </figure>
+          )}
         </div>
       </div>
 
@@ -279,7 +289,7 @@ export function ScoreSummary({ result }: ScoreSummaryProps) {
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
         <Link href="/chat">
-          <Button className="w-full sm:w-auto">Start another debate</Button>
+          <Button className="w-full sm:w-auto">Start another conversation</Button>
         </Link>
         <Link href="/dashboard">
           <Button variant="secondary" className="w-full sm:w-auto">Back to home</Button>

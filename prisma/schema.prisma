@@ -64,6 +64,8 @@ model Debate {
   /// Opt-in from the setup screen; only honored for Full Gobble debates.
   allowProfanity Boolean @default(false)
   analysis     Json?
+  /// The holistic civility scorer's one-line summary, set at wrap-up.
+  feedback     String?
   user         User      @relation(fields: [userId], references: [id])
   messages     Message[]
   personaRatings PersonaRating[] // No longer written (rating UI removed); drop with the model below.
@@ -76,6 +78,8 @@ model Message {
   content        String
   civilityScore  Float?
   dimensions     String?
+  /// The civility scorer's one-sentence reason for this message's score.
+  feedback       String?
   createdAt      DateTime @default(now())
   debate         Debate   @relation(fields: [debateId], references: [id])
 }

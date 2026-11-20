@@ -51,7 +51,7 @@ export function RankingTable({ data, sortBy }: RankingTableProps) {
     return (
       <div className="rounded-2xl border border-dashed border-line py-12 text-center">
         <p className="font-body text-sm text-ink-soft">
-          Nobody has finished a debate yet. Finish one to take the top spot.
+          Nobody has finished a conversation yet. Finish one to take the top spot.
         </p>
       </div>
     );
@@ -65,7 +65,7 @@ export function RankingTable({ data, sortBy }: RankingTableProps) {
             <th scope="col" className="w-14 py-3 pl-4 pr-2">Rank</th>
             <th scope="col" className="px-2 py-3">Turkey</th>
             <th scope="col" className="hidden px-2 py-3 text-right sm:table-cell">Level</th>
-            <th scope="col" className="hidden px-2 py-3 text-right md:table-cell">Debates</th>
+            <th scope="col" className="hidden px-2 py-3 text-right md:table-cell">Conversations</th>
             <th scope="col" className="py-3 pl-2 pr-4 text-right">{COLUMN_LABEL[sortBy] ?? "XP"}</th>
           </tr>
         </thead>

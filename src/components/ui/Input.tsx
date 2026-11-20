@@ -7,11 +7,14 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   hint?: string;
   error?: string;
   leadingIcon?: React.ReactNode;
+  /** Decorative; hidden from assistive tech. For a control (e.g. a show-password button) use trailingAction. */
   trailingIcon?: React.ReactNode;
+  /** An interactive element rendered inside the field's trailing edge, such as a toggle button. */
+  trailingAction?: React.ReactNode;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, hint, error, leadingIcon, trailingIcon, className = "", ...props }, ref) => {
+  ({ label, hint, error, leadingIcon, trailingIcon, trailingAction, className = "", ...props }, ref) => {
     return (
       <div className="space-y-1.5">
         {label && (
@@ -45,6 +48,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               {trailingIcon}
             </span>
           )}
+          {trailingAction && <span className="flex items-center pr-1.5">{trailingAction}</span>}
         </div>
         {hint && !error && (
           <p className="font-body text-xs text-ink-soft">{hint}</p>

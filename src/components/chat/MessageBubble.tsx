@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { Icon } from "../ui/Icon";
 
 interface MessageBubbleProps {
   role: "user" | "assistant";
   content: string;
   civilityScore?: number | null;
+  /** The scorer's one-sentence reason for the score; revealed on tap or hover of the score. */
+  feedback?: string | null;
   /** When true, show a small "+EVIDENCE / +EMPATHY / etc." tag below the user bubble. */
   highlightDimension?: string;
 }
@@ -15,19 +18,25 @@ interface MessageBubbleProps {
  *
  * - User bubble: solid ink (near-black) with bg-colored text, rounded with a
  *   reduced bottom-right corner for the "tail" feel.
- * - Robert bubble: surface (white) with a hairline border, reduced
+ * - Partner bubble: surface (white) with a hairline border, reduced
  *   bottom-left corner. Avatar leads as a tiny ochre disc.
  *
- * Civility callouts surface as a small forest "+EVIDENCE" badge under the
- * user's most recent message when the API returned a per-dimension boost.
+ * The civility score under a bubble is a button when the scorer gave a reason:
+ * tap (or hover with a mouse) to read it. Same reveal pattern as the results
+ * page's dimension rows.
  */
 export function MessageBubble({
   role,
   content,
   civilityScore,
+  feedback,
   highlightDimension,
 }: MessageBubbleProps) {
   const isUser = role === "user";
+  const [pinned, setPinned] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const showFeedback = Boolean(feedback) && (pinned || hovered);
+  const scoreLabel = civilityScore != null ? `Civility ${Math.round(civilityScore * 10)}` : null;
 
   return (
     <div className={`flex animate-slide-up ${isUser ? "justify-end" : "justify-start"} gap-2`}>
@@ -56,13 +65,31 @@ export function MessageBubble({
             </span>
           </div>
         )}
-        {civilityScore != null && !(isUser && highlightDimension) && (
-          <div
-            className={`mt-1 flex font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ink-muted ${
-              isUser ? "justify-end" : "justify-start"
-            }`}
-          >
-            Civility {Math.round(civilityScore * 10)}
+        {scoreLabel && !(isUser && highlightDimension) && (
+          <div className={`mt-1 flex flex-col ${isUser ? "items-end" : "items-start"}`}>
+            {feedback ? (
+              <button
+                type="button"
+                onClick={() => setPinned((p) => !p)}
+                onPointerEnter={(e) => e.pointerType === "mouse" && setHovered(true)}
+                onPointerLeave={(e) => e.pointerType === "mouse" && setHovered(false)}
+                aria-expanded={showFeedback}
+                aria-label={`${scoreLabel}. Show why`}
+                className="flex items-center gap-1 font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ink-muted underline decoration-dotted underline-offset-2"
+              >
+                {scoreLabel}
+                <span aria-hidden className="text-[8px]">{showFeedback ? "x" : "?"}</span>
+              </button>
+            ) : (
+              <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+                {scoreLabel}
+              </span>
+            )}
+            {showFeedback && (
+              <p className="mt-1 max-w-[20rem] rounded-xl border border-line bg-surface px-3 py-2 font-body text-xs leading-snug text-ink-soft">
+                {feedback}
+              </p>
+            )}
           </div>
         )}
       </div>

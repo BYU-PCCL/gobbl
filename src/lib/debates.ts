@@ -14,7 +14,7 @@ interface CreateDebateParams {
   /** Set when this debate is a module's practice step rather than a normal Chat-page debate. */
   isTraining?: boolean;
   trainingMode?: string;
-  /** Setup-screen opt-in; dropped unless the tier is Full Gobble. */
+  /** Setup-screen opt-in; dropped unless the tier is Jerky Turkey. */
   allowProfanity?: boolean;
 }
 
@@ -34,7 +34,7 @@ export async function createDebate({
   allowProfanity,
 }: CreateDebateParams) {
   const tier = difficulty && isTier(difficulty) ? difficulty : "Friendly Cluck";
-  const profanity = tier === "Full Gobble" && allowProfanity === true;
+  const profanity = tier === "Jerky Turkey" && allowProfanity === true;
 
   const user = await prisma.user.findUnique({
     where: { id: userId },

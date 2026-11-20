@@ -11,11 +11,15 @@ export interface ChatMsg {
   role: "user" | "assistant";
   content: string;
   civilityScore?: number | null;
+  /** The scorer's one-sentence reason for the civility score. */
+  feedback?: string | null;
 }
 
 export interface FinishResult {
   overallScore: number;
   dimensions: Record<string, number> | null;
+  /** The holistic scorer's summary; null when scoring fell back to per-message averages. */
+  feedback?: string | null;
   xp: { base: number; difficultyBonus: number; dailyBonus: number; streakMultiplier: number; total: number };
   feathers: { base: number; difficultyBonus: number; dailyBonus: number; total: number };
   previousLevel: number;
@@ -40,7 +44,7 @@ const MAX_CHARS = 500;
 /**
  * Debate arena interface — Harvest direction.
  *
- * Top region (provided by parent page): app-bar-style header with Robert's
+ * Top region (provided by parent page): app-bar-style header with the partner's
  * politics + difficulty + live civility meter.
  *
  * This component owns:
@@ -112,6 +116,7 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish, o
         const updated = [...prev];
         if (updated.length && updated[updated.length - 1].role === "user") {
           updated[updated.length - 1].civilityScore = data.civility?.overall;
+          updated[updated.length - 1].feedback = data.civility?.feedback ?? null;
         }
         updated.push({
           role: "assistant",
@@ -212,6 +217,7 @@ export function ChatInterface({ debateId, initialMessages, maxTurns, onFinish, o
             role={m.role}
             content={m.content}
             civilityScore={m.civilityScore}
+            feedback={m.feedback}
           />
         ))}
         {loading && (

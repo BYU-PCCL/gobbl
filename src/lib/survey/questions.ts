@@ -5,6 +5,15 @@ export type SingleChoiceQuestion = {
   options: { value: string; label: string }[];
 };
 
+export type MultiChoiceQuestion = {
+  key: string;
+  type: "multi-choice";
+  prompt: string;
+  options: { value: string; label: string }[];
+  /** Upper bound on picks; at least one is always required. */
+  maxSelections: number;
+};
+
 export type ShortTextQuestion = {
   key: string;
   type: "short-text";
@@ -12,7 +21,10 @@ export type ShortTextQuestion = {
   maxLength: number;
 };
 
-export type SurveyQuestion = SingleChoiceQuestion | ShortTextQuestion;
+export type SurveyQuestion = SingleChoiceQuestion | MultiChoiceQuestion | ShortTextQuestion;
+
+/** A stored answer: one option value, a list of them (multi-choice), or free text. */
+export type SurveyAnswer = string | string[];
 
 export const SURVEY_QUESTIONS: SurveyQuestion[] = [
   {
@@ -40,9 +52,11 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
     ],
   },
   {
-    key: "top_issue",
-    type: "single-choice",
-    prompt: "What issue matters most to you right now?",
+    // Replaces the single-select "top_issue"; older rows keep that key with a string value.
+    key: "top_issues",
+    type: "multi-choice",
+    prompt: "Which issues matter most to you right now? Pick up to three.",
+    maxSelections: 3,
     options: [
       { value: "civil_rights",        label: "Civil rights" },
       { value: "climate_environment", label: "Climate & environment" },
@@ -56,8 +70,14 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
   },
 ];
 
-export function isAnswerValid(question: SurveyQuestion, answer: string | undefined): boolean {
-  if (!answer) return false;
+export function isAnswerValid(question: SurveyQuestion, answer: SurveyAnswer | undefined): boolean {
+  if (answer === undefined) return false;
+  if (question.type === "multi-choice") {
+    if (!Array.isArray(answer) || answer.length === 0 || answer.length > question.maxSelections) return false;
+    if (new Set(answer).size !== answer.length) return false;
+    return answer.every((value) => question.options.some((opt) => opt.value === value));
+  }
+  if (typeof answer !== "string" || !answer) return false;
   if (question.type === "single-choice") {
     return question.options.some((opt) => opt.value === answer);
   }

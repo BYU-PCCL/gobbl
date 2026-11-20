@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { Icon } from "@/components/ui/Icon";
+import { DIFFICULTIES } from "@/lib/gamification";
 
 interface DailyChallengeProps {
   topic: {
@@ -18,7 +19,7 @@ interface DailyChallengeProps {
 /**
  * Daily Gobble card — Harvest direction.
  * Inverted (ink-on-bg → bg-on-ink) hero card with a background turkey silhouette
- * and ochre CTA. Difficulty chips show what Robert's running today.
+ * and ochre CTA. Difficulty chips list the tiers on offer today.
  *
  * Edit the chips/CTA to your own difficulty preset once the user picks one.
  */
@@ -47,14 +48,14 @@ export function DailyChallenge({ topic, completed = false, className = "" }: Dai
         {!completed && (
           <>
             <div className="mt-3.5 flex gap-1.5">
-              {["Friendly Cluck", "Spirited Strut", "Full Gobble"].map((d, i) => (
+              {DIFFICULTIES.map((d, i) => (
                 <span
-                  key={d}
+                  key={d.key}
                   className={`rounded-full px-2.5 py-1 font-body text-[11px] font-semibold ${
                     i === 1 ? "bg-ochre text-ink" : "bg-white/10 text-bg"
                   }`}
                 >
-                  {d}
+                  {d.label}
                 </span>
               ))}
             </div>

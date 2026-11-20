@@ -7,22 +7,30 @@ import { Button } from "@/components/ui/Button";
 import {
   SURVEY_QUESTIONS,
   isAnswerValid,
+  type SurveyAnswer,
   type SurveyQuestion,
 } from "@/lib/survey/questions";
+import { INTRO_POINTS } from "@/lib/onboarding/intro";
 
 export default function OnboardingSurveyPage() {
   const { update } = useSession();
   const [step, setStep] = useState(0);
-  const [responses, setResponses] = useState<Record<string, string>>({});
+  const [responses, setResponses] = useState<Record<string, SurveyAnswer>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const question = SURVEY_QUESTIONS[step];
-  const isLast = step === SURVEY_QUESTIONS.length - 1;
-  const currentAnswer = responses[question.key] ?? "";
-  const canAdvance = isAnswerValid(question, currentAnswer);
+  // Steps run intro screens first (what Gobbl is), then the survey questions.
+  const introPoint = step < INTRO_POINTS.length ? INTRO_POINTS[step] : null;
+  const question = introPoint ? null : SURVEY_QUESTIONS[step - INTRO_POINTS.length];
+  const totalSteps = INTRO_POINTS.length + SURVEY_QUESTIONS.length;
+  const isLast = step === totalSteps - 1;
+  const currentAnswer = question
+    ? responses[question.key] ?? (question.type === "multi-choice" ? [] : "")
+    : "";
+  const canAdvance = question ? isAnswerValid(question, currentAnswer) : true;
 
-  function setAnswer(value: string) {
+  function setAnswer(value: SurveyAnswer) {
+    if (!question) return;
     setResponses((prev) => ({ ...prev, [question.key]: value }));
   }
 
@@ -63,25 +71,34 @@ export default function OnboardingSurveyPage() {
       <div className="w-full max-w-md">
         <header className="mb-6 text-center">
           <h1 className="font-display text-2xl font-bold text-roost-700">
-            Quick intro
+            {introPoint ? "How Gobbl works" : "About you"}
           </h1>
           <p className="mt-1 text-sm text-roost-500">
-            A few questions before you start.
+            {introPoint ? "Three things to know before you start." : "A few questions before you start."}
           </p>
         </header>
 
-        <ProgressDots total={SURVEY_QUESTIONS.length} current={step} />
+        <ProgressDots total={totalSteps} current={step} />
 
-        <div className="mt-8">
-          <h2 className="mb-4 font-display text-lg font-semibold text-roost-700">
-            {question.prompt}
-          </h2>
-          <QuestionInput
-            question={question}
-            value={currentAnswer}
-            onChange={setAnswer}
-          />
-        </div>
+        {introPoint && (
+          <div className="mt-8 rounded-2xl border-2 border-roost-200 bg-white px-5 py-6">
+            <h2 className="font-display text-xl font-bold text-roost-700">{introPoint.title}</h2>
+            <p className="mt-2 text-base leading-relaxed text-roost-600">{introPoint.body}</p>
+          </div>
+        )}
+
+        {question && (
+          <div className="mt-8">
+            <h2 className="mb-4 font-display text-lg font-semibold text-roost-700">
+              {question.prompt}
+            </h2>
+            <QuestionInput
+              question={question}
+              value={currentAnswer}
+              onChange={setAnswer}
+            />
+          </div>
+        )}
 
         {error && <p className="mt-4 text-sm text-plume-500">{error}</p>}
 
@@ -117,14 +134,18 @@ function ProgressDots({ total, current }: { total: number; current: number }) {
   );
 }
 
+const OPTION_CLASS = "rounded-xl border-2 px-4 py-3 text-left text-sm font-semibold transition-colors";
+const OPTION_SELECTED = "border-gobbl-500 bg-gobbl-500/10 text-gobbl-700";
+const OPTION_IDLE = "border-roost-200 bg-white text-roost-700 hover:border-gobbl-300";
+
 function QuestionInput({
   question,
   value,
   onChange,
 }: {
   question: SurveyQuestion;
-  value: string;
-  onChange: (v: string) => void;
+  value: SurveyAnswer;
+  onChange: (v: SurveyAnswer) => void;
 }) {
   if (question.type === "single-choice") {
     return (
@@ -136,11 +157,7 @@ function QuestionInput({
               key={opt.value}
               type="button"
               onClick={() => onChange(opt.value)}
-              className={`rounded-xl border-2 px-4 py-3 text-left text-sm font-semibold transition-colors ${
-                selected
-                  ? "border-gobbl-500 bg-gobbl-500/10 text-gobbl-700"
-                  : "border-roost-200 bg-white text-roost-700 hover:border-gobbl-300"
-              }`}
+              className={`${OPTION_CLASS} ${selected ? OPTION_SELECTED : OPTION_IDLE}`}
             >
               {opt.label}
             </button>
@@ -149,10 +166,39 @@ function QuestionInput({
       </div>
     );
   }
+  if (question.type === "multi-choice") {
+    const picked = Array.isArray(value) ? value : [];
+    const atCap = picked.length >= question.maxSelections;
+    return (
+      <div className="flex flex-col gap-2">
+        {question.options.map((opt) => {
+          const selected = picked.includes(opt.value);
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              aria-pressed={selected}
+              disabled={!selected && atCap}
+              onClick={() =>
+                onChange(selected ? picked.filter((v) => v !== opt.value) : [...picked, opt.value])
+              }
+              className={`${OPTION_CLASS} ${selected ? OPTION_SELECTED : OPTION_IDLE} disabled:cursor-not-allowed disabled:opacity-40`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+        <span className="text-right text-xs text-roost-400">
+          {picked.length} of {question.maxSelections} selected
+        </span>
+      </div>
+    );
+  }
+  const text = typeof value === "string" ? value : "";
   return (
     <div className="flex flex-col gap-1">
       <textarea
-        value={value}
+        value={text}
         onChange={(e) => onChange(e.target.value.slice(0, question.maxLength))}
         maxLength={question.maxLength}
         rows={3}
@@ -160,7 +206,7 @@ function QuestionInput({
         placeholder="Type your answer…"
       />
       <span className="text-right text-xs text-roost-400">
-        {value.length}/{question.maxLength}
+        {text.length}/{question.maxLength}
       </span>
     </div>
   );
