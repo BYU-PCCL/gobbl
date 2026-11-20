@@ -147,7 +147,9 @@ model TestEvent {
   target     String?
   /// Device and screen on session_start; element kind on taps.
   detail     Json?
+  /// When it happened on the device, shifted onto the server's clock (see the ingest route).
   clientTime DateTime
+  /// When the batch containing it was stored.
   serverTime DateTime @default(now())
 
   @@index([testerId])

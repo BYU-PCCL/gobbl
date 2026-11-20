@@ -175,7 +175,8 @@ export default function DashboardPage() {
           tone="primary"
         />
         <StatsCard
-          label="Conversations"
+          // "Conversations" overflows a third-width card at phone width.
+          label="Convos"
           value={userData.recentDebates.length}
           unit="total"
           tone="ochre"
