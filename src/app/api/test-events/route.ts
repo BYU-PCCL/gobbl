@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
   try {
     // sendBeacon posts a Blob, so read text rather than relying on the content type.
-    const body = JSON.parse(await req.text()) as { sessionId?: unknown; events?: unknown };
+    const body = JSON.parse(await req.text()) as { sessionId?: unknown; sentAt?: unknown; events?: unknown };
     const sessionId = text(body.sessionId, 64);
     if (!sessionId || !Array.isArray(body.events)) {
       return new NextResponse(null, { status: 204 });
@@ -44,6 +44,11 @@ export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     const testerId = parseTesterId(session?.user?.name);
     const now = Date.now();
+    // Taps are timed by the phone, saved conversations by the server. Shift each event by the
+    // gap between the two clocks (measured when the batch was sent) so the merged timeline
+    // sorts correctly even on a phone whose clock is wrong. Network delay adds a little.
+    const sentAt = typeof body.sentAt === "string" ? Date.parse(body.sentAt) : NaN;
+    const clockOffset = Number.isFinite(sentAt) ? now - sentAt : 0;
 
     const rows = body.events.slice(0, MAX_EVENTS_PER_REQUEST).flatMap((raw) => {
       if (!raw || typeof raw !== "object") return [];
@@ -59,7 +64,7 @@ export async function POST(req: Request) {
         route,
         target: text(e.target, 120),
         detail: cleanDetail(e.detail),
-        clientTime: new Date(Number.isFinite(parsedTime) ? parsedTime : now),
+        clientTime: new Date(Number.isFinite(parsedTime) ? parsedTime + clockOffset : now),
       }];
     });
 

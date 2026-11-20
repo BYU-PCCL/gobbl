@@ -80,7 +80,8 @@ export function TestTracker() {
       const events = queue.current;
       queue.current = [];
       try {
-        const payload = JSON.stringify({ sessionId: id, events });
+        // sentAt lets the server work out how far this device's clock is from its own.
+        const payload = JSON.stringify({ sessionId: id, sentAt: new Date().toISOString(), events });
         const sent = navigator.sendBeacon?.(ENDPOINT, new Blob([payload], { type: "application/json" }));
         if (!sent) {
           void fetch(ENDPOINT, { method: "POST", body: payload, keepalive: true }).catch(() => {});
