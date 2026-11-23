@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { pickOpposingPersona, isTier } from "@/lib/personas/pool";
+import { isTierOffered } from "@/lib/gamification";
 import { getUserBelief } from "@/lib/prompts/userBelief";
 
 /**
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
   }
 
   const tier = new URL(req.url).searchParams.get("tier") ?? "";
-  if (!isTier(tier)) {
+  if (!isTier(tier) || !isTierOffered(tier)) {
     return NextResponse.json({ error: "Invalid tier" }, { status: 400 });
   }
 

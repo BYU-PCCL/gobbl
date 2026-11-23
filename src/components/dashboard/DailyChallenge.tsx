@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { Icon } from "@/components/ui/Icon";
-import { DIFFICULTIES } from "@/lib/gamification";
+import { OFFERED_DIFFICULTIES } from "@/lib/gamification";
 
 interface DailyChallengeProps {
   topic: {
@@ -48,7 +48,7 @@ export function DailyChallenge({ topic, completed = false, className = "" }: Dai
         {!completed && (
           <>
             <div className="mt-3.5 flex gap-1.5">
-              {DIFFICULTIES.map((d, i) => (
+              {OFFERED_DIFFICULTIES.map((d, i) => (
                 <span
                   key={d.key}
                   className={`rounded-full px-2.5 py-1 font-body text-[11px] font-semibold ${

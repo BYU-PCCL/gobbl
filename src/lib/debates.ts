@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getAIOpening } from "@/lib/ai";
 import { getUserBelief } from "@/lib/prompts/userBelief";
+import { HARDEST_OFFERED_TIER, isTierOffered } from "@/lib/gamification";
 import { getPersonaById, isTier, opposingPersonas, pickOpposingPersona } from "@/lib/personas/pool";
 
 interface CreateDebateParams {
@@ -33,7 +34,9 @@ export async function createDebate({
   trainingMode,
   allowProfanity,
 }: CreateDebateParams) {
-  const tier = difficulty && isTier(difficulty) ? difficulty : "Friendly Cluck";
+  const requestedTier = difficulty && isTier(difficulty) ? difficulty : "Friendly Cluck";
+  // A tier hidden from the tester build can still arrive from an old link or a hand-made request.
+  const tier = isTierOffered(requestedTier) ? requestedTier : HARDEST_OFFERED_TIER;
   const profanity = tier === "Jerky Turkey" && allowProfanity === true;
 
   const user = await prisma.user.findUnique({

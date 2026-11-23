@@ -1,3 +1,5 @@
+import { isTestMode } from "@/lib/testMode";
+
 export interface LevelDef {
   level: number;
   name: string;
@@ -99,6 +101,23 @@ export type DifficultyKey = (typeof DIFFICULTIES)[number]["key"];
 
 /** The top tier: the one the Flock Leader badge counts. */
 export const TOP_TIER: DifficultyKey = "Jerky Turkey";
+
+/**
+ * Tiers held back from the focus-group (tester) build. The public app always offers every
+ * tier. Empty this list to bring them back.
+ */
+const TESTER_HIDDEN_TIERS: readonly string[] = ["Jerky Turkey"];
+
+/** False for a tier that is hidden from the tester build, when running as that build. */
+export function isTierOffered(key: string): boolean {
+  return !(isTestMode() && TESTER_HIDDEN_TIERS.includes(key));
+}
+
+/** The tiers a user can pick. Use this for pickers; DIFFICULTIES stays the full list. */
+export const OFFERED_DIFFICULTIES = DIFFICULTIES.filter((d) => isTierOffered(d.key));
+
+/** Where a request for a hidden tier lands: the hardest tier still on offer. */
+export const HARDEST_OFFERED_TIER: DifficultyKey = OFFERED_DIFFICULTIES[OFFERED_DIFFICULTIES.length - 1].key;
 
 const DEFAULT_MAX_TURNS = 8;
 

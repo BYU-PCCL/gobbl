@@ -13,7 +13,7 @@ import { FlatTurkey, TURKEY_STAGE_LABELS } from "@/components/gamification/FlatT
 import { AvatarWithItems } from "@/components/gamification/AvatarWithItems";
 import { BadgeMark } from "@/components/gamification/BadgeMark";
 import { Icon } from "@/components/ui/Icon";
-import { BADGES } from "@/lib/gamification";
+import { BADGES, TOP_TIER, isTierOffered } from "@/lib/gamification";
 import type { EquippedCosmetics } from "@/lib/shop";
 
 interface UserData {
@@ -189,13 +189,18 @@ export default function ProfilePage() {
         <div className="grid grid-cols-4 gap-2.5">
           {BADGES.map((b) => {
             const earned = userData.badges.includes(b.key);
+            // The Flock Leader hint names the top tier; don't name a tier that is hidden.
+            const description =
+              b.key === "flock-leader" && !isTierOffered(TOP_TIER)
+                ? "Complete 10 conversations at the hardest difficulty"
+                : b.description;
             return (
               <div
                 key={b.key}
                 className={`flex aspect-square flex-col items-center justify-center gap-1.5 rounded-2xl border p-1.5 lg:aspect-auto lg:gap-2 lg:px-2 lg:py-4 ${
                   earned ? "border-line bg-surface" : "border-dashed border-line text-ink-muted"
                 }`}
-                title={earned ? b.description : `Locked. ${b.description}`}
+                title={earned ? description : `Locked. ${description}`}
               >
                 <BadgeMark badgeKey={b.key} earned={earned} size={40} />
                 <div className="text-center font-body text-[10px] font-semibold leading-tight lg:text-[11px]">

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { FlatTurkey } from "@/components/gamification/FlatTurkey";
 import { TOPICS, getDailyTopic, formatTopicForDebate, splitTopicsByIssues, type Topic } from "@/lib/topics";
-import { DIFFICULTIES } from "@/lib/gamification";
+import { OFFERED_DIFFICULTIES } from "@/lib/gamification";
 import { describeFlip } from "@/lib/prompts/flipBelief";
 import { parseBeliefKey, type BeliefKey } from "@/lib/prompts/beliefs";
 
@@ -50,7 +50,10 @@ function SetupContent() {
   const isDaily = searchParams.get("daily") === "true";
   const topicId = searchParams.get("topic");
 
-  const initialDifficulty = searchParams.get("difficulty") ?? "Spirited Strut";
+  // Only a tier that is on offer can come in from the link; anything else gets the default.
+  const requestedDifficulty = searchParams.get("difficulty");
+  const initialDifficulty =
+    OFFERED_DIFFICULTIES.find((d) => d.key === requestedDifficulty)?.key ?? "Spirited Strut";
   const [selectedDifficulty, setSelectedDifficulty] = useState(initialDifficulty);
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(
     isDaily ? null : (topicId ?? null),
@@ -299,7 +302,7 @@ function SetupContent() {
       <section>
         <h2 className="mb-2.5 font-display text-base font-bold tracking-[-0.01em]">Difficulty</h2>
         <div className="flex flex-col gap-2.5">
-          {DIFFICULTIES.map((d) => {
+          {OFFERED_DIFFICULTIES.map((d) => {
             const meta = DIFFICULTY_META[d.key];
             const selected = selectedDifficulty === d.key;
             return (
